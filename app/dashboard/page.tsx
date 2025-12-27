@@ -72,14 +72,8 @@ const LABEL_OVERRIDES: Record<string, string> = {
 function toTitleCaseLabel(key: string) {
   if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];
 
-  // Replace underscores, and split CamelCase
-  const withSpaces = key
-    .replace(/_/g, " ")
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .trim();
-
+  const withSpaces = key.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").trim();
   const acronyms = new Set(["BOP", "ID", "API", "URL", "CAN"]);
-
   return withSpaces
     .split(/\s+/)
     .map((w) => {
@@ -164,6 +158,7 @@ export default function Dashboard() {
   const [records, setRecords] = useState<Row[]>([]);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [page, setPage] = useState(0);
+  const [pageJump, setPageJump] = useState<string>("1");
 
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
@@ -172,6 +167,11 @@ export default function Dashboard() {
 
   const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" });
   const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKey; dir: SortDir }>({ key: "BOP_Date", dir: "asc" });
+  const [sortLatest, setSortLatest] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" });
+
+  // Latest 500
+  const [latestRows, setLatestRows] = useState<Row[]>([]);
+  const [latestLoading, setLatestLoading] = useState(false);
 
   // Upcoming report
   const [rangeStart, setRangeStart] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -194,7 +194,7 @@ export default function Dashboard() {
           window.location.href = "/";
           return;
         }
-        await Promise.all([loadPage(0), fetchUpcoming(rangeStart, rangeEnd), fetchTrends()]);
+        await Promise.all([loadPage(0), fetchLatest500(), fetchUpcoming(rangeStart, rangeEnd), fetchTrends()]);
       } catch (e: any) {
         setError(e?.message || "Failed to initialize");
       } finally {
@@ -216,14 +216,40 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortAll.key, sortAll.dir]);
 
+  // Reload latest 500 on sort change
+  useEffect(() => {
+    fetchLatest500();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortLatest.key, sortLatest.dir]);
+
   function applySort(query: any, sort: { key: SortKey; dir: SortDir }) {
     const ascending = sort.dir === "asc";
-
-    if (sort.key === "client") {
-      // Composite sort
-      return query.order("first_name", { ascending }).order("last_name", { ascending });
-    }
+    if (sort.key === "client") return query.order("first_name", { ascending }).order("last_name", { ascending });
     return query.order(sort.key, { ascending });
+  }
+
+  async function fetchLatest500() {
+    setLatestLoading(true);
+    setError(null);
+    try {
+      const supabase = getSupabase();
+      let query = supabase
+        .from("client_registrations")
+        .select(
+          "id,created_at,status,interest_type,business_opportunities,wealth_solutions,first_name,last_name,phone,email,profession,preferred_days,preferred_time,referred_by,CalledOn,BOP_Date,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark"
+        )
+        .limit(500);
+
+      query = applySort(query, sortLatest);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setLatestRows((data || []) as Row[]);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load latest 500");
+    } finally {
+      setLatestLoading(false);
+    }
   }
 
   async function loadPage(nextPage: number) {
@@ -235,13 +261,9 @@ export default function Dashboard() {
 
       // Count (no ordering)
       let countQuery = supabase.from("client_registrations").select("id", { count: "exact", head: true });
-
       if (search) {
-        countQuery = countQuery.or(
-          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
-        );
+        countQuery = countQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
       }
-
       const { count, error: countErr } = await countQuery;
       if (countErr) throw countErr;
       setTotalCount(count ?? 0);
@@ -270,6 +292,7 @@ export default function Dashboard() {
 
       setRecords((data || []) as Row[]);
       setPage(nextPage);
+      setPageJump(String(nextPage + 1));
     } catch (e: any) {
       setError(e?.message || "Failed to load records");
     } finally {
@@ -300,7 +323,6 @@ export default function Dashboard() {
 
       const { data, error } = await query;
       if (error) throw error;
-
       setUpcomingRows((data || []) as Row[]);
     } catch (e: any) {
       setError(e?.message || "Failed to load upcoming report");
@@ -335,11 +357,7 @@ export default function Dashboard() {
         const key = format(wkEnd, "yyyy-MM-dd");
         weekMap.set(key, (weekMap.get(key) || 0) + 1);
       }
-      setWeeklyTrend(
-        Array.from(weekMap.entries())
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([weekEnd, count]) => ({ weekEnd, count }))
-      );
+      setWeeklyTrend(Array.from(weekMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([weekEnd, count]) => ({ weekEnd, count })));
 
       // Monthly bar chart (current year)
       const yearStart = startOfYear(new Date());
@@ -378,9 +396,9 @@ export default function Dashboard() {
     }
   }
 
+  const totalPages = totalCount != null ? Math.max(1, Math.ceil(totalCount / PAGE_SIZE)) : 1;
   const canPrev = page > 0;
-  const canNext =
-    totalCount != null ? (page + 1) * PAGE_SIZE < totalCount : records.length === PAGE_SIZE;
+  const canNext = totalCount != null ? (page + 1) * PAGE_SIZE < totalCount : records.length === PAGE_SIZE;
 
   const exportXlsx = () => {
     const exportRows = upcomingRows.map((r) => ({
@@ -428,8 +446,10 @@ export default function Dashboard() {
       const { error } = await supabase.from("client_registrations").update(payload).eq("id", id);
       if (error) throw error;
 
-      setRecords((prev) => prev.map((r) => (r.id === id ? ({ ...r, [key]: payload[key] } as Row) : r)));
-      setUpcomingRows((prev) => prev.map((r) => (r.id === id ? ({ ...r, [key]: payload[key] } as Row) : r)));
+      const patch = (prev: Row[]) => prev.map((r) => (r.id === id ? ({ ...r, [key]: payload[key] } as Row) : r));
+      setRecords(patch);
+      setUpcomingRows(patch);
+      setLatestRows(patch);
     } catch (e: any) {
       setError(e?.message || "Update failed");
     } finally {
@@ -446,18 +466,16 @@ export default function Dashboard() {
     }
   };
 
-  const SortHelp = ({ which }: { which: "all" | "upcoming" }) => (
+  const SortHelp = () => (
     <div className="text-xs text-slate-500">
-      Sort by clicking: <span className="font-semibold">Client Name</span>, <span className="font-semibold">Created Date</span>,{" "}
+      Click headers to sort: <span className="font-semibold">Client Name</span>, <span className="font-semibold">Created Date</span>,{" "}
       <span className="font-semibold">BOP Date</span>, <span className="font-semibold">BOP Status</span>,{" "}
       <span className="font-semibold">Follow-Up Date</span>, <span className="font-semibold">Status</span>.
     </div>
   );
 
-  const allExtraCols = useMemo(
-    () => [
-      { label: "Client Name", sortable: "client" as SortKey, render: (r: Row) => clientName(r) },
-    ],
+  const extraCols = useMemo(
+    () => [{ label: "Client Name", sortable: "client" as SortKey, render: (r: Row) => clientName(r) }],
     []
   );
 
@@ -475,10 +493,10 @@ export default function Dashboard() {
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/CANLogo.jpeg" className="h-10" alt="CAN Financial Solutions" />
+            <img src="/CANLogo.jpeg" className="h-10 w-auto" alt="CAN Financial Solutions" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
-              <div className="text-sm text-slate-500">Search, edit follow-ups, export & trends</div>
+              <div className="text-sm text-slate-500">Search, edit follow-ups, upcoming BOP meetings, export & trends</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -512,27 +530,16 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
                 <div className="text-xs font-semibold text-slate-600 mb-1">Start</div>
-                <input
-                  type="date"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
-                  value={rangeStart}
-                  onChange={(e) => setRangeStart(e.target.value)}
-                />
+                <input type="date" className="w-full rounded-xl border border-slate-200 px-3 py-2" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
               </label>
               <label className="block">
                 <div className="text-xs font-semibold text-slate-600 mb-1">End</div>
-                <input
-                  type="date"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
-                  value={rangeEnd}
-                  onChange={(e) => setRangeEnd(e.target.value)}
-                />
+                <input type="date" className="w-full rounded-xl border border-slate-200 px-3 py-2" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
               </label>
             </div>
             <div className="mt-3 flex items-center justify-between">
               <div className="text-sm text-slate-600">
-                Upcoming:{" "}
-                <span className="font-semibold text-slate-800">{upcomingLoading ? "…" : upcomingRows.length}</span>
+                Upcoming: <span className="font-semibold text-slate-800">{upcomingLoading ? "…" : upcomingRows.length}</span>
               </div>
               <Button variant="secondary" onClick={exportXlsx} disabled={upcomingRows.length === 0}>
                 Export XLSX
@@ -543,9 +550,7 @@ export default function Dashboard() {
           <Card title="Trends">
             <div className="flex items-center justify-between mb-2">
               <div className="text-xs font-semibold text-slate-600">Weekly (Last 2 Months) — week end date</div>
-              <Button variant="secondary" onClick={fetchTrends}>
-                Refresh
-              </Button>
+              <Button variant="secondary" onClick={fetchTrends}>Refresh</Button>
             </div>
 
             <div className="h-40">
@@ -575,10 +580,30 @@ export default function Dashboard() {
           </Card>
         </div>
 
+        <Card title="Latest 500 Records (Editable)">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+            <div className="text-sm text-slate-600">Scroll vertically & horizontally.</div>
+            <SortHelp />
+          </div>
+          {latestLoading ? (
+            <div className="text-slate-600">Loading latest 500…</div>
+          ) : (
+            <Table
+              rows={latestRows}
+              savingId={savingId}
+              onUpdate={updateCell}
+              extraLeftCols={extraCols}
+              maxHeightClass="max-h-[420px]"
+              sortState={sortLatest}
+              onSortChange={(k) => setSortLatest((cur) => toggleSort(cur, k))}
+            />
+          )}
+        </Card>
+
         <Card title="Upcoming BOP Meetings (Editable)">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
             <div className="text-sm text-slate-600">Scroll vertically & horizontally.</div>
-            <SortHelp which="upcoming" />
+            <SortHelp />
           </div>
 
           <Table
@@ -595,18 +620,38 @@ export default function Dashboard() {
         </Card>
 
         <Card title="All Records (Editable) — Pagination (100 per page)">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3">
             <div className="text-sm text-slate-600">
-              Page <span className="font-semibold text-slate-800">{page + 1}</span>
-              {totalCount != null ? (
-                <>
-                  {" "}
-                  of{" "}
-                  <span className="font-semibold text-slate-800">{Math.max(1, Math.ceil(totalCount / PAGE_SIZE))}</span>
-                </>
-              ) : null}
+              Page <span className="font-semibold text-slate-800">{page + 1}</span> of{" "}
+              <span className="font-semibold text-slate-800">{totalPages}</span>
             </div>
-            <SortHelp which="all" />
+
+            <div className="flex flex-wrap items-center gap-2">
+              <SortHelp />
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 bg-white">
+                <span className="text-xs font-semibold text-slate-600">Go to page</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                  value={pageJump}
+                  onChange={(e) => setPageJump(e.target.value)}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    const n = Number(pageJump);
+                    if (!Number.isFinite(n)) return;
+                    const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
+                    loadPage(p - 1);
+                  }}
+                  disabled={loading || totalPages <= 1}
+                >
+                  Go
+                </Button>
+              </div>
+            </div>
           </div>
 
           <Pager
@@ -624,7 +669,7 @@ export default function Dashboard() {
               rows={records}
               savingId={savingId}
               onUpdate={updateCell}
-              extraLeftCols={allExtraCols}
+              extraLeftCols={extraCols}
               maxHeightClass="max-h-[520px]"
               sortState={sortAll}
               onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
@@ -702,11 +747,7 @@ function Table({
             {extraLeftCols.map((c) => (
               <Th key={c.label}>
                 {c.sortable ? (
-                  <button
-                    className="inline-flex items-center hover:text-slate-800"
-                    onClick={() => onSortChange(c.sortable!)}
-                    type="button"
-                  >
+                  <button className="inline-flex items-center hover:text-slate-800" onClick={() => onSortChange(c.sortable!)} type="button">
                     {c.label}
                     {sortIcon(c.sortable)}
                   </button>
@@ -718,11 +759,7 @@ function Table({
             {COLUMNS.map((c) => (
               <Th key={String(c.key)}>
                 {c.sortable ? (
-                  <button
-                    className="inline-flex items-center hover:text-slate-800"
-                    onClick={() => onSortChange(c.sortable!)}
-                    type="button"
-                  >
+                  <button className="inline-flex items-center hover:text-slate-800" onClick={() => onSortChange(c.sortable!)} type="button">
                     {toTitleCaseLabel(String(c.key))}
                     {sortIcon(c.sortable)}
                   </button>
@@ -761,9 +798,7 @@ function Table({
                       placeholder={toTitleCaseLabel(String(c.key))}
                       onBlur={(e) => onUpdate(r.id, c.key, c.type, e.target.value)}
                     />
-                    {c.type === "datetime" && value ? (
-                      <div className="mt-1 text-[11px] text-slate-500">{fmtDateTime(value)}</div>
-                    ) : null}
+                    {c.type === "datetime" && value ? <div className="mt-1 text-[11px] text-slate-500">{fmtDateTime(value)}</div> : null}
                   </Td>
                 );
               })}
