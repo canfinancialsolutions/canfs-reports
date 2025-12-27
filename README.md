@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CANFS Reports (Supabase + Next.js)
 
-## Getting Started
+A clean admin reporting site for the `client_registrations` table:
+- Search by first/last/phone
+- Edit follow-up fields (CalledOn, BOP_Date, BOP_Status, etc.) and save to Supabase
+- Upcoming BOP report (date range)
+- Export filtered upcoming rows to XLSX
+- Weekly chart of upcoming BOP counts
 
-First, run the development server:
-
+## 1) Local run
 ```bash
+npm install
+cp .env.example .env.local
+# Fill Supabase values in .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 2) Supabase requirements
+### A) Create an admin user
+Supabase → Authentication → Users → Add user (email/password)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### B) Enable RLS + policies (recommended)
+Supabase → Table Editor → client_registrations → Enable RLS
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+SQL Editor:
+```sql
+create policy "admin read"
+on public.client_registrations
+for select
+to authenticated
+using (true);
 
-## Learn More
+create policy "admin update"
+on public.client_registrations
+for update
+to authenticated
+using (true)
+with check (true);
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 3) Deploy on Vercel
+1. Upload this project to GitHub (root must include package.json)
+2. Import the repo into Vercel
+3. Set Environment Variables (Production + Preview):
+   - NEXT_PUBLIC_SUPABASE_URL
+   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+4. Deploy
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Logo
+Replace `public/can-logo.svg` with your real logo if you want.
