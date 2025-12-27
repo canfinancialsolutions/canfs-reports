@@ -5,7 +5,8 @@ A clean admin reporting site for the `client_registrations` table:
 - Edit follow-up fields (CalledOn, BOP_Date, BOP_Status, etc.) and save to Supabase
 - Upcoming BOP report (date range)
 - Export filtered upcoming rows to XLSX
-- Weekly chart of upcoming BOP counts
+- Weekly **line** trend chart (last 2 months, by week end date)
+- Monthly **bar** chart (current year)
 
 ## 1) Local run
 ```bash
@@ -48,3 +49,7 @@ with check (true);
 
 ## Logo
 Replace `public/can-logo.svg` with your real logo if you want.
+
+
+## Pagination
+The All Records table shows 100 records per page with Previous/Next buttons.
