@@ -53,3 +53,7 @@ Replace `public/can-logo.svg` with your real logo if you want.
 
 ## Pagination
 The All Records table shows 100 records per page with Previous/Next buttons.
+
+
+## Sorting
+In both tables, click on these headers to sort: Client Name, Created Date, BOP Date, BOP Status, Follow-Up Date, Status.
