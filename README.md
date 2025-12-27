@@ -57,3 +57,11 @@ The All Records table shows 100 records per page with Previous/Next buttons.
 
 ## Sorting
 In both tables, click on these headers to sort: Client Name, Created Date, BOP Date, BOP Status, Follow-Up Date, Status.
+
+
+## Latest 500
+There is a Latest 500 Records table with the same scroll + sort + edit behavior.
+
+
+## Jump to Page
+Use the Go to page box in All Records to jump to any page.
