@@ -315,7 +315,7 @@ export default function Dashboard() {
             <Button variant="secondary" onClick={fetchTrends}>Refresh</Button>
           </div>
 
-          <div className="h-56">
+          <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={weekly}>
                 <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
@@ -326,8 +326,8 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-6 text-xs font-semibold text-slate-600">Monthly (Current Year)</div>
-          <div className="h-56">
+          <div className="mt-4 text-xs font-semibold text-slate-600">Monthly (Current Year)</div>
+          <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthly}>
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
@@ -371,6 +371,7 @@ export default function Dashboard() {
               rows={upcoming}
               savingId={savingId}
               onUpdate={updateCell}
+              preferredOrder={["created_at","BOP_Date","BOP_Status","Followup_Date","status"]}
               extraLeftCols={[
                 { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
                 { label: "Phone", render: (r) => String(r.phone || "") },
@@ -441,6 +442,7 @@ function ExcelTable({
   maxHeightClass,
   sortState,
   onSortChange,
+  preferredOrder,
 }: {
   rows: Row[];
   savingId: string | null;
@@ -449,6 +451,7 @@ function ExcelTable({
   maxHeightClass: string;
   sortState: { key: SortKey; dir: SortDir };
   onSortChange: (key: SortKey) => void;
+  preferredOrder?: string[];
 }) {
   const [openCell, setOpenCell] = useState<string | null>(null);
 
@@ -458,7 +461,20 @@ function ExcelTable({
     return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
   };
 
-  const keys = useMemo(() => (rows.length ? Object.keys(rows[0]).filter((k) => k !== "id") : []), [rows]);
+  const keys = useMemo(() => {
+    if (!rows.length) return [] as string[];
+    const baseKeys = Object.keys(rows[0]).filter((k) => k !== "id");
+    if (!preferredOrder || !preferredOrder.length) return baseKeys;
+    const set = new Set(baseKeys);
+    const ordered: string[] = [];
+    for (const k of preferredOrder) {
+      if (set.has(k)) ordered.push(k);
+    }
+    for (const k of baseKeys) {
+      if (!ordered.includes(k)) ordered.push(k);
+    }
+    return ordered;
+  }, [rows, preferredOrder]);
 
   return (
     <div className={`overflow-auto border border-slate-500 bg-white ${maxHeightClass}`}>
