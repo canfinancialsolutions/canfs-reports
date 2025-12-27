@@ -210,7 +210,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <img src="/can-logo.svg" className="h-10" alt="CAN Financial Solutions" />
             <div>
-              <div className="text-2xl font-bold text-slate-800">Client Reports</div>
+              <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
               <div className="text-sm text-slate-500">
                 Search, edit follow-ups, upcoming BOP meetings, export & weekly trend
               </div>
