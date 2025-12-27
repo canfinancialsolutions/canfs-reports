@@ -475,7 +475,7 @@ export default function Dashboard() {
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/can-logo.svg" className="h-10" alt="CAN Financial Solutions" />
+            <img src="/CANLogo.jpeg" className="h-10" alt="CAN Financial Solutions" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
               <div className="text-sm text-slate-500">Search, edit follow-ups, export & trends</div>
