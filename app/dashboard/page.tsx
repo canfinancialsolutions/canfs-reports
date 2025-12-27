@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { addDays, addYears, endOfWeek, format, isValid, parseISO, startOfWeek, startOfYear, subWeeks } from "date-fns";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, BarChart, Bar } from "recharts";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, BarChart, Bar, LabelList } from "recharts";
 import { getSupabase } from "@/lib/supabaseClient";
 import { Button, Card } from "@/components/ui";
 
@@ -13,7 +13,7 @@ type Row = Record<string, any>;
 type SortKey = "client" | "created_at" | "BOP_Date" | "BOP_Status" | "Followup_Date" | "status";
 type SortDir = "asc" | "desc";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
 const READONLY_LIST_COLS = new Set(["interest_type", "business_opportunities", "wealth_solutions", "preferred_days"]);
 
 const LABEL_OVERRIDES: Record<string, string> = {
@@ -88,6 +88,12 @@ export default function Dashboard() {
 
   // Search + All Records
   const [q, setQ] = useState("");
+  const [filterClient, setFilterClient] = useState("");
+  const [filterInterestType, setFilterInterestType] = useState("");
+  const [filterBusinessOpp, setFilterBusinessOpp] = useState("");
+  const [filterWealthSolutions, setFilterWealthSolutions] = useState("");
+  const [filterBopStatus, setFilterBopStatus] = useState("");
+  const [filterFollowUpStatus, setFilterFollowUpStatus] = useState("");
   const [records, setRecords] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -227,9 +233,15 @@ export default function Dashboard() {
     try {
       const supabase = getSupabase();
       const search = q.trim();
+      const fc = filterClient.trim();
+      const fi = filterInterestType.trim();
+      const fb = filterBopStatus.trim();
 
       let countQuery = supabase.from("client_registrations").select("id", { count: "exact", head: true });
       if (search) countQuery = countQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
+      if (fc) countQuery = countQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
+      if (fi) countQuery = countQuery.eq("interest_type", fi);
+      if (fb) countQuery = countQuery.eq("BOP_Status", fb);
       const { count, error: cErr } = await countQuery;
       if (cErr) throw cErr;
       setTotal(count ?? 0);
@@ -239,11 +251,31 @@ export default function Dashboard() {
 
       let dataQuery = supabase.from("client_registrations").select("*").range(from, to);
       if (search) dataQuery = dataQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
+      if (fc) dataQuery = dataQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
+      if (fi) dataQuery = dataQuery.eq("interest_type", fi);
+      if (fb) dataQuery = dataQuery.eq("BOP_Status", fb);
       dataQuery = applySort(dataQuery, sortAll);
 
       const { data, error } = await dataQuery;
       if (error) throw error;
-      setRecords(data || []);
+
+const raw = (data || []) as any[];
+const fbo = filterBusinessOpp.trim().toLowerCase();
+const fws = filterWealthSolutions.trim().toLowerCase();
+const ffu = filterFollowUpStatus.trim().toLowerCase();
+
+const clientSideFiltered = raw.filter((row) => {
+  const opp = Array.isArray(row.business_opportunities) ? row.business_opportunities.join(",") : String(row.business_opportunities || "");
+  const ws = Array.isArray(row.wealth_solutions) ? row.wealth_solutions.join(",") : String(row.wealth_solutions || "");
+  const fu = String(row.FollowUp_Status ?? row.Followup_Status ?? "").toLowerCase();
+
+  const okOpp = !fbo || opp.toLowerCase().includes(fbo);
+  const okWs = !fws || ws.toLowerCase().includes(fws);
+  const okFu = !ffu || fu.includes(ffu);
+  return okOpp && okWs && okFu;
+});
+
+setRecords(clientSideFiltered);
       setPage(nextPage);
       setPageJump(String(nextPage + 1));
     } catch (e: any) {
@@ -310,36 +342,47 @@ export default function Dashboard() {
 
         {/* 1) Trends (vertical) */}
         <Card title="Trends">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs font-semibold text-slate-600">Weekly = count of Created Date records (last 5 weeks incl current)</div>
-            <Button variant="secondary" onClick={fetchTrends}>Refresh</Button>
-          </div>
+  <div className="flex items-center justify-between mb-3">
+    <div className="text-xs font-semibold text-slate-600">Weekly = count of Created Date records (last 5 weeks incl current)</div>
+    <Button variant="secondary" onClick={fetchTrends}>Refresh</Button>
+  </div>
 
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={weekly}>
-                <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Line type="monotone" dataKey="count" stroke="#2563eb" dot />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+  <div className="grid lg:grid-cols-2 gap-6">
+    <div>
+      <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={weekly}>
+            <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Line type="monotone" dataKey="count" stroke="#2563eb" dot>
+              <LabelList dataKey="count" position="top" />
+            </Line>
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
 
-          <div className="mt-4 text-xs font-semibold text-slate-600">Monthly (Current Year)</div>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthly}>
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#16a34a" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+    <div>
+      <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={monthly}>
+            <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Bar dataKey="count" fill="#16a34a">
+              <LabelList dataKey="count" position="top" />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  </div>
 
-          {trendLoading && <div className="mt-2 text-xs text-slate-500">Loading…</div>}
-        </Card>
+  {trendLoading && <div className="mt-2 text-xs text-slate-500">Loading…</div>}
+</Card>
 
         {/* 2) Upcoming BOP range */}
         <Card title="Upcoming BOP Date Range">
@@ -371,7 +414,7 @@ export default function Dashboard() {
               rows={upcoming}
               savingId={savingId}
               onUpdate={updateCell}
-              preferredOrder={["created_at","BOP_Date","BOP_Status","Followup_Date","status"]}
+              preferredOrder={["BOP_Date","created_at","BOP_Status","Followup_Date","status"]}
               extraLeftCols={[
                 { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
                 { label: "Phone", render: (r) => String(r.phone || "") },
@@ -392,10 +435,41 @@ export default function Dashboard() {
             <Button onClick={() => loadPage(0)}>Go</Button>
             <div className="text-sm text-slate-600 md:ml-auto">{total.toLocaleString()} records • showing {PAGE_SIZE} per page</div>
           </div>
+        
+<div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">Client Name</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterClient} onChange={(e) => setFilterClient(e.target.value)} placeholder="Contains…" />
+  </div>
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">Interest Type</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterInterestType} onChange={(e) => setFilterInterestType(e.target.value)} placeholder="e.g., client" />
+  </div>
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">Business Opportunities</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterBusinessOpp} onChange={(e) => setFilterBusinessOpp(e.target.value)} placeholder="Contains…" />
+  </div>
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">Wealth Solutions</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterWealthSolutions} onChange={(e) => setFilterWealthSolutions(e.target.value)} placeholder="Contains…" />
+  </div>
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">BOP Status</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterBopStatus} onChange={(e) => setFilterBopStatus(e.target.value)} placeholder="e.g., scheduled" />
+  </div>
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">Follow-Up Status</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterFollowUpStatus} onChange={(e) => setFilterFollowUpStatus(e.target.value)} placeholder="e.g., pending" />
+  </div>
+</div>
+<div className="mt-2 text-xs text-slate-600">
+  Tip: Enter filters and click <b>Go</b> to apply. Page size is 50.
+</div>
+
         </Card>
 
         {/* 5) All Records */}
-        <Card title="All Records (Editable) — Pagination (100 per page)">
+        <Card title="All Records (Editable) — Pagination (50 per page)">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
             <div className="text-sm text-slate-600">Page <b>{page + 1}</b> of <b>{totalPages}</b></div>
 
