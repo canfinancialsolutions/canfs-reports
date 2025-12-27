@@ -1,9 +1,8 @@
-\
 "use client";
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { addDays, addYears, endOfWeek, format, isValid, parseISO, startOfYear, subMonths } from "date-fns";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, BarChart, Bar } from "recharts";
@@ -46,39 +45,59 @@ type Row = {
 
 type ColType = "text" | "datetime" | "array";
 
+type SortKey = "client" | "created_at" | "BOP_Date" | "BOP_Status" | "Followup_Date" | "status";
+type SortDir = "asc" | "desc";
+
 const PAGE_SIZE = 100;
 
-const COLUMNS: { key: keyof Row; label: string; type: ColType }[] = [
-  { key: "created_at", label: "CREATED", type: "text" },
-  { key: "status", label: "STATUS", type: "text" },
-  { key: "interest_type", label: "INTEREST_TYPE", type: "text" },
-  { key: "business_opportunities", label: "BUSINESS_OPPORTUNITIES", type: "array" },
-  { key: "wealth_solutions", label: "WEALTH_SOLUTIONS", type: "array" },
-  { key: "first_name", label: "FIRST_NAME", type: "text" },
-  { key: "last_name", label: "LAST_NAME", type: "text" },
-  { key: "phone", label: "PHONE", type: "text" },
-  { key: "email", label: "EMAIL", type: "text" },
-  { key: "profession", label: "PROFESSION", type: "text" },
-  { key: "preferred_days", label: "PREFERRED_DAYS", type: "array" },
-  { key: "preferred_time", label: "PREFERRED_TIME", type: "text" },
-  { key: "referred_by", label: "REFERRED_BY", type: "text" },
-  { key: "CalledOn", label: "CALLED_ON", type: "datetime" },
-  { key: "BOP_Date", label: "BOP_DATE", type: "datetime" },
-  { key: "BOP_Status", label: "BOP_STATUS", type: "text" },
-  { key: "Followup_Date", label: "FOLLOWUP_DATE", type: "datetime" },
-  { key: "FollowUp_Status", label: "FOLLOWUP_STATUS", type: "text" },
-  { key: "Product", label: "PRODUCT", type: "text" },
-  { key: "Issued", label: "ISSUED", type: "datetime" },
-  { key: "Comment", label: "COMMENT", type: "text" },
-  { key: "Remark", label: "REMARK", type: "text" },
-];
+const LABEL_OVERRIDES: Record<string, string> = {
+  created_at: "Created Date",
+  interest_type: "Interest Type",
+  business_opportunities: "Business Opportunities",
+  wealth_solutions: "Wealth Solutions",
+  first_name: "First Name",
+  last_name: "Last Name",
+  preferred_days: "Preferred Days",
+  preferred_time: "Preferred Time",
+  referred_by: "Referred By",
+  CalledOn: "Called On",
+  BOP_Date: "BOP Date",
+  BOP_Status: "BOP Status",
+  Followup_Date: "Follow-Up Date",
+  FollowUp_Status: "Follow-Up Status",
+  Product: "Product",
+  Issued: "Issued",
+};
+
+function toTitleCaseLabel(key: string) {
+  if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];
+
+  // Replace underscores, and split CamelCase
+  const withSpaces = key
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .trim();
+
+  const acronyms = new Set(["BOP", "ID", "API", "URL", "CAN"]);
+
+  return withSpaces
+    .split(/\s+/)
+    .map((w) => {
+      const up = w.toUpperCase();
+      if (acronyms.has(up)) return up;
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
 
 function toLocalInput(value: string | null) {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
+    d.getMinutes()
+  )}`;
 }
 function fromLocalInput(value: string) {
   if (!value?.trim()) return null;
@@ -100,6 +119,46 @@ function fmtDateTime(value: string | null) {
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleString();
 }
+function clientName(r: Row) {
+  return `${r.first_name || ""} ${r.last_name || ""}`.trim();
+}
+
+const COLUMNS: { key: keyof Row; type: ColType; sortable?: SortKey }[] = [
+  { key: "created_at", type: "text", sortable: "created_at" },
+  { key: "status", type: "text", sortable: "status" },
+  { key: "interest_type", type: "text" },
+
+  { key: "business_opportunities", type: "array" },
+  { key: "wealth_solutions", type: "array" },
+
+  { key: "first_name", type: "text" },
+  { key: "last_name", type: "text" },
+  { key: "phone", type: "text" },
+  { key: "email", type: "text" },
+  { key: "profession", type: "text" },
+
+  { key: "preferred_days", type: "array" },
+  { key: "preferred_time", type: "text" },
+  { key: "referred_by", type: "text" },
+
+  { key: "CalledOn", type: "datetime" },
+  { key: "BOP_Date", type: "datetime", sortable: "BOP_Date" },
+  { key: "BOP_Status", type: "text", sortable: "BOP_Status" },
+
+  { key: "Followup_Date", type: "datetime", sortable: "Followup_Date" },
+  { key: "FollowUp_Status", type: "text" },
+
+  { key: "Product", type: "text" },
+  { key: "Issued", type: "datetime" },
+
+  { key: "Comment", type: "text" },
+  { key: "Remark", type: "text" },
+];
+
+function toggleSort(current: { key: SortKey; dir: SortDir }, nextKey: SortKey) {
+  if (current.key !== nextKey) return { key: nextKey, dir: "asc" as SortDir };
+  return { key: nextKey, dir: current.dir === "asc" ? ("desc" as SortDir) : ("asc" as SortDir) };
+}
 
 export default function Dashboard() {
   const [records, setRecords] = useState<Row[]>([]);
@@ -110,6 +169,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" });
+  const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKey; dir: SortDir }>({ key: "BOP_Date", dir: "asc" });
 
   // Upcoming report
   const [rangeStart, setRangeStart] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -122,6 +184,7 @@ export default function Dashboard() {
   const [monthlyTrend, setMonthlyTrend] = useState<{ month: string; count: number }[]>([]);
   const [trendLoading, setTrendLoading] = useState(false);
 
+  // Auth guard + initial loads
   useEffect(() => {
     (async () => {
       try {
@@ -141,10 +204,27 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Refresh upcoming when date range / sort changes
   useEffect(() => {
     fetchUpcoming(rangeStart, rangeEnd);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rangeStart, rangeEnd]);
+  }, [rangeStart, rangeEnd, sortUpcoming.key, sortUpcoming.dir]);
+
+  // Reload All Records when sort changes
+  useEffect(() => {
+    loadPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortAll.key, sortAll.dir]);
+
+  function applySort(query: any, sort: { key: SortKey; dir: SortDir }) {
+    const ascending = sort.dir === "asc";
+
+    if (sort.key === "client") {
+      // Composite sort
+      return query.order("first_name", { ascending }).order("last_name", { ascending });
+    }
+    return query.order(sort.key, { ascending });
+  }
 
   async function loadPage(nextPage: number) {
     setError(null);
@@ -153,14 +233,20 @@ export default function Dashboard() {
       const supabase = getSupabase();
       const search = q.trim();
 
+      // Count (no ordering)
       let countQuery = supabase.from("client_registrations").select("id", { count: "exact", head: true });
+
       if (search) {
-        countQuery = countQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
+        countQuery = countQuery.or(
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
+        );
       }
+
       const { count, error: countErr } = await countQuery;
       if (countErr) throw countErr;
       setTotalCount(count ?? 0);
 
+      // Data
       const from = nextPage * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
@@ -169,12 +255,15 @@ export default function Dashboard() {
         .select(
           "id,created_at,status,interest_type,business_opportunities,wealth_solutions,first_name,last_name,phone,email,profession,preferred_days,preferred_time,referred_by,CalledOn,BOP_Date,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark"
         )
-        .order("created_at", { ascending: false })
         .range(from, to);
 
       if (search) {
-        dataQuery = dataQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
+        dataQuery = dataQuery.or(
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
+        );
       }
+
+      dataQuery = applySort(dataQuery, sortAll);
 
       const { data, error: dataErr } = await dataQuery;
       if (dataErr) throw dataErr;
@@ -198,17 +287,20 @@ export default function Dashboard() {
       const startIso = start.toISOString();
       const endIso = new Date(end.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("client_registrations")
         .select(
           "id,created_at,status,interest_type,business_opportunities,wealth_solutions,first_name,last_name,phone,email,profession,preferred_days,preferred_time,referred_by,CalledOn,BOP_Date,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark"
         )
         .gte("BOP_Date", startIso)
         .lt("BOP_Date", endIso)
-        .order("BOP_Date", { ascending: true })
         .limit(2000);
 
+      query = applySort(query, sortUpcoming);
+
+      const { data, error } = await query;
       if (error) throw error;
+
       setUpcomingRows((data || []) as Row[]);
     } catch (e: any) {
       setError(e?.message || "Failed to load upcoming report");
@@ -243,7 +335,6 @@ export default function Dashboard() {
         const key = format(wkEnd, "yyyy-MM-dd");
         weekMap.set(key, (weekMap.get(key) || 0) + 1);
       }
-
       setWeeklyTrend(
         Array.from(weekMap.entries())
           .sort((a, b) => a[0].localeCompare(b[0]))
@@ -293,24 +384,24 @@ export default function Dashboard() {
 
   const exportXlsx = () => {
     const exportRows = upcomingRows.map((r) => ({
-      created_at: r.created_at,
-      status: r.status,
-      interest_type: r.interest_type,
-      business_opportunities: arrayToText(r.business_opportunities),
-      wealth_solutions: arrayToText(r.wealth_solutions),
-      first_name: r.first_name,
-      last_name: r.last_name,
-      phone: r.phone,
-      email: r.email,
-      profession: r.profession,
-      preferred_days: arrayToText(r.preferred_days),
-      preferred_time: r.preferred_time,
-      referred_by: r.referred_by,
-      CalledOn: r.CalledOn,
-      BOP_Date: r.BOP_Date,
-      BOP_Status: r.BOP_Status,
-      Followup_Date: r.Followup_Date,
-      FollowUp_Status: r.FollowUp_Status,
+      "Created Date": r.created_at,
+      Status: r.status,
+      "Interest Type": r.interest_type,
+      "Business Opportunities": arrayToText(r.business_opportunities),
+      "Wealth Solutions": arrayToText(r.wealth_solutions),
+      "First Name": r.first_name,
+      "Last Name": r.last_name,
+      Phone: r.phone,
+      Email: r.email,
+      Profession: r.profession,
+      "Preferred Days": arrayToText(r.preferred_days),
+      "Preferred Time": r.preferred_time,
+      "Referred By": r.referred_by,
+      "Called On": r.CalledOn,
+      "BOP Date": r.BOP_Date,
+      "BOP Status": r.BOP_Status,
+      "Follow-Up Date": r.Followup_Date,
+      "Follow-Up Status": r.FollowUp_Status,
       Product: r.Product,
       Issued: r.Issued,
       Comment: r.Comment,
@@ -355,6 +446,30 @@ export default function Dashboard() {
     }
   };
 
+  const SortHelp = ({ which }: { which: "all" | "upcoming" }) => (
+    <div className="text-xs text-slate-500">
+      Sort by clicking: <span className="font-semibold">Client Name</span>, <span className="font-semibold">Created Date</span>,{" "}
+      <span className="font-semibold">BOP Date</span>, <span className="font-semibold">BOP Status</span>,{" "}
+      <span className="font-semibold">Follow-Up Date</span>, <span className="font-semibold">Status</span>.
+    </div>
+  );
+
+  const allExtraCols = useMemo(
+    () => [
+      { label: "Client Name", sortable: "client" as SortKey, render: (r: Row) => clientName(r) },
+    ],
+    []
+  );
+
+  const upcomingExtraCols = useMemo(
+    () => [
+      { label: "Client Name", sortable: "client" as SortKey, render: (r: Row) => clientName(r) },
+      { label: "Phone", render: (r: Row) => r.phone || "" },
+      { label: "Email", render: (r: Row) => r.email || "" },
+    ],
+    []
+  );
+
   return (
     <div className="min-h-screen">
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
@@ -362,13 +477,15 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <img src="/can-logo.svg" className="h-10" alt="CAN Financial Solutions" />
             <div>
-              <div className="text-2xl font-bold text-slate-800">Client Reports</div>
+              <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
               <div className="text-sm text-slate-500">Search, edit follow-ups, export & trends</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Pill>{upcomingRows.length} upcoming</Pill>
-            <Button variant="secondary" onClick={signOut}>Sign out</Button>
+            <Button variant="secondary" onClick={signOut}>
+              Sign out
+            </Button>
           </div>
         </header>
 
@@ -395,25 +512,40 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
                 <div className="text-xs font-semibold text-slate-600 mb-1">Start</div>
-                <input type="date" className="w-full rounded-xl border border-slate-200 px-3 py-2" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
+                <input
+                  type="date"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={rangeStart}
+                  onChange={(e) => setRangeStart(e.target.value)}
+                />
               </label>
               <label className="block">
                 <div className="text-xs font-semibold text-slate-600 mb-1">End</div>
-                <input type="date" className="w-full rounded-xl border border-slate-200 px-3 py-2" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
+                <input
+                  type="date"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={rangeEnd}
+                  onChange={(e) => setRangeEnd(e.target.value)}
+                />
               </label>
             </div>
             <div className="mt-3 flex items-center justify-between">
               <div className="text-sm text-slate-600">
-                Upcoming: <span className="font-semibold text-slate-800">{upcomingLoading ? "…" : upcomingRows.length}</span>
+                Upcoming:{" "}
+                <span className="font-semibold text-slate-800">{upcomingLoading ? "…" : upcomingRows.length}</span>
               </div>
-              <Button variant="secondary" onClick={exportXlsx} disabled={upcomingRows.length === 0}>Export XLSX</Button>
+              <Button variant="secondary" onClick={exportXlsx} disabled={upcomingRows.length === 0}>
+                Export XLSX
+              </Button>
             </div>
           </Card>
 
           <Card title="Trends">
             <div className="flex items-center justify-between mb-2">
               <div className="text-xs font-semibold text-slate-600">Weekly (Last 2 Months) — week end date</div>
-              <Button variant="secondary" onClick={fetchTrends}>Refresh</Button>
+              <Button variant="secondary" onClick={fetchTrends}>
+                Refresh
+              </Button>
             </div>
 
             <div className="h-40">
@@ -444,40 +576,97 @@ export default function Dashboard() {
         </div>
 
         <Card title="Upcoming BOP Meetings (Editable)">
-          <div className="text-sm text-slate-600 mb-3">Scroll vertically & horizontally.</div>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+            <div className="text-sm text-slate-600">Scroll vertically & horizontally.</div>
+            <SortHelp which="upcoming" />
+          </div>
+
           <Table
             rows={upcomingRows}
             savingId={savingId}
             onUpdate={updateCell}
-            extraLeftCols={[
-              { label: "CLIENT", render: (r) => `${r.first_name || ""} ${r.last_name || ""}`.trim() },
-              { label: "PHONE", render: (r) => r.phone || "" },
-              { label: "EMAIL", render: (r) => r.email || "" },
-            ]}
+            extraLeftCols={upcomingExtraCols}
             maxHeightClass="max-h-[420px]"
+            sortState={sortUpcoming}
+            onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
           />
+
           {upcomingRows.length === 0 && <div className="text-slate-600 pt-4">{upcomingLoading ? "Loading…" : "No upcoming records."}</div>}
         </Card>
 
         <Card title="All Records (Editable) — Pagination (100 per page)">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
             <div className="text-sm text-slate-600">
               Page <span className="font-semibold text-slate-800">{page + 1}</span>
               {totalCount != null ? (
-                <> of <span className="font-semibold text-slate-800">{Math.max(1, Math.ceil(totalCount / PAGE_SIZE))}</span></>
+                <>
+                  {" "}
+                  of{" "}
+                  <span className="font-semibold text-slate-800">{Math.max(1, Math.ceil(totalCount / PAGE_SIZE))}</span>
+                </>
               ) : null}
             </div>
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>Previous</Button>
-              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>Next</Button>
-            </div>
+            <SortHelp which="all" />
           </div>
 
-          {loading ? <div className="text-slate-600">Loading…</div> : (
-            <Table rows={records} savingId={savingId} onUpdate={updateCell} extraLeftCols={[]} maxHeightClass="max-h-[520px]" />
+          <Pager
+            canPrev={canPrev}
+            canNext={canNext}
+            loading={loading}
+            onPrev={() => loadPage(Math.max(0, page - 1))}
+            onNext={() => loadPage(page + 1)}
+          />
+
+          {loading ? (
+            <div className="text-slate-600">Loading…</div>
+          ) : (
+            <Table
+              rows={records}
+              savingId={savingId}
+              onUpdate={updateCell}
+              extraLeftCols={allExtraCols}
+              maxHeightClass="max-h-[520px]"
+              sortState={sortAll}
+              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
+            />
           )}
+
+          <div className="mt-3">
+            <Pager
+              canPrev={canPrev}
+              canNext={canNext}
+              loading={loading}
+              onPrev={() => loadPage(Math.max(0, page - 1))}
+              onNext={() => loadPage(page + 1)}
+            />
+          </div>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function Pager({
+  canPrev,
+  canNext,
+  loading,
+  onPrev,
+  onNext,
+}: {
+  canPrev: boolean;
+  canNext: boolean;
+  loading: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <Button variant="secondary" onClick={onPrev} disabled={!canPrev || loading}>
+        Previous
+      </Button>
+      <Button variant="secondary" onClick={onNext} disabled={!canNext || loading}>
+        Next
+      </Button>
     </div>
   );
 }
@@ -488,28 +677,70 @@ function Table({
   onUpdate,
   extraLeftCols,
   maxHeightClass,
+  sortState,
+  onSortChange,
 }: {
   rows: Row[];
   savingId: string | null;
   onUpdate: (id: string, key: keyof Row, type: ColType, value: string) => void;
-  extraLeftCols: { label: string; render: (r: Row) => string }[];
+  extraLeftCols: { label: string; render: (r: Row) => string; sortable?: SortKey }[];
   maxHeightClass: string;
+  sortState: { key: SortKey; dir: SortDir };
+  onSortChange: (key: SortKey) => void;
 }) {
+  const sortIcon = (k?: SortKey) => {
+    if (!k) return null;
+    if (sortState.key !== k) return <span className="ml-1 text-slate-300">↕</span>;
+    return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
+  };
+
   return (
     <div className={`overflow-auto rounded-xl border border-slate-200 bg-white ${maxHeightClass}`}>
-      <table className="min-w-[2200px] w-full border-separate border-spacing-0">
+      <table className="min-w-[2400px] w-full border-separate border-spacing-0">
         <thead className="sticky top-0 bg-slate-50 z-10">
           <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-            {extraLeftCols.map((c) => <Th key={c.label}>{c.label}</Th>)}
-            {COLUMNS.map((c) => <Th key={String(c.key)}>{c.label}</Th>)}
-            <Th>SAVE</Th>
+            {extraLeftCols.map((c) => (
+              <Th key={c.label}>
+                {c.sortable ? (
+                  <button
+                    className="inline-flex items-center hover:text-slate-800"
+                    onClick={() => onSortChange(c.sortable!)}
+                    type="button"
+                  >
+                    {c.label}
+                    {sortIcon(c.sortable)}
+                  </button>
+                ) : (
+                  c.label
+                )}
+              </Th>
+            ))}
+            {COLUMNS.map((c) => (
+              <Th key={String(c.key)}>
+                {c.sortable ? (
+                  <button
+                    className="inline-flex items-center hover:text-slate-800"
+                    onClick={() => onSortChange(c.sortable!)}
+                    type="button"
+                  >
+                    {toTitleCaseLabel(String(c.key))}
+                    {sortIcon(c.sortable)}
+                  </button>
+                ) : (
+                  toTitleCaseLabel(String(c.key))
+                )}
+              </Th>
+            ))}
+            <Th>Save</Th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className="hover:bg-slate-50">
               {extraLeftCols.map((c) => (
-                <Td key={c.label} className="font-semibold text-slate-800 whitespace-nowrap">{c.render(r)}</Td>
+                <Td key={c.label} className="font-semibold text-slate-800 whitespace-nowrap">
+                  {c.render(r)}
+                </Td>
               ))}
 
               {COLUMNS.map((c) => {
@@ -519,9 +750,7 @@ function Table({
 
                 const value = r[c.key] as any;
                 const inputValue =
-                  c.type === "datetime" ? toLocalInput(value) :
-                  c.type === "array" ? arrayToText(value) :
-                  value ?? "";
+                  c.type === "datetime" ? toLocalInput(value) : c.type === "array" ? arrayToText(value) : value ?? "";
 
                 return (
                   <Td key={String(c.key)}>
@@ -529,7 +758,7 @@ function Table({
                       type={c.type === "datetime" ? "datetime-local" : "text"}
                       className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm"
                       defaultValue={inputValue}
-                      placeholder={c.label}
+                      placeholder={toTitleCaseLabel(String(c.key))}
                       onBlur={(e) => onUpdate(r.id, c.key, c.type, e.target.value)}
                     />
                     {c.type === "datetime" && value ? (
@@ -539,13 +768,7 @@ function Table({
                 );
               })}
 
-              <Td>
-                {savingId === r.id ? (
-                  <span className="text-xs text-teal-700 font-semibold">Saving…</span>
-                ) : (
-                  <span className="text-xs text-slate-400"> </span>
-                )}
-              </Td>
+              <Td>{savingId === r.id ? <span className="text-xs text-teal-700 font-semibold">Saving…</span> : <span className="text-xs text-slate-400"> </span>}</Td>
             </tr>
           ))}
         </tbody>
