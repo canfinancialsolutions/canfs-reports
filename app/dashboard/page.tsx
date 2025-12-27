@@ -75,8 +75,8 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
 
   // Trends
-  const [weekly, setWeekly] = useState<{ weekEnd: string; count: number }[]>([]);
-  const [monthly, setMonthly] = useState<{ month: string; count: number }[]>([]);
+  const [weekly, setWeekly] = useState<{ weekEnd: string; prospects: number; bops: number }[]>([]);
+  const [monthly, setMonthly] = useState<{ month: string; prospects: number; bops: number }[]>([]);
   const [trendLoading, setTrendLoading] = useState(false);
 
   // Upcoming
@@ -145,7 +145,7 @@ export default function Dashboard() {
 
       const { data: createdRows, error: createdErr } = await supabase
         .from("client_registrations")
-        .select("created_at")
+        .select("created_at, BOP_Date")
         .gte("created_at", start.toISOString())
         .order("created_at", { ascending: true })
         .limit(100000);
@@ -154,30 +154,43 @@ export default function Dashboard() {
 
       const weekEnds: string[] = [];
       const weekCount = new Map<string, number>();
+      const bopWeekCount = new Map<string, number>();
       for (let i = 4; i >= 0; i--) {
         const wkStart = startOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
         const wkEnd = endOfWeek(wkStart, { weekStartsOn: 1 });
         const key = format(wkEnd, "yyyy-MM-dd");
         weekEnds.push(key);
         weekCount.set(key, 0);
+        bopWeekCount.set(key, 0);
       }
 
       for (const r of createdRows || []) {
-        const dt = parseISO(String((r as any).created_at));
-        if (!isValid(dt)) continue;
-        const wkEnd = endOfWeek(dt, { weekStartsOn: 1 });
-        const key = format(wkEnd, "yyyy-MM-dd");
-        if (weekCount.has(key)) weekCount.set(key, (weekCount.get(key) || 0) + 1);
+        const created = parseISO(String((r as any).created_at));
+        if (isValid(created)) {
+          const wkEnd = endOfWeek(created, { weekStartsOn: 1 });
+          const key = format(wkEnd, "yyyy-MM-dd");
+          if (weekCount.has(key)) weekCount.set(key, (weekCount.get(key) || 0) + 1);
+        }
+
+        const bopRaw = (r as any).BOP_Date;
+        if (bopRaw) {
+          const bop = parseISO(String(bopRaw));
+          if (isValid(bop)) {
+            const wkEnd2 = endOfWeek(bop, { weekStartsOn: 1 });
+            const key2 = format(wkEnd2, "yyyy-MM-dd");
+            if (bopWeekCount.has(key2)) bopWeekCount.set(key2, (bopWeekCount.get(key2) || 0) + 1);
+          }
+        }
       }
 
-      setWeekly(weekEnds.map((weekEnd) => ({ weekEnd, count: weekCount.get(weekEnd) || 0 })));
+      setWeekly(weekEnds.map((weekEnd) => ({ weekEnd, prospects: weekCount.get(weekEnd) || 0, bops: bopWeekCount.get(weekEnd) || 0 })));
 
       const yearStart = startOfYear(new Date());
       const nextYear = addYears(yearStart, 1);
 
       const { data: yearRows, error: yearErr } = await supabase
         .from("client_registrations")
-        .select("created_at")
+        .select("created_at, BOP_Date")
         .gte("created_at", yearStart.toISOString())
         .lt("created_at", nextYear.toISOString())
         .order("created_at", { ascending: true })
@@ -187,16 +200,31 @@ export default function Dashboard() {
 
       const y = yearStart.getFullYear();
       const monthCount = new Map<string, number>();
-      for (let m = 1; m <= 12; m++) monthCount.set(`${y}-${String(m).padStart(2, "0")}`, 0);
-
-      for (const r of yearRows || []) {
-        const dt = parseISO(String((r as any).created_at));
-        if (!isValid(dt)) continue;
-        const key = format(dt, "yyyy-MM");
-        if (monthCount.has(key)) monthCount.set(key, (monthCount.get(key) || 0) + 1);
+      const bopMonthCount = new Map<string, number>();
+      for (let m = 1; m <= 12; m++) {
+        const k = `${y}-${String(m).padStart(2, "0")}`;
+        monthCount.set(k, 0);
+        bopMonthCount.set(k, 0);
       }
 
-      setMonthly(Array.from(monthCount.entries()).map(([month, count]) => ({ month, count })));
+      for (const r of yearRows || []) {
+        const created = parseISO(String((r as any).created_at));
+        if (isValid(created)) {
+          const key = format(created, "yyyy-MM");
+          if (monthCount.has(key)) monthCount.set(key, (monthCount.get(key) || 0) + 1);
+        }
+
+        const bopRaw = (r as any).BOP_Date;
+        if (bopRaw) {
+          const bop = parseISO(String(bopRaw));
+          if (isValid(bop)) {
+            const key2 = format(bop, "yyyy-MM");
+            if (bopMonthCount.has(key2)) bopMonthCount.set(key2, (bopMonthCount.get(key2) || 0) + 1);
+          }
+        }
+      }
+
+      setMonthly(Array.from(monthCount.keys()).map((month) => ({ month, prospects: monthCount.get(month) || 0, bops: bopMonthCount.get(month) || 0 })));
     } catch (e: any) {
       setError(e?.message || "Failed to load trends");
     } finally {
@@ -343,7 +371,7 @@ setRecords(clientSideFiltered);
         {/* 1) Trends (vertical) */}
         <Card title="Trends">
   <div className="flex items-center justify-between mb-3">
-    <div className="text-xs font-semibold text-slate-600">Weekly = count of Created Date records (last 5 weeks incl current)</div>
+    <div className="text-xs font-semibold text-slate-600">Weekly = No of Prespect vs BOP (last 5 weeks incl current)</div>
     <Button variant="secondary" onClick={fetchTrends}>Refresh</Button>
   </div>
 
@@ -356,9 +384,12 @@ setRecords(clientSideFiltered);
             <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
             <YAxis allowDecimals={false} />
             <Tooltip />
-            <Line type="monotone" dataKey="count" stroke="#2563eb" dot>
-              <LabelList dataKey="count" position="top" />
-            </Line>
+            <Line type="monotone" dataKey="prospects" stroke="#2563eb" dot>
+  <LabelList dataKey="prospects" position="top" />
+</Line>
+<Line type="monotone" dataKey="bops" stroke="#f97316" dot>
+  <LabelList dataKey="bops" position="top" />
+</Line>
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -372,9 +403,12 @@ setRecords(clientSideFiltered);
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis allowDecimals={false} />
             <Tooltip />
-            <Bar dataKey="count" fill="#16a34a">
-              <LabelList dataKey="count" position="top" />
-            </Bar>
+            <Bar dataKey="prospects" fill="#16a34a">
+  <LabelList dataKey="prospects" position="top" />
+</Bar>
+<Bar dataKey="bops" fill="#9333ea">
+  <LabelList dataKey="bops" position="top" />
+</Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -619,7 +653,7 @@ function ExcelTable({
                       <div className="relative">
                         <button
                           type="button"
-                          className="w-full text-left underline decoration-dotted text-slate-800"
+                          className="w-full text-left text-slate-800 whitespace-normal break-words"
                           onClick={() => setOpenCell((cur) => (cur === cellId ? null : cellId))}
                         >
                           {display || "—"}
