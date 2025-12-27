@@ -17,6 +17,13 @@ const PAGE_SIZE = 50;
 const READONLY_LIST_COLS = new Set(["interest_type", "business_opportunities", "wealth_solutions", "preferred_days"]);
 
 const LABEL_OVERRIDES: Record<string, string> = {
+  client_name: "Client Name",
+  last_call_date: "Last Call On",
+  call_attempts: "No of Calls",
+  last_bop_date: "Last BOP Call On",
+  bop_attempts: "No of BOP Calls",
+  last_followup_date: "Last FollowUp On",
+  followup_attempts: "No of FollowUp Calls",
   created_at: "Created Date",
   interest_type: "Interest Type",
   business_opportunities: "Business Opportunities",
@@ -86,6 +93,13 @@ export default function Dashboard() {
   const [upcomingLoading, setUpcomingLoading] = useState(false);
   const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKey; dir: SortDir }>({ key: "BOP_Date", dir: "asc" });
 
+// Client Progress Summary
+const [progressRows, setProgressRows] = useState<Row[]>([]);
+const [progressLoading, setProgressLoading] = useState(false);
+const [progressFilter, setProgressFilter] = useState("");
+const [progressSort, setProgressSort] = useState<{ key: "client_name"; dir: SortDir }>({ key: "client_name", dir: "asc" });
+
+
   // Search + All Records
   const [q, setQ] = useState("");
   const [filterClient, setFilterClient] = useState("");
@@ -111,7 +125,7 @@ export default function Dashboard() {
           window.location.href = "/";
           return;
         }
-        await Promise.all([fetchTrends(), loadPage(0)]);
+        await Promise.all([fetchTrends(), fetchProgressSummary(), loadPage(0)]);
       } catch (e: any) {
         setError(e?.message || "Failed to initialize");
       } finally {
@@ -253,6 +267,45 @@ export default function Dashboard() {
     } finally {
       setUpcomingLoading(false);
     }
+
+
+async function fetchProgressSummary() {
+  setProgressLoading(true);
+  setError(null);
+  try {
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+      .from("v_client_progress_summary")
+      .select("clientid, first_name, last_name, phone, email, last_call_date, call_attempts, last_bop_date, bop_attempts, last_followup_date, followup_attempts")
+      .order("clientid", { ascending: false })
+      .limit(5000);
+
+    if (error) throw error;
+
+    const rows = (data || []).map((r: any) => ({
+      clientid: r.clientid,
+      client_name: `${r.first_name || ""} ${r.last_name || ""}`.trim(),
+      first_name: r.first_name,
+      last_name: r.last_name,
+      phone: r.phone,
+      email: r.email,
+      last_call_date: r.last_call_date,
+      call_attempts: r.call_attempts,
+      last_bop_date: r.last_bop_date,
+      bop_attempts: r.bop_attempts,
+      last_followup_date: r.last_followup_date,
+      followup_attempts: r.followup_attempts,
+    }));
+
+    setProgressRows(rows);
+  } catch (e: any) {
+    setError(e?.message || "Failed to load Client Progress Summary");
+  } finally {
+    setProgressLoading(false);
+  }
+}
+
   }
 
   async function loadPage(nextPage: number) {
@@ -446,6 +499,7 @@ setRecords(clientSideFiltered);
 
             <ExcelTable
               rows={upcoming}
+              stickyLeftKeys={["client_name","phone","email","created_at","BOP_Date"]}
               savingId={savingId}
               onUpdate={updateCell}
               preferredOrder={["BOP_Date","created_at","BOP_Status","Followup_Date","status"]}
@@ -528,6 +582,7 @@ setRecords(clientSideFiltered);
           {loading ? <div className="text-slate-600">Loading…</div> : (
             <ExcelTable
               rows={records}
+              stickyLeftKeys={["client_name"]}
               savingId={savingId}
               onUpdate={updateCell}
               extraLeftCols={extraClientCol}
@@ -551,6 +606,7 @@ function ExcelTable({
   sortState,
   onSortChange,
   preferredOrder,
+  stickyLeftKeys,
 }: {
   rows: Row[];
   savingId: string | null;
@@ -560,6 +616,7 @@ function ExcelTable({
   sortState: { key: SortKey; dir: SortDir };
   onSortChange: (key: SortKey) => void;
   preferredOrder?: string[];
+  stickyLeftKeys?: string[];
 }) {
   const [openCell, setOpenCell] = useState<string | null>(null);
 
@@ -619,7 +676,7 @@ function ExcelTable({
               );
             })}
 
-            <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">Save</th>
+            <th className="border border-slate-500 px-2 py-2 whitespace-nowrap"></th>
           </tr>
         </thead>
 
@@ -695,11 +752,7 @@ function ExcelTable({
                   </td>
                 );
               })}
-
-              <td className="border border-slate-300 px-2 py-2">
-                {savingId === String(r.id) ? <span className="text-xs font-semibold text-teal-700">Saving…</span> : null}
-              </td>
-            </tr>
+</tr>
           ))}
         </tbody>
       </table>
