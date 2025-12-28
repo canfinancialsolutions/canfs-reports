@@ -25,32 +25,16 @@ import {
   BarChart,
   Bar,
   LabelList,
-  Legend,
 } from "recharts";
 import { getSupabase } from "@/lib/supabaseClient";
 import { Button, Card } from "@/components/ui";
 
 type Row = Record<string, any>;
+type SortKey = "client" | "created_at" | "BOP_Date" | "BOP_Status" | "Followup_Date" | "status";
 type SortDir = "asc" | "desc";
 
-type SortKeyAll =
-  | "client"
-  | "created_at"
-  | "BOP_Date"
-  | "BOP_Status"
-  | "Followup_Date"
-  | "status";
-
-type SortKeyProgress =
-  | "client_name"
-  | "last_call_date"
-  | "call_attempts"
-  | "last_bop_date"
-  | "bop_attempts"
-  | "last_followup_date"
-  | "followup_attempts";
-
 const PAGE_SIZE = 20;
+const PROGRESS_PAGE_SIZE = 20;
 
 const READONLY_LIST_COLS = new Set([
   "interest_type",
@@ -61,11 +45,6 @@ const READONLY_LIST_COLS = new Set([
 
 const LABEL_OVERRIDES: Record<string, string> = {
   client_name: "Client Name",
-  first_name: "First Name",
-  last_name: "Last Name",
-  phone: "Phone",
-  email: "Email",
-
   last_call_date: "Last Call On",
   call_attempts: "No of Calls",
   last_bop_date: "Last BOP Call On",
@@ -80,7 +59,6 @@ const LABEL_OVERRIDES: Record<string, string> = {
   preferred_days: "Preferred Days",
   preferred_time: "Preferred Time",
   referred_by: "Referred By",
-
   CalledOn: "Called On",
   BOP_Date: "BOP Date",
   BOP_Status: "BOP Status",
@@ -106,7 +84,7 @@ function clientName(r: Row) {
   return `${r.first_name || ""} ${r.last_name || ""}`.trim();
 }
 
-function toLocalInput(value: string | null) {
+function toLocalInput(value: any) {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
@@ -125,19 +103,19 @@ function fromLocalInput(value: string) {
 
 function asListItems(value: any): string[] {
   if (value == null) return [];
-  if (Array.isArray(value))
-    return value.map((v) => String(v)).filter(Boolean);
+  if (Array.isArray(value)) return value.map((v) => String(v)).filter(Boolean);
   const s = String(value).trim();
   if (!s) return [];
   if (s.includes(",")) return s.split(",").map((x) => x.trim()).filter(Boolean);
   return [s];
 }
 
-function toggleSort<T extends string>(cur: { key: T; dir: SortDir }, k: T) {
+function toggleSort(cur: { key: SortKey; dir: SortDir }, k: SortKey) {
   if (cur.key !== k) return { key: k, dir: "asc" as SortDir };
   return { key: k, dir: cur.dir === "asc" ? ("desc" as SortDir) : ("asc" as SortDir) };
 }
 
+/** ---------- Dashboard ---------- **/
 export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
 
@@ -151,25 +129,32 @@ export default function Dashboard() {
   const [rangeEnd, setRangeEnd] = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
   const [upcoming, setUpcoming] = useState<Row[]>([]);
   const [upcomingLoading, setUpcomingLoading] = useState(false);
-  const [upcomingVisible, setUpcomingVisible] = useState(false);
-  const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKeyAll; dir: SortDir }>({
+  const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKey; dir: SortDir }>({
     key: "BOP_Date",
     dir: "asc",
   });
+  const [upcomingVisible, setUpcomingVisible] = useState(false);
 
-  // Client Progress Summary (server data)
+  // Client Progress Summary
   const [progressRows, setProgressRows] = useState<Row[]>([]);
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressFilter, setProgressFilter] = useState("");
-  const [progressSort, setProgressSort] = useState<{ key: SortKeyProgress; dir: SortDir }>({
-    key: "client_name",
-    dir: "asc",
-  });
+  const [progressVisible, setProgressVisible] = useState(true);
+  const [progressSort, setProgressSort] = useState<{
+    key:
+      | "client_name"
+      | "last_call_date"
+      | "call_attempts"
+      | "last_bop_date"
+      | "bop_attempts"
+      | "last_followup_date"
+      | "followup_attempts";
+    dir: SortDir;
+  }>({ key: "client_name", dir: "asc" });
   const [progressPage, setProgressPage] = useState(0);
 
-  // Search + All Records
+  // All Records
   const [q, setQ] = useState("");
-
   const [filterClient, setFilterClient] = useState("");
   const [filterInterestType, setFilterInterestType] = useState("");
   const [filterBusinessOpp, setFilterBusinessOpp] = useState("");
@@ -183,7 +168,7 @@ export default function Dashboard() {
   const [pageJump, setPageJump] = useState("1");
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [sortAll, setSortAll] = useState<{ key: SortKeyAll; dir: SortDir }>({
+  const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({
     key: "created_at",
     dir: "desc",
   });
@@ -213,17 +198,17 @@ export default function Dashboard() {
   }, [sortAll.key, sortAll.dir]);
 
   useEffect(() => {
-    if (upcomingVisible && upcoming.length) fetchUpcoming();
+    if (upcoming.length) fetchUpcoming();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortUpcoming.key, sortUpcoming.dir]);
 
-  function applySort(query: any, sort: { key: SortKeyAll; dir: SortDir }) {
+  function applySort(query: any, sort: { key: SortKey; dir: SortDir }) {
     const ascending = sort.dir === "asc";
     if (sort.key === "client") return query.order("first_name", { ascending }).order("last_name", { ascending });
     return query.order(sort.key, { ascending });
   }
 
-  async function logout() {
+  async function handleLogout() {
     try {
       const supabase = getSupabase();
       await supabase.auth.signOut();
@@ -244,7 +229,7 @@ export default function Dashboard() {
         .select("created_at, BOP_Date")
         .gte("created_at", start.toISOString())
         .order("created_at", { ascending: true })
-        .limit(200000);
+        .limit(100000);
 
       if (createdErr) throw createdErr;
 
@@ -297,7 +282,7 @@ export default function Dashboard() {
         .gte("created_at", yearStart.toISOString())
         .lt("created_at", nextYear.toISOString())
         .order("created_at", { ascending: true })
-        .limit(400000);
+        .limit(200000);
 
       if (yearErr) throw yearErr;
 
@@ -364,7 +349,7 @@ export default function Dashboard() {
       if (error) throw error;
 
       setUpcoming(data || []);
-      setUpcomingVisible(true); // show after load
+      setUpcomingVisible(true); // show after Load
     } catch (e: any) {
       setError(e?.message || "Failed to load upcoming meetings");
     } finally {
@@ -377,14 +362,13 @@ export default function Dashboard() {
     setError(null);
     try {
       const supabase = getSupabase();
-
       const { data, error } = await supabase
         .from("v_client_progress_summary")
         .select(
           "clientid, first_name, last_name, phone, email, last_call_date, call_attempts, last_bop_date, bop_attempts, last_followup_date, followup_attempts"
         )
         .order("clientid", { ascending: false })
-        .limit(20000);
+        .limit(10000);
 
       if (error) throw error;
 
@@ -396,11 +380,11 @@ export default function Dashboard() {
         phone: r.phone,
         email: r.email,
         last_call_date: r.last_call_date,
-        call_attempts: r.call_attempts,
+        call_attempts: r.call_attempts ?? 0,
         last_bop_date: r.last_bop_date,
-        bop_attempts: r.bop_attempts,
+        bop_attempts: r.bop_attempts ?? 0,
         last_followup_date: r.last_followup_date,
-        followup_attempts: r.followup_attempts,
+        followup_attempts: r.followup_attempts ?? 0,
       }));
 
       setProgressRows(rows);
@@ -417,25 +401,21 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const supabase = getSupabase();
-
       const search = q.trim();
       const fc = filterClient.trim();
       const fi = filterInterestType.trim();
       const fb = filterBopStatus.trim();
 
-      // Count
       let countQuery = supabase.from("client_registrations").select("id", { count: "exact", head: true });
 
-      if (search) {
+      // server-side case-insensitive via ILIKE
+      if (search)
         countQuery = countQuery.or(
           `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
         );
-      }
-      if (fc) {
-        countQuery = countQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
-      }
-      if (fi) countQuery = countQuery.ilike("interest_type", `%${fi}%`);
-      if (fb) countQuery = countQuery.ilike("BOP_Status", `%${fb}%`);
+      if (fc) countQuery = countQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
+      if (fi) countQuery = countQuery.ilike("interest_type", fi);
+      if (fb) countQuery = countQuery.ilike("BOP_Status", fb);
 
       const { count, error: cErr } = await countQuery;
       if (cErr) throw cErr;
@@ -444,39 +424,32 @@ export default function Dashboard() {
       const from = nextPage * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      // Data
       let dataQuery = supabase.from("client_registrations").select("*").range(from, to);
 
-      if (search) {
+      if (search)
         dataQuery = dataQuery.or(
           `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
         );
-      }
-      if (fc) {
-        dataQuery = dataQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
-      }
-      if (fi) dataQuery = dataQuery.ilike("interest_type", `%${fi}%`);
-      if (fb) dataQuery = dataQuery.ilike("BOP_Status", `%${fb}%`);
+      if (fc) dataQuery = dataQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
+      if (fi) dataQuery = dataQuery.ilike("interest_type", fi);
+      if (fb) dataQuery = dataQuery.ilike("BOP_Status", fb);
 
       dataQuery = applySort(dataQuery, sortAll);
 
       const { data, error } = await dataQuery;
       if (error) throw error;
 
-      // client-side contains filters (arrays / mixed fields) - case-insensitive
       const raw = (data || []) as any[];
       const fbo = filterBusinessOpp.trim().toLowerCase();
       const fws = filterWealthSolutions.trim().toLowerCase();
       const ffu = filterFollowUpStatus.trim().toLowerCase();
 
+      // client-side contains (case-insensitive)
       const clientSideFiltered = raw.filter((row) => {
         const opp = Array.isArray(row.business_opportunities)
           ? row.business_opportunities.join(",")
           : String(row.business_opportunities || "");
-        const ws = Array.isArray(row.wealth_solutions)
-          ? row.wealth_solutions.join(",")
-          : String(row.wealth_solutions || "");
-
+        const ws = Array.isArray(row.wealth_solutions) ? row.wealth_solutions.join(",") : String(row.wealth_solutions || "");
         const fu = String(row.FollowUp_Status ?? row.Followup_Status ?? "").toLowerCase();
 
         const okOpp = !fbo || opp.toLowerCase().includes(fbo);
@@ -506,22 +479,26 @@ export default function Dashboard() {
     XLSX.writeFile(wb, `Upcoming_BOP_${rangeStart}_to_${rangeEnd}.xlsx`);
   };
 
-  const updateCell = async (id: string, key: string, rawValue: string) => {
+  // ✅ Fix: update UI immediately on change, then save on blur
+  const updateLocalCell = (setFn: React.Dispatch<React.SetStateAction<Row[]>>, id: string, key: string, newVal: any) => {
+    setFn((prev) => prev.map((r) => (String(r.id) === String(id) ? { ...r, [key]: newVal } : r)));
+  };
+
+  const commitCell = async (id: string, key: string, rawValue: string) => {
     setSavingId(id);
     setError(null);
     try {
       const supabase = getSupabase();
       const payload: any = {};
-
       const isDateTime = key === "BOP_Date" || key === "CalledOn" || key === "Followup_Date" || key === "Issued";
       payload[key] = isDateTime ? fromLocalInput(rawValue) : rawValue?.trim() ? rawValue : null;
 
       const { error } = await supabase.from("client_registrations").update(payload).eq("id", id);
       if (error) throw error;
 
-      const patch = (prev: Row[]) => prev.map((r) => (String(r.id) === String(id) ? { ...r, [key]: payload[key] } : r));
-      setRecords(patch);
-      setUpcoming(patch);
+      // Keep UI consistent with saved value (ISO or null)
+      updateLocalCell(setRecords, id, key, payload[key]);
+      updateLocalCell(setUpcoming, id, key, payload[key]);
     } catch (e: any) {
       setError(e?.message || "Update failed");
     } finally {
@@ -536,48 +513,50 @@ export default function Dashboard() {
   );
 
   const extraClientCol = useMemo(
-    () => [{ label: "Client Name", sortable: "client" as SortKeyAll, render: (r: Row) => clientName(r) }],
+    () => [{ label: "Client Name", sortable: "client" as SortKey, render: (r: Row) => clientName(r) }],
     []
   );
 
-  // Progress: filter (case-insensitive) + sort + paginate
+  // Progress derived (filter + sort + pagination)
   const progressFilteredSorted = useMemo(() => {
     const f = progressFilter.trim().toLowerCase();
-    const filtered = !f
-      ? progressRows
-      : progressRows.filter((r) => String(r.client_name || "").toLowerCase().includes(f));
+    const base = f ? progressRows.filter((r) => String(r.client_name || "").toLowerCase().includes(f)) : progressRows.slice();
 
-    const dirMul = progressSort.dir === "asc" ? 1 : -1;
+    const dir = progressSort.dir === "asc" ? 1 : -1;
     const key = progressSort.key;
 
-    const asNum = (v: any) => (v == null || v === "" ? -Infinity : Number(v));
-    const asTime = (v: any) => {
-      if (!v) return -Infinity;
+    const toNum = (v: any) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const toTime = (v: any) => {
+      if (!v) return 0;
       const d = new Date(v);
-      const t = d.getTime();
-      return Number.isNaN(t) ? -Infinity : t;
+      return Number.isNaN(d.getTime()) ? 0 : d.getTime();
     };
 
-    const sorted = [...filtered].sort((a, b) => {
-      if (key === "client_name") {
-        return String(a.client_name || "").localeCompare(String(b.client_name || "")) * dirMul;
-      }
-      if (key === "call_attempts" || key === "bop_attempts" || key === "followup_attempts") {
-        return (asNum(a[key]) - asNum(b[key])) * dirMul;
-      }
-      // date keys
-      return (asTime(a[key]) - asTime(b[key])) * dirMul;
+    base.sort((a, b) => {
+      if (key === "client_name") return String(a.client_name || "").localeCompare(String(b.client_name || "")) * dir;
+      if (key === "call_attempts") return (toNum(a.call_attempts) - toNum(b.call_attempts)) * dir;
+      if (key === "bop_attempts") return (toNum(a.bop_attempts) - toNum(b.bop_attempts)) * dir;
+      if (key === "followup_attempts") return (toNum(a.followup_attempts) - toNum(b.followup_attempts)) * dir;
+      if (key === "last_call_date") return (toTime(a.last_call_date) - toTime(b.last_call_date)) * dir;
+      if (key === "last_bop_date") return (toTime(a.last_bop_date) - toTime(b.last_bop_date)) * dir;
+      if (key === "last_followup_date") return (toTime(a.last_followup_date) - toTime(b.last_followup_date)) * dir;
+      return 0;
     });
 
-    return sorted;
+    return base;
   }, [progressRows, progressFilter, progressSort]);
 
-  const progressTotalPages = Math.max(1, Math.ceil(progressFilteredSorted.length / PAGE_SIZE));
-  const progressPageClamped = Math.min(progressPage, progressTotalPages - 1);
-  const progressSlice = progressFilteredSorted.slice(
-    progressPageClamped * PAGE_SIZE,
-    progressPageClamped * PAGE_SIZE + PAGE_SIZE
-  );
+  const progressTotalPages = Math.max(1, Math.ceil(progressFilteredSorted.length / PROGRESS_PAGE_SIZE));
+  const progressCanPrev = progressPage > 0;
+  const progressCanNext = progressPage + 1 < progressTotalPages;
+
+  const progressPageRows = useMemo(() => {
+    const start = progressPage * PROGRESS_PAGE_SIZE;
+    return progressFilteredSorted.slice(start, start + PROGRESS_PAGE_SIZE);
+  }, [progressFilteredSorted, progressPage]);
 
   return (
     <div className="min-h-screen">
@@ -591,7 +570,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <Button variant="secondary" onClick={logout}>
+          <Button variant="secondary" onClick={handleLogout}>
             Logout
           </Button>
         </header>
@@ -600,27 +579,21 @@ export default function Dashboard() {
 
         {/* Trends */}
         <Card title="Trends">
-          <div className="flex items-center justify-end mb-2">
-            <Button variant="secondary" onClick={fetchTrends} disabled={trendLoading}>
-              {trendLoading ? "Loading…" : "Refresh"}
+          <div className="flex items-center justify-end mb-3">
+            <Button variant="secondary" onClick={fetchTrends}>
+              Refresh
             </Button>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6">
             <div>
-              <div className="text-sm font-semibold text-slate-700 mb-2">
-                Weekly = No of Prospect vs BOP (last 5 weeks incl current)
-              </div>
-              <div className="h-72">
+              <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (No of Prospect vs BOP)</div>
+              <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={weekly}
-                    margin={{ top: 28, right: 18, left: 0, bottom: 12 }}
-                  >
+                  <LineChart data={weekly} margin={{ top: 18, right: 12, left: 0, bottom: 0 }}>
                     <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    <Legend />
                     <Line type="monotone" dataKey="prospects" stroke="#2563eb" dot>
                       <LabelList dataKey="prospects" position="top" />
                     </Line>
@@ -633,18 +606,13 @@ export default function Dashboard() {
             </div>
 
             <div>
-              <div className="text-sm font-semibold text-slate-700 mb-2">Monthly (Current Year)</div>
-              <div className="h-72">
+              <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
+              <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={monthly}
-                    margin={{ top: 28, right: 18, left: 0, bottom: 12 }}
-                    barCategoryGap="20%"
-                  >
+                  <BarChart data={monthly} margin={{ top: 18, right: 12, left: 0, bottom: 0 }}>
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    <Legend />
                     <Bar dataKey="prospects" fill="#16a34a">
                       <LabelList dataKey="prospects" position="top" />
                     </Bar>
@@ -656,9 +624,11 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
+          {trendLoading && <div className="mt-2 text-xs text-slate-500">Loading…</div>}
         </Card>
 
-        {/* Upcoming Range */}
+        {/* Upcoming BOP range */}
         <Card title="Upcoming BOP Date Range">
           <div className="grid md:grid-cols-5 gap-3 items-end">
             <label className="block md:col-span-2">
@@ -691,7 +661,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-3">
             <Button
               variant="secondary"
               onClick={() => setUpcomingVisible((v) => !v)}
@@ -699,9 +669,9 @@ export default function Dashboard() {
             >
               {upcomingVisible ? "Hide Upcoming Table" : "Show Upcoming Table"}
             </Button>
-            <div className="text-xs text-slate-500">
-              After you press <b>Load</b>, you can show/hide the Upcoming table.
-            </div>
+            <span className="ml-3 text-xs text-slate-600">
+              After you press Load, you can show/hide the Upcoming table.
+            </span>
           </div>
         </Card>
 
@@ -715,66 +685,56 @@ export default function Dashboard() {
 
             <ExcelTable
               rows={upcoming}
-              stickyLeftCount={2} // Client Name + BOP Date (keeps visible)
-              stickyTopHeader
               savingId={savingId}
-              onUpdate={updateCell}
-              preferredOrder={[
-                "BOP_Date",
-                "created_at",
-                "BOP_Status",
-                "Followup_Date",
-                "status",
-              ]}
+              onCommit={commitCell}
+              onLocalChange={(id, key, v) => updateLocalCell(setUpcoming, id, key, v)}
+              preferredOrder={["BOP_Date", "created_at", "BOP_Status", "Followup_Date", "status"]}
               extraLeftCols={[
                 { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
-                {
-                  label: "BOP Date",
-                  sortable: "BOP_Date",
-                  render: (r) => {
-                    const v = r.BOP_Date;
-                    if (!v) return "";
-                    const d = new Date(v);
-                    return Number.isNaN(d.getTime()) ? "" : d.toLocaleString();
-                  },
-                  keyOverride: "BOP_Date",
-                },
+                { label: "Phone", render: (r) => String(r.phone || "") },
+                { label: "Email", render: (r) => String(r.email || "") },
               ]}
               maxHeightClass="max-h-[420px]"
               sortState={sortUpcoming}
               onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
+              stickyLeftColsCount={3} // client/phone/email
             />
           </Card>
         )}
 
         {/* Client Progress Summary */}
         <Card title="Client Progress Summary">
-          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-3">
-            <input
-              className="w-full md:max-w-lg border border-slate-300 px-4 py-3"
-              placeholder="Filter by client name…"
-              value={progressFilter}
-              onChange={(e) => {
-                setProgressFilter(e.target.value);
-                setProgressPage(0);
-              }}
-            />
-            <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
-              {progressLoading ? "Loading…" : "Refresh"}
-            </Button>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <input
+                className="w-[420px] max-w-[70vw] border border-slate-300 px-3 py-2"
+                placeholder="Filter by client name…"
+                value={progressFilter}
+                onChange={(e) => {
+                  setProgressFilter(e.target.value);
+                  setProgressPage(0);
+                }}
+              />
+              <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
+                {progressLoading ? "Loading…" : "Refresh"}
+              </Button>
+              <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
+                {progressVisible ? "Hide Table" : "Show Table"}
+              </Button>
+            </div>
 
-            <div className="md:ml-auto flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 onClick={() => setProgressPage((p) => Math.max(0, p - 1))}
-                disabled={progressPageClamped <= 0}
+                disabled={!progressCanPrev}
               >
                 Previous
               </Button>
               <Button
                 variant="secondary"
                 onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))}
-                disabled={progressPageClamped >= progressTotalPages - 1}
+                disabled={!progressCanNext}
               >
                 Next
               </Button>
@@ -783,12 +743,144 @@ export default function Dashboard() {
 
           <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
 
-          <ProgressTable
-            rows={progressSlice}
-            stickyLeft
-            sortState={progressSort}
-            onSortChange={(k) => setProgressSort((cur) => toggleSort(cur, k))}
-          />
+          {progressVisible && (
+            <div className="overflow-auto border border-slate-500 bg-white max-h-[520px]">
+              <table className="min-w-[1400px] w-full border-collapse">
+                <thead className="sticky top-0 bg-slate-100 z-20">
+                  <tr className="text-left text-xs font-semibold text-slate-700">
+                    <StickyTh left={0} z={40}>
+                      <SortButton
+                        label="Client Name"
+                        active={progressSort.key === "client_name"}
+                        dir={progressSort.dir}
+                        onClick={() =>
+                          setProgressSort((s) => ({
+                            key: "client_name",
+                            dir: s.key === "client_name" ? (s.dir === "asc" ? "desc" : "asc") : "asc",
+                          }))
+                        }
+                      />
+                    </StickyTh>
+
+                    <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">First Name</th>
+                    <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">Last Name</th>
+                    <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">Phone</th>
+                    <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">Email</th>
+
+                    <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
+                      <SortButton
+                        label="Last Call On"
+                        active={progressSort.key === "last_call_date"}
+                        dir={progressSort.dir}
+                        onClick={() =>
+                          setProgressSort((s) => ({
+                            key: "last_call_date",
+                            dir: s.key === "last_call_date" ? (s.dir === "asc" ? "desc" : "asc") : "asc",
+                          }))
+                        }
+                      />
+                    </th>
+
+                    <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
+                      <SortButton
+                        label="No of Calls"
+                        active={progressSort.key === "call_attempts"}
+                        dir={progressSort.dir}
+                        onClick={() =>
+                          setProgressSort((s) => ({
+                            key: "call_attempts",
+                            dir: s.key === "call_attempts" ? (s.dir === "asc" ? "desc" : "asc") : "asc",
+                          }))
+                        }
+                      />
+                    </th>
+
+                    <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
+                      <SortButton
+                        label="Last BOP Call On"
+                        active={progressSort.key === "last_bop_date"}
+                        dir={progressSort.dir}
+                        onClick={() =>
+                          setProgressSort((s) => ({
+                            key: "last_bop_date",
+                            dir: s.key === "last_bop_date" ? (s.dir === "asc" ? "desc" : "asc") : "asc",
+                          }))
+                        }
+                      />
+                    </th>
+
+                    <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
+                      <SortButton
+                        label="No of BOP Calls"
+                        active={progressSort.key === "bop_attempts"}
+                        dir={progressSort.dir}
+                        onClick={() =>
+                          setProgressSort((s) => ({
+                            key: "bop_attempts",
+                            dir: s.key === "bop_attempts" ? (s.dir === "asc" ? "desc" : "asc") : "asc",
+                          }))
+                        }
+                      />
+                    </th>
+
+                    <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
+                      <SortButton
+                        label="Last FollowUp On"
+                        active={progressSort.key === "last_followup_date"}
+                        dir={progressSort.dir}
+                        onClick={() =>
+                          setProgressSort((s) => ({
+                            key: "last_followup_date",
+                            dir: s.key === "last_followup_date" ? (s.dir === "asc" ? "desc" : "asc") : "asc",
+                          }))
+                        }
+                      />
+                    </th>
+
+                    <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
+                      <SortButton
+                        label="No of FollowUp Calls"
+                        active={progressSort.key === "followup_attempts"}
+                        dir={progressSort.dir}
+                        onClick={() =>
+                          setProgressSort((s) => ({
+                            key: "followup_attempts",
+                            dir: s.key === "followup_attempts" ? (s.dir === "asc" ? "desc" : "asc") : "asc",
+                          }))
+                        }
+                      />
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {progressPageRows.map((r, idx) => (
+                    <tr key={`${r.clientid}-${idx}`} className="hover:bg-slate-50">
+                      <StickyTd left={0} z={30} className="font-semibold text-slate-800">
+                        {r.client_name}
+                      </StickyTd>
+                      <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{r.first_name || ""}</td>
+                      <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{r.last_name || ""}</td>
+                      <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{r.phone || ""}</td>
+                      <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{r.email || ""}</td>
+                      <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">
+                        {r.last_call_date ? new Date(r.last_call_date).toLocaleString() : ""}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{r.call_attempts ?? 0}</td>
+                      <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">
+                        {r.last_bop_date ? new Date(r.last_bop_date).toLocaleString() : ""}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{r.bop_attempts ?? 0}</td>
+                      <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">
+                        {r.last_followup_date ? new Date(r.last_followup_date).toLocaleString() : ""}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{r.followup_attempts ?? 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
 
         {/* Search */}
@@ -801,6 +893,9 @@ export default function Dashboard() {
               onChange={(e) => setQ(e.target.value)}
             />
             <Button onClick={() => loadPage(0)}>Go</Button>
+            <div className="text-sm text-slate-600 md:ml-auto">
+              {total.toLocaleString()} records • showing {PAGE_SIZE} per page
+            </div>
           </div>
 
           <div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -864,6 +959,10 @@ export default function Dashboard() {
               />
             </div>
           </div>
+
+          <div className="mt-2 text-xs text-slate-600">
+            Tip: Enter filters and click <b>Go</b> to apply.
+          </div>
         </Card>
 
         {/* All Records */}
@@ -899,11 +998,7 @@ export default function Dashboard() {
                 </Button>
               </div>
 
-              <Button
-                variant="secondary"
-                onClick={() => loadPage(Math.max(0, page - 1))}
-                disabled={!canPrev || loading}
-              >
+              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
                 Previous
               </Button>
               <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
@@ -917,14 +1012,14 @@ export default function Dashboard() {
           ) : (
             <ExcelTable
               rows={records}
-              stickyLeftCount={1} // Client Name fixed
-              stickyTopHeader
               savingId={savingId}
-              onUpdate={updateCell}
+              onCommit={commitCell}
+              onLocalChange={(id, key, v) => updateLocalCell(setRecords, id, key, v)}
               extraLeftCols={extraClientCol}
               maxHeightClass="max-h-[560px]"
               sortState={sortAll}
               onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
+              stickyLeftColsCount={1}
             />
           )}
         </Card>
@@ -933,136 +1028,93 @@ export default function Dashboard() {
   );
 }
 
-function ProgressTable({
-  rows,
-  stickyLeft,
-  sortState,
-  onSortChange,
+/** ---------- Sticky helpers (fix header hiding + frozen first col) ---------- **/
+function StickyTh({
+  left,
+  z,
+  children,
 }: {
-  rows: Row[];
-  stickyLeft: boolean;
-  sortState: { key: SortKeyProgress; dir: SortDir };
-  onSortChange: (key: SortKeyProgress) => void;
+  left: number;
+  z: number;
+  children: React.ReactNode;
 }) {
-  const cols: { key: string; sortKey?: SortKeyProgress }[] = [
-    { key: "client_name", sortKey: "client_name" },
-    { key: "first_name" },
-    { key: "last_name" },
-    { key: "phone" },
-    { key: "email" },
-    { key: "last_call_date", sortKey: "last_call_date" },
-    { key: "call_attempts", sortKey: "call_attempts" },
-    { key: "last_bop_date", sortKey: "last_bop_date" },
-    { key: "bop_attempts", sortKey: "bop_attempts" },
-    { key: "last_followup_date", sortKey: "last_followup_date" },
-    { key: "followup_attempts", sortKey: "followup_attempts" },
-  ];
-
-  const sortIcon = (k?: SortKeyProgress) => {
-    if (!k) return null;
-    if (sortState.key !== k) return <span className="ml-1 text-slate-400">↕</span>;
-    return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
-  };
-
   return (
-    <div className="overflow-auto border border-slate-500 bg-white max-h-[520px]">
-      <table className="min-w-[1400px] w-full border-collapse">
-        <thead className="sticky top-0 bg-slate-100 z-10">
-          <tr className="text-left text-xs font-semibold text-slate-700">
-            {cols.map((c, idx) => {
-              const isSticky = stickyLeft && idx === 0;
-              return (
-                <th
-                  key={c.key}
-                  className={[
-                    "border border-slate-500 px-2 py-2 whitespace-nowrap bg-slate-100",
-                    isSticky ? "sticky left-0 z-20" : "",
-                  ].join(" ")}
-                  style={isSticky ? { minWidth: 160 } : undefined}
-                >
-                  {c.sortKey ? (
-                    <button
-                      className="inline-flex items-center hover:underline"
-                      onClick={() => onSortChange(c.sortKey!)}
-                      type="button"
-                    >
-                      {labelFor(c.key)}
-                      {sortIcon(c.sortKey)}
-                    </button>
-                  ) : (
-                    labelFor(c.key)
-                  )}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={`${r.clientid ?? i}`} className="hover:bg-slate-50">
-              {cols.map((c, idx) => {
-                const v = r[c.key];
-                const isSticky = stickyLeft && idx === 0;
-                const isDate =
-                  c.key === "last_call_date" || c.key === "last_bop_date" || c.key === "last_followup_date";
-
-                let display = v ?? "";
-                if (isDate && v) {
-                  const d = new Date(v);
-                  display = Number.isNaN(d.getTime()) ? "" : d.toLocaleString();
-                }
-
-                return (
-                  <td
-                    key={c.key}
-                    className={[
-                      "border border-slate-300 px-2 py-2 whitespace-nowrap",
-                      isSticky ? "sticky left-0 z-10 bg-white font-semibold text-slate-800" : "",
-                    ].join(" ")}
-                    style={isSticky ? { minWidth: 160 } : undefined}
-                  >
-                    {String(display)}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <th
+      className="border border-slate-500 px-2 py-2 whitespace-nowrap bg-slate-100"
+      style={{ position: "sticky", left, zIndex: z }}
+    >
+      {children}
+    </th>
   );
 }
 
+function StickyTd({
+  left,
+  z,
+  className,
+  children,
+}: {
+  left: number;
+  z: number;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <td
+      className={`border border-slate-300 px-2 py-2 whitespace-nowrap bg-white ${className || ""}`}
+      style={{ position: "sticky", left, zIndex: z }}
+    >
+      {children}
+    </td>
+  );
+}
+
+function SortButton({
+  label,
+  active,
+  dir,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  dir: SortDir;
+  onClick: () => void;
+}) {
+  return (
+    <button className="inline-flex items-center hover:underline" onClick={onClick} type="button">
+      {label}
+      {!active ? <span className="ml-1 text-slate-400">↕</span> : <span className="ml-1 text-slate-700">{dir === "asc" ? "↑" : "↓"}</span>}
+    </button>
+  );
+}
+
+/** ---------- ExcelTable (editable + frozen first column + date fix) ---------- **/
 function ExcelTable({
   rows,
   savingId,
-  onUpdate,
+  onCommit,
+  onLocalChange,
   extraLeftCols,
   maxHeightClass,
   sortState,
   onSortChange,
   preferredOrder,
-  stickyLeftCount,
-  stickyTopHeader,
+  stickyLeftColsCount,
 }: {
   rows: Row[];
   savingId: string | null;
-  onUpdate: (id: string, key: string, value: string) => void;
-  extraLeftCols: { label: string; render: (r: Row) => string; sortable?: SortKeyAll; keyOverride?: string }[];
+  onCommit: (id: string, key: string, value: string) => void;
+  onLocalChange: (id: string, key: string, value: any) => void;
+  extraLeftCols: { label: string; render: (r: Row) => string; sortable?: SortKey }[];
   maxHeightClass: string;
-  sortState: { key: SortKeyAll; dir: SortDir };
-  onSortChange: (key: SortKeyAll) => void;
+  sortState: { key: SortKey; dir: SortDir };
+  onSortChange: (key: SortKey) => void;
   preferredOrder?: string[];
-  stickyLeftCount?: number; // number of left columns (including extraLeftCols) to stick
-  stickyTopHeader?: boolean;
+  stickyLeftColsCount: number; // number of extraLeftCols to freeze
 }) {
   const [openCell, setOpenCell] = useState<string | null>(null);
 
-  // ✅ Fix date saving: use controlled draft values
-  const [draft, setDraft] = useState<Record<string, string>>({});
-
-  const sortIcon = (k?: SortKeyAll) => {
+  const sortIcon = (k?: SortKey) => {
     if (!k) return null;
     if (sortState.key !== k) return <span className="ml-1 text-slate-400">↕</span>;
     return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
@@ -1071,177 +1123,105 @@ function ExcelTable({
   const keys = useMemo(() => {
     if (!rows.length) return [] as string[];
     const baseKeys = Object.keys(rows[0]).filter((k) => k !== "id");
-
     if (!preferredOrder || !preferredOrder.length) return baseKeys;
-
     const set = new Set(baseKeys);
     const ordered: string[] = [];
-    for (const k of preferredOrder) {
-      if (set.has(k)) ordered.push(k);
-    }
-    for (const k of baseKeys) {
-      if (!ordered.includes(k)) ordered.push(k);
-    }
+    for (const k of preferredOrder) if (set.has(k)) ordered.push(k);
+    for (const k of baseKeys) if (!ordered.includes(k)) ordered.push(k);
     return ordered;
   }, [rows, preferredOrder]);
 
-  // Column resizing (simple, stable)
-  const allColCount = extraLeftCols.length + keys.length;
-  const defaultWidths = useMemo(() => {
-    const arr: number[] = [];
-    for (let i = 0; i < allColCount; i++) {
-      if (i === 0) arr.push(180); // Client Name
-      else if (i === 1 && extraLeftCols.length > 1) arr.push(210); // BOP Date
-      else arr.push(170);
+  // sticky left offsets (simple fixed widths for frozen extra columns)
+  const stickyWidths = useMemo(() => {
+    // keep it simple + stable; users can still resize browser/table scroll
+    const widths = extraLeftCols.map((c) => {
+      if (c.label === "Client Name") return 180;
+      if (c.label === "Phone") return 110;
+      if (c.label === "Email") return 220;
+      return 160;
+    });
+    return widths;
+  }, [extraLeftCols]);
+
+  const stickyLefts = useMemo(() => {
+    const lefts: number[] = [];
+    let acc = 0;
+    for (let i = 0; i < stickyLeftColsCount; i++) {
+      lefts.push(acc);
+      acc += stickyWidths[i] ?? 160;
     }
-    return arr;
-  }, [allColCount, extraLeftCols.length]);
-
-  const [colWidths, setColWidths] = useState<number[]>(defaultWidths);
-
-  useEffect(() => {
-    setColWidths(defaultWidths);
-  }, [defaultWidths]);
-
-  const dragging = useRef<{ idx: number; startX: number; startW: number } | null>(null);
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!dragging.current) return;
-      const { idx, startX, startW } = dragging.current;
-      const delta = e.clientX - startX;
-      const next = Math.max(90, Math.min(600, startW + delta));
-      setColWidths((w) => {
-        const copy = [...w];
-        copy[idx] = next;
-        return copy;
-      });
-    };
-    const onUp = () => {
-      dragging.current = null;
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
-
-  const stickyCount = Math.max(0, stickyLeftCount || 0);
-
-  const leftOffset = (colIdx: number) => {
-    let x = 0;
-    for (let i = 0; i < colIdx; i++) x += colWidths[i] || 0;
-    return x;
-  };
-
-  const thClass = "border border-slate-500 px-2 py-2 whitespace-nowrap bg-slate-100";
-  const tdClass = "border border-slate-300 px-2 py-2 align-top";
-
-  const sortableForKey = (k: string): SortKeyAll | undefined => {
-    if (k === "created_at") return "created_at";
-    if (k === "BOP_Date") return "BOP_Date";
-    if (k === "BOP_Status") return "BOP_Status";
-    if (k === "Followup_Date") return "Followup_Date";
-    if (k === "status") return "status";
-    return undefined;
-    };
-
-  const headerStickyClass = stickyTopHeader ? "sticky top-0 z-10" : "";
+    return lefts;
+  }, [stickyLeftColsCount, stickyWidths]);
 
   return (
     <div className={`overflow-auto border border-slate-500 bg-white ${maxHeightClass}`}>
-      <table className="w-full border-collapse" style={{ minWidth: 1400 }}>
-        <thead className={`${headerStickyClass} bg-slate-100`}>
+      <table className="min-w-[2600px] w-full border-collapse">
+        <thead className="sticky top-0 bg-slate-100 z-20">
           <tr className="text-left text-xs font-semibold text-slate-700">
             {extraLeftCols.map((c, idx) => {
-              const isSticky = idx < stickyCount;
-              const w = colWidths[idx] || 170;
+              const frozen = idx < stickyLeftColsCount;
+              const style: React.CSSProperties = frozen
+                ? {
+                    position: "sticky",
+                    left: stickyLefts[idx],
+                    zIndex: 50, // header frozen above body
+                    background: "#f1f5f9",
+                    width: stickyWidths[idx],
+                    minWidth: stickyWidths[idx],
+                    maxWidth: stickyWidths[idx],
+                  }
+                : { width: stickyWidths[idx], minWidth: stickyWidths[idx] };
 
               return (
                 <th
                   key={c.label}
-                  className={`${thClass} ${isSticky ? "sticky z-30" : ""}`}
-                  style={{
-                    width: w,
-                    minWidth: w,
-                    maxWidth: w,
-                    left: isSticky ? leftOffset(idx) : undefined,
-                  }}
+                  className="border border-slate-500 px-2 py-2 whitespace-nowrap"
+                  style={style}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="truncate">
-                      {c.sortable ? (
-                        <button
-                          className="inline-flex items-center hover:underline"
-                          onClick={() => onSortChange(c.sortable!)}
-                          type="button"
-                        >
-                          {c.label}
-                          {sortIcon(c.sortable)}
-                        </button>
-                      ) : (
-                        c.label
-                      )}
-                    </div>
-
-                    <div
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        dragging.current = { idx, startX: e.clientX, startW: w };
-                      }}
-                      className="w-[6px] cursor-col-resize select-none opacity-60 hover:opacity-100"
-                      style={{ height: 18 }}
-                    />
-                  </div>
+                  {c.sortable ? (
+                    <button
+                      className="inline-flex items-center hover:underline"
+                      onClick={() => onSortChange(c.sortable!)}
+                      type="button"
+                    >
+                      {c.label}
+                      {sortIcon(c.sortable)}
+                    </button>
+                  ) : (
+                    c.label
+                  )}
                 </th>
               );
             })}
 
-            {keys.map((k, i) => {
-              const colIdx = extraLeftCols.length + i;
-              const isSticky = colIdx < stickyCount;
-              const w = colWidths[colIdx] || 170;
-
-              const sortable = sortableForKey(k);
+            {keys.map((k) => {
+              const sortable =
+                k === "created_at"
+                  ? "created_at"
+                  : k === "BOP_Date"
+                  ? "BOP_Date"
+                  : k === "BOP_Status"
+                  ? "BOP_Status"
+                  : k === "Followup_Date"
+                  ? "Followup_Date"
+                  : k === "status"
+                  ? "status"
+                  : undefined;
 
               return (
-                <th
-                  key={k}
-                  className={`${thClass} ${isSticky ? "sticky z-30" : ""}`}
-                  style={{
-                    width: w,
-                    minWidth: w,
-                    maxWidth: w,
-                    left: isSticky ? leftOffset(colIdx) : undefined,
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="truncate">
-                      {sortable ? (
-                        <button
-                          className="inline-flex items-center hover:underline"
-                          onClick={() => onSortChange(sortable)}
-                          type="button"
-                        >
-                          {labelFor(k)}
-                          {sortIcon(sortable)}
-                        </button>
-                      ) : (
-                        labelFor(k)
-                      )}
-                    </div>
-
-                    <div
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        dragging.current = { idx: colIdx, startX: e.clientX, startW: w };
-                      }}
-                      className="w-[6px] cursor-col-resize select-none opacity-60 hover:opacity-100"
-                      style={{ height: 18 }}
-                    />
-                  </div>
+                <th key={k} className="border border-slate-500 px-2 py-2 whitespace-nowrap">
+                  {sortable ? (
+                    <button
+                      className="inline-flex items-center hover:underline"
+                      onClick={() => onSortChange(sortable as SortKey)}
+                      type="button"
+                    >
+                      {labelFor(k)}
+                      {sortIcon(sortable as SortKey)}
+                    </button>
+                  ) : (
+                    labelFor(k)
+                  )}
                 </th>
               );
             })}
@@ -1252,45 +1232,38 @@ function ExcelTable({
           {rows.map((r) => (
             <tr key={String(r.id)} className="hover:bg-slate-50">
               {extraLeftCols.map((c, idx) => {
-                const isSticky = idx < stickyCount;
-                const w = colWidths[idx] || 170;
+                const frozen = idx < stickyLeftColsCount;
+                const style: React.CSSProperties = frozen
+                  ? {
+                      position: "sticky",
+                      left: stickyLefts[idx],
+                      zIndex: 30,
+                      background: "white",
+                      width: stickyWidths[idx],
+                      minWidth: stickyWidths[idx],
+                      maxWidth: stickyWidths[idx],
+                    }
+                  : { width: stickyWidths[idx], minWidth: stickyWidths[idx] };
+
                 return (
                   <td
                     key={c.label}
-                    className={`${tdClass} ${isSticky ? "sticky z-20 bg-white font-semibold text-slate-800" : "font-semibold text-slate-800"}`}
-                    style={{
-                      width: w,
-                      minWidth: w,
-                      maxWidth: w,
-                      left: isSticky ? leftOffset(idx) : undefined,
-                    }}
+                    className="border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-slate-800"
+                    style={style}
                   >
                     {c.render(r)}
                   </td>
                 );
               })}
 
-              {keys.map((k, i) => {
-                const colIdx = extraLeftCols.length + i;
-                const isSticky = colIdx < stickyCount;
-                const w = colWidths[colIdx] || 170;
-
+              {keys.map((k) => {
                 const cellId = `${r.id}:${k}`;
                 const val = r[k];
 
                 if (k === "created_at") {
                   const d = new Date(r.created_at);
                   return (
-                    <td
-                      key={k}
-                      className={`${tdClass} ${isSticky ? "sticky z-20 bg-white" : ""}`}
-                      style={{
-                        width: w,
-                        minWidth: w,
-                        maxWidth: w,
-                        left: isSticky ? leftOffset(colIdx) : undefined,
-                      }}
-                    >
+                    <td key={k} className="border border-slate-300 px-2 py-2 whitespace-nowrap">
                       {Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString()}
                     </td>
                   );
@@ -1300,16 +1273,7 @@ function ExcelTable({
                   const items = asListItems(val);
                   const display = items.join(", ");
                   return (
-                    <td
-                      key={k}
-                      className={`${tdClass} ${isSticky ? "sticky z-20 bg-white" : ""}`}
-                      style={{
-                        width: w,
-                        minWidth: w,
-                        maxWidth: w,
-                        left: isSticky ? leftOffset(colIdx) : undefined,
-                      }}
-                    >
+                    <td key={k} className="border border-slate-300 px-2 py-2 align-top">
                       <div className="relative">
                         <button
                           type="button"
@@ -1321,15 +1285,8 @@ function ExcelTable({
 
                         {openCell === cellId && (
                           <div className="absolute left-0 top-full mt-1 w-72 max-w-[70vw] bg-white border border-slate-500 shadow-lg z-40">
-                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300 flex items-center justify-between">
-                              <span>{labelFor(k)}</span>
-                              <button
-                                type="button"
-                                className="text-xs px-2 py-1 border border-slate-300 bg-white"
-                                onClick={() => setOpenCell(null)}
-                              >
-                                Close
-                              </button>
+                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">
+                              {labelFor(k)}
                             </div>
                             <ul className="max-h-48 overflow-auto">
                               {(items.length ? items : ["(empty)"]).map((x, idx2) => (
@@ -1338,6 +1295,11 @@ function ExcelTable({
                                 </li>
                               ))}
                             </ul>
+                            <div className="p-2">
+                              <Button variant="secondary" onClick={() => setOpenCell(null)}>
+                                Close
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1346,43 +1308,25 @@ function ExcelTable({
                 }
 
                 const isDateTime = k === "BOP_Date" || k === "CalledOn" || k === "Followup_Date" || k === "Issued";
-                const rowId = String(r.id);
-                const draftKey = `${rowId}:${k}`;
-
-                const value =
-                  draft[draftKey] !== undefined
-                    ? draft[draftKey]
-                    : isDateTime
-                    ? toLocalInput(val ?? null)
-                    : String(val ?? "");
+                const valueStr = isDateTime ? toLocalInput(val) : String(val ?? "");
 
                 return (
-                  <td
-                    key={k}
-                    className={`${tdClass} ${isSticky ? "sticky z-20 bg-white" : ""}`}
-                    style={{
-                      width: w,
-                      minWidth: w,
-                      maxWidth: w,
-                      left: isSticky ? leftOffset(colIdx) : undefined,
-                    }}
-                  >
+                  <td key={k} className="border border-slate-300 px-2 py-2">
                     <input
                       type={isDateTime ? "datetime-local" : "text"}
                       className="w-full bg-transparent border-0 outline-none text-sm"
-                      value={value}
-                      onChange={(e) => setDraft((d) => ({ ...d, [draftKey]: e.target.value }))}
-                      onBlur={(e) => {
-                        onUpdate(rowId, k, e.target.value);
-
-                        // clear draft after blur so refresh shows db value
-                        setDraft((d) => {
-                          const copy = { ...d };
-                          delete copy[draftKey];
-                          return copy;
-                        });
+                      value={valueStr}
+                      onChange={(e) => {
+                        // ✅ show immediately in the cell (fix “date disappears”)
+                        const v = e.target.value;
+                        onLocalChange(String(r.id), k, isDateTime ? fromLocalInput(v) : v);
                       }}
-                      disabled={savingId === rowId}
+                      onBlur={(e) => {
+                        const v = e.target.value;
+                        // ✅ commit to DB on blur
+                        onCommit(String(r.id), k, v);
+                      }}
+                      disabled={savingId === String(r.id)}
                     />
                   </td>
                 );
