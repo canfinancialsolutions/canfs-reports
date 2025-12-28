@@ -686,8 +686,7 @@ function ExcelTable({
                 undefined;
 
               return (
-                <th key={k} className="border border-slate-500 px-2 py-2 whitespace-nowrap">
-                  {sortable ? (
+                    {sortable ? (
                     <button className="inline-flex items-center hover:underline" onClick={() => onSortChange(sortable as SortKey)} type="button">
                       {labelFor(k)}{sortIcon(sortable as SortKey)}
                     </button>
