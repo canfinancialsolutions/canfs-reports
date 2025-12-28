@@ -247,29 +247,36 @@ const [progressSort, setProgressSort] = useState<{ key: "client_name"; dir: Sort
   }
 
   async function fetchUpcoming() {
-    setUpcomingLoading(true);
-    setError(null);
-    try {
-      const supabase = getSupabase();
-      const start = new Date(rangeStart);
-      const end = new Date(rangeEnd);
-      const startIso = start.toISOString();
-      const endIso = new Date(end.getTime() + 24 * 60 * 60 * 1000).toISOString();
+  setUpcomingLoading(true);
+  setError(null);
+  try {
+    const supabase = getSupabase();
+    const start = new Date(rangeStart);
+    const end = new Date(rangeEnd);
+    const startIso = start.toISOString();
+    const endIso = new Date(end.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
-      let query = supabase.from("client_registrations").select("*").gte("BOP_Date", startIso).lt("BOP_Date", endIso).limit(5000);
-      query = applySort(query, sortUpcoming);
+    let query = supabase
+      .from("client_registrations")
+      .select("*")
+      .gte("BOP_Date", startIso)
+      .lt("BOP_Date", endIso)
+      .limit(5000);
 
-      const { data, error } = await query;
-      if (error) throw error;
-      setUpcoming(data || []);
-    } catch (e: any) {
-      setError(e?.message || "Failed to load upcoming meetings");
-    } finally {
-      setUpcomingLoading(false);
-    }
+    query = applySort(query, sortUpcoming);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    setUpcoming(data || []);
+  } catch (e: any) {
+    setError(e?.message || "Failed to load upcoming meetings");
+  } finally {
+    setUpcomingLoading(false);
+  }
+}
 
 
-async function _fetchProgressSummary() {
+async function fetchProgressSummary() {
   setProgressLoading(true);
   setError(null);
   try {
@@ -277,7 +284,9 @@ async function _fetchProgressSummary() {
 
     const { data, error } = await supabase
       .from("v_client_progress_summary")
-      .select("clientid, first_name, last_name, phone, email, last_call_date, call_attempts, last_bop_date, bop_attempts, last_followup_date, followup_attempts")
+      .select(
+        "clientid, first_name, last_name, phone, email, last_call_date, call_attempts, last_bop_date, bop_attempts, last_followup_date, followup_attempts"
+      )
       .order("clientid", { ascending: false })
       .limit(5000);
 
@@ -304,6 +313,7 @@ async function _fetchProgressSummary() {
   } finally {
     setProgressLoading(false);
   }
+}
 
 
 // Keep both names to avoid build errors if one is referenced
