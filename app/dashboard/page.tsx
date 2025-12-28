@@ -664,8 +664,15 @@ export default function Dashboard() {
                 variant="secondary"
                 onClick={() => setUpcomingVisible((v) => !v)}
                 disabled={!upcoming.length && !upcomingVisible}
-                title="Show/Hide Upcoming table"
-              >
+              <span title="Show/Hide Upcoming table">
+                <Button
+                  variant="secondary"
+                  onClick={() => setUpcomingVisible((v) => !v)}
+                  disabled={!upcoming.length && !upcomingVisible}
+                >
+    {upcomingVisible ? "Hide" : "Show"}
+  </Button>
+</span>
                 {upcomingVisible ? "Hide" : "Show"}
               </Button>
             </div>
