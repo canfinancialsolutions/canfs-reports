@@ -322,13 +322,8 @@ async function fetchProgressSummary() {
 }
 async function fetchProgressSummary() {
   return _fetchProgressSummary();
-}
 
-}
-
-  }
-
-  async function loadPage(nextPage: number) {
+async function loadPage(nextPage: number) {
     setError(null);
     setLoading(true);
     try {
