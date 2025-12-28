@@ -274,11 +274,12 @@ const [progressSort, setProgressSort] = useState<{ key: "client_name"; dir: Sort
     setUpcomingLoading(false);
   }
 }
-
-
+// Keep both names to avoid build errors if one is referenced
+// Client Progress Summary
 async function fetchProgressSummary() {
   setProgressLoading(true);
   setError(null);
+
   try {
     const supabase = getSupabase();
 
@@ -314,15 +315,7 @@ async function fetchProgressSummary() {
     setProgressLoading(false);
   }
 }
-
-
-// Keep both names to avoid build errors if one is referenced
-async function fetchProgressSummary() {
-  return _fetchProgressSummary();
-}
-async function fetchProgressSummary() {
-  return _fetchProgressSummary();
-
+  
 async function loadPage(nextPage: number) {
     setError(null);
     setLoading(true);
