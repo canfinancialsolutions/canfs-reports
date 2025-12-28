@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import {
   addDays,
@@ -34,15 +34,6 @@ type Row = Record<string, any>;
 type SortKey = "client" | "created_at" | "BOP_Date" | "BOP_Status" | "Followup_Date" | "status";
 type SortDir = "asc" | "desc";
 
-type ProgressSortKey =
-  | "client_name"
-  | "last_call_date"
-  | "call_attempts"
-  | "last_bop_date"
-  | "bop_attempts"
-  | "last_followup_date"
-  | "followup_attempts";
-
 const PAGE_SIZE = 50;
 
 const READONLY_LIST_COLS = new Set([
@@ -54,12 +45,6 @@ const READONLY_LIST_COLS = new Set([
 
 const LABEL_OVERRIDES: Record<string, string> = {
   client_name: "Client Name",
-  last_call_date: "Last Call On",
-  call_attempts: "No of Calls",
-  last_bop_date: "Last BOP Call On",
-  bop_attempts: "No of BOP Calls",
-  last_followup_date: "Last FollowUp On",
-  followup_attempts: "No of FollowUp Calls",
   created_at: "Created Date",
   interest_type: "Interest Type",
   business_opportunities: "Business Opportunities",
@@ -72,22 +57,22 @@ const LABEL_OVERRIDES: Record<string, string> = {
   BOP_Status: "BOP Status",
   Followup_Date: "Follow-Up Date",
   FollowUp_Status: "Follow-Up Status",
+
+  last_call_date: "Last Call On",
+  call_attempts: "No of Calls",
+  last_bop_date: "Last BOP Call On",
+  bop_attempts: "No of BOP Calls",
+  last_followup_date: "Last FollowUp On",
+  followup_attempts: "No of FollowUp Calls",
 };
 
 function labelFor(key: string) {
   if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];
-  const s = key
-    .replace(/_/g, " ")
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .trim();
+  const s = key.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").trim();
   const acronyms = new Set(["BOP", "ID", "API", "URL", "CAN"]);
   return s
     .split(/\s+/)
-    .map((w) =>
-      acronyms.has(w.toUpperCase())
-        ? w.toUpperCase()
-        : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-    )
+    .map((w) => (acronyms.has(w.toUpperCase()) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
     .join(" ");
 }
 
@@ -100,11 +85,8 @@ function toLocalInput(value: string | null) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
-  )}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-
 function fromLocalInput(value: string) {
   if (!value?.trim()) return null;
   const d = new Date(value);
@@ -126,14 +108,11 @@ function toggleSort(cur: { key: SortKey; dir: SortDir }, k: SortKey) {
   return { key: k, dir: cur.dir === "asc" ? ("desc" as SortDir) : ("asc" as SortDir) };
 }
 
-function toggleProgressSort(cur: { key: ProgressSortKey; dir: SortDir }, k: ProgressSortKey) {
-  if (cur.key !== k) return { key: k, dir: "asc" as SortDir };
-  return { key: k, dir: cur.dir === "asc" ? ("desc" as SortDir) : ("asc" as SortDir) };
-}
-
-function sortIcon(activeKey: any, activeDir: SortDir, key: any) {
-  if (activeKey !== key) return <span className="ml-1 text-slate-400">↕</span>;
-  return <span className="ml-1 text-slate-700">{activeDir === "asc" ? "↑" : "↓"}</span>;
+function safeDateLabel(v: any) {
+  if (!v) return "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString();
 }
 
 export default function Dashboard() {
@@ -149,19 +128,23 @@ export default function Dashboard() {
   const [rangeEnd, setRangeEnd] = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
   const [upcoming, setUpcoming] = useState<Row[]>([]);
   const [upcomingLoading, setUpcomingLoading] = useState(false);
-  const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKey; dir: SortDir }>({
-    key: "BOP_Date",
-    dir: "asc",
-  });
+  const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKey; dir: SortDir }>({ key: "BOP_Date", dir: "asc" });
 
   // Client Progress Summary
   const [progressRows, setProgressRows] = useState<Row[]>([]);
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressFilter, setProgressFilter] = useState("");
-  const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>({
-    key: "client_name",
-    dir: "asc",
-  });
+  const [progressSort, setProgressSort] = useState<{
+    key:
+      | "client_name"
+      | "last_call_date"
+      | "call_attempts"
+      | "last_bop_date"
+      | "bop_attempts"
+      | "last_followup_date"
+      | "followup_attempts";
+    dir: SortDir;
+  }>({ key: "client_name", dir: "asc" });
 
   // Search + All Records
   const [q, setQ] = useState("");
@@ -177,10 +160,7 @@ export default function Dashboard() {
   const [pageJump, setPageJump] = useState("1");
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({
-    key: "created_at",
-    dir: "desc",
-  });
+  const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" });
 
   useEffect(() => {
     (async () => {
@@ -191,7 +171,6 @@ export default function Dashboard() {
           window.location.href = "/";
           return;
         }
-
         await Promise.all([fetchTrends(), fetchProgressSummary(), loadPage(0)]);
       } catch (e: any) {
         setError(e?.message || "Failed to initialize");
@@ -218,11 +197,22 @@ export default function Dashboard() {
     return query.order(sort.key, { ascending });
   }
 
+  async function logout() {
+    try {
+      const supabase = getSupabase();
+      await supabase.auth.signOut();
+    } finally {
+      window.location.href = "/";
+    }
+  }
+
   async function fetchTrends() {
     setTrendLoading(true);
     setError(null);
     try {
       const supabase = getSupabase();
+
+      // last 5 weeks incl current
       const start = startOfWeek(subWeeks(new Date(), 4), { weekStartsOn: 1 });
 
       const { data: createdRows, error: createdErr } = await supabase
@@ -230,7 +220,7 @@ export default function Dashboard() {
         .select("created_at, BOP_Date")
         .gte("created_at", start.toISOString())
         .order("created_at", { ascending: true })
-        .limit(100000);
+        .limit(200000);
 
       if (createdErr) throw createdErr;
 
@@ -271,9 +261,10 @@ export default function Dashboard() {
           weekEnd,
           prospects: weekCount.get(weekEnd) || 0,
           bops: bopWeekCount.get(weekEnd) || 0,
-        }))
+        })),
       );
 
+      // current year monthly
       const yearStart = startOfYear(new Date());
       const nextYear = addYears(yearStart, 1);
 
@@ -283,7 +274,7 @@ export default function Dashboard() {
         .gte("created_at", yearStart.toISOString())
         .lt("created_at", nextYear.toISOString())
         .order("created_at", { ascending: true })
-        .limit(200000);
+        .limit(300000);
 
       if (yearErr) throw yearErr;
 
@@ -318,7 +309,7 @@ export default function Dashboard() {
           month,
           prospects: monthCount.get(month) || 0,
           bops: bopMonthCount.get(month) || 0,
-        }))
+        })),
       );
     } catch (e: any) {
       setError(e?.message || "Failed to load trends");
@@ -348,7 +339,6 @@ export default function Dashboard() {
 
       const { data, error } = await query;
       if (error) throw error;
-
       setUpcoming(data || []);
     } catch (e: any) {
       setError(e?.message || "Failed to load upcoming meetings");
@@ -366,10 +356,10 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from("v_client_progress_summary")
         .select(
-          "clientid, first_name, last_name, phone, email, last_call_date, call_attempts, last_bop_date, bop_attempts, last_followup_date, followup_attempts"
+          "clientid, first_name, last_name, phone, email, last_call_date, call_attempts, last_bop_date, bop_attempts, last_followup_date, followup_attempts",
         )
         .order("clientid", { ascending: false })
-        .limit(5000);
+        .limit(10000);
 
       if (error) throw error;
 
@@ -402,18 +392,18 @@ export default function Dashboard() {
     try {
       const supabase = getSupabase();
 
-      // all search/filter text should be case-insensitive -> use ilike where possible
       const search = q.trim();
       const fc = filterClient.trim();
       const fi = filterInterestType.trim();
       const fb = filterBopStatus.trim();
 
-      // count query
       let countQuery = supabase.from("client_registrations").select("id", { count: "exact", head: true });
+
+      // Case-insensitive (ilike) already
       if (search) countQuery = countQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
       if (fc) countQuery = countQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
-      if (fi) countQuery = countQuery.ilike("interest_type", fi);
-      if (fb) countQuery = countQuery.ilike("BOP_Status", fb);
+      if (fi) countQuery = countQuery.ilike("interest_type", `%${fi}%`);
+      if (fb) countQuery = countQuery.ilike("BOP_Status", `%${fb}%`);
 
       const { count, error: cErr } = await countQuery;
       if (cErr) throw cErr;
@@ -423,27 +413,25 @@ export default function Dashboard() {
       const to = from + PAGE_SIZE - 1;
 
       let dataQuery = supabase.from("client_registrations").select("*").range(from, to);
+
       if (search) dataQuery = dataQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
       if (fc) dataQuery = dataQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
-      if (fi) dataQuery = dataQuery.ilike("interest_type", fi);
-      if (fb) dataQuery = dataQuery.ilike("BOP_Status", fb);
+      if (fi) dataQuery = dataQuery.ilike("interest_type", `%${fi}%`);
+      if (fb) dataQuery = dataQuery.ilike("BOP_Status", `%${fb}%`);
 
       dataQuery = applySort(dataQuery, sortAll);
 
       const { data, error } = await dataQuery;
       if (error) throw error;
 
+      // Additional filters for array/text columns (client-side, case-insensitive)
       const raw = (data || []) as any[];
-
-      // client-side filters (case-insensitive)
       const fbo = filterBusinessOpp.trim().toLowerCase();
       const fws = filterWealthSolutions.trim().toLowerCase();
       const ffu = filterFollowUpStatus.trim().toLowerCase();
 
       const clientSideFiltered = raw.filter((row) => {
-        const opp = Array.isArray(row.business_opportunities)
-          ? row.business_opportunities.join(",")
-          : String(row.business_opportunities || "");
+        const opp = Array.isArray(row.business_opportunities) ? row.business_opportunities.join(",") : String(row.business_opportunities || "");
         const ws = Array.isArray(row.wealth_solutions) ? row.wealth_solutions.join(",") : String(row.wealth_solutions || "");
         const fu = String(row.FollowUp_Status ?? row.Followup_Status ?? "").toLowerCase();
 
@@ -487,8 +475,7 @@ export default function Dashboard() {
       const { error } = await supabase.from("client_registrations").update(payload).eq("id", id);
       if (error) throw error;
 
-      const patch = (prev: Row[]) =>
-        prev.map((r) => (String(r.id) === String(id) ? { ...r, [key]: payload[key] } : r));
+      const patch = (prev: Row[]) => prev.map((r) => (String(r.id) === String(id) ? { ...r, [key]: payload[key] } : r));
       setRecords(patch);
       setUpcoming(patch);
     } catch (e: any) {
@@ -498,78 +485,75 @@ export default function Dashboard() {
     }
   };
 
-  const extraClientCol = useMemo(
-    () => [{ label: "Client Name", sortable: "client" as SortKey, render: (r: Row) => clientName(r) }],
-    []
+  const sortHelp = (
+    <div className="text-xs text-slate-600">
+      Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>, <b>BOP Status</b>, <b>Follow-Up Date</b>, <b>Status</b>.
+    </div>
   );
 
-  const progressViewRows = useMemo(() => {
-    const q = progressFilter.trim().toLowerCase();
-    let rows = progressRows.slice();
+  const extraClientCol = useMemo(
+    () => [{ label: "Client Name", sortable: "client" as SortKey, render: (r: Row) => clientName(r) }],
+    [],
+  );
 
-    if (q) {
-      rows = rows.filter((r) => String(r.client_name || "").toLowerCase().includes(q));
-    }
+  // Progress Summary sorting/filter (client-side)
+  const progressView = useMemo(() => {
+    const f = progressFilter.trim().toLowerCase();
+    let rows = [...progressRows];
+    if (f) rows = rows.filter((r) => String(r.client_name || "").toLowerCase().includes(f));
 
     const dirMul = progressSort.dir === "asc" ? 1 : -1;
-
-    const toNum = (v: any) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : -Infinity;
-    };
-
-    const toTime = (v: any) => {
-      if (!v) return -Infinity;
-      const d = new Date(v);
-      const t = d.getTime();
-      return Number.isFinite(t) ? t : -Infinity;
-    };
-
     rows.sort((a, b) => {
       const k = progressSort.key;
+      const av = a[k];
+      const bv = b[k];
 
-      if (k === "client_name") {
-        const aa = String(a.client_name || "").toLowerCase();
-        const bb = String(b.client_name || "").toLowerCase();
-        if (aa < bb) return -1 * dirMul;
-        if (aa > bb) return 1 * dirMul;
-        return 0;
+      // numeric columns
+      if (k === "call_attempts" || k === "bop_attempts" || k === "followup_attempts") {
+        const an = Number(av ?? 0);
+        const bn = Number(bv ?? 0);
+        return (an - bn) * dirMul;
       }
 
+      // date columns
       if (k === "last_call_date" || k === "last_bop_date" || k === "last_followup_date") {
-        const aa = toTime(a[k]);
-        const bb = toTime(b[k]);
-        if (aa < bb) return -1 * dirMul;
-        if (aa > bb) return 1 * dirMul;
-        return 0;
+        const ad = av ? new Date(av).getTime() : 0;
+        const bd = bv ? new Date(bv).getTime() : 0;
+        return (ad - bd) * dirMul;
       }
 
-      const aa = toNum(a[k]);
-      const bb = toNum(b[k]);
-      if (aa < bb) return -1 * dirMul;
-      if (aa > bb) return 1 * dirMul;
-      return 0;
+      // default string
+      return String(av ?? "")
+        .localeCompare(String(bv ?? ""), undefined, { sensitivity: "base" }) * dirMul;
     });
 
     return rows;
   }, [progressRows, progressFilter, progressSort]);
+
+  const onToggleProgressSort = (key: typeof progressSort.key) => {
+    setProgressSort((cur) => (cur.key === key ? { key, dir: cur.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  };
 
   return (
     <div className="min-h-screen">
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
         <header className="flex items-center gap-3">
           <img src="/can-logo.png" className="h-10 w-auto" alt="CAN Financial Solutions" />
-          <div>
+          <div className="flex-1">
             <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
             <div className="text-sm text-slate-500">Excel-style tables, editable follow-ups, and trends</div>
           </div>
+          <Button variant="secondary" onClick={logout}>
+            Logout
+          </Button>
         </header>
 
         {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
 
         {/* Trends */}
         <Card title="Trends">
-          <div className="flex items-center justify-end mb-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs font-semibold text-slate-600">Weekly & Monthly (Prospects vs BOP)</div>
             <Button variant="secondary" onClick={fetchTrends}>
               Refresh
             </Button>
@@ -577,21 +561,32 @@ export default function Dashboard() {
 
           <div className="grid lg:grid-cols-2 gap-6">
             <div>
-              <div className="text-xs font-semibold text-slate-600 mb-2">
-                Weekly = No of Prespect vs BOP (last 5 weeks incl current)
-              </div>
-              <div className="h-64">
+              <div className="text-xs font-semibold text-slate-600 mb-2">Weekly — No of Prospect vs BOP (last 5 weeks incl current)</div>
+              <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weekly}>
-                    <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
+                  <LineChart
+                    data={weekly}
+                    margin={{ top: 18, right: 20, left: 0, bottom: 0 }}
+                  >
+                    <XAxis
+                      dataKey="weekEnd"
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(v) => {
+                        // show as MM-dd
+                        if (!v) return "";
+                        const d = new Date(v);
+                        if (Number.isNaN(d.getTime())) return String(v);
+                        return format(d, "MM-dd");
+                      }}
+                    />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="prospects" stroke="#2563eb" dot>
-                      <LabelList dataKey="prospects" position="top" />
+                    <Line type="monotone" dataKey="prospects" name="Prospects" stroke="#2563eb" dot>
+                      <LabelList dataKey="prospects" position="top" style={{ fontSize: 12 }} />
                     </Line>
-                    <Line type="monotone" dataKey="bops" stroke="#f97316" dot>
-                      <LabelList dataKey="bops" position="top" />
+                    <Line type="monotone" dataKey="bops" name="BOP" stroke="#f97316" dot>
+                      <LabelList dataKey="bops" position="top" style={{ fontSize: 12 }} />
                     </Line>
                   </LineChart>
                 </ResponsiveContainer>
@@ -599,19 +594,32 @@ export default function Dashboard() {
             </div>
 
             <div>
-              <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
-              <div className="h-64">
+              <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year) — Prospects vs BOP</div>
+              <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthly}>
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <BarChart
+                    data={monthly}
+                    margin={{ top: 18, right: 20, left: 0, bottom: 0 }}
+                  >
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(v) => {
+                        // show month only
+                        if (!v) return "";
+                        const s = String(v);
+                        const mm = s.split("-")[1] || s;
+                        return mm;
+                      }}
+                    />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="prospects" fill="#16a34a">
-                      <LabelList dataKey="prospects" position="top" />
+                    <Bar dataKey="prospects" name="Prospects" fill="#16a34a">
+                      <LabelList dataKey="prospects" position="top" style={{ fontSize: 12 }} />
                     </Bar>
-                    <Bar dataKey="bops" fill="#9333ea">
-                      <LabelList dataKey="bops" position="top" />
+                    <Bar dataKey="bops" name="BOP" fill="#9333ea">
+                      <LabelList dataKey="bops" position="top" style={{ fontSize: 12 }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -622,11 +630,7 @@ export default function Dashboard() {
           {trendLoading && <div className="mt-2 text-xs text-slate-500">Loading…</div>}
         </Card>
 
-        {/* Remove this label as requested */}
-        {/* NOTE: You asked to remove the extra "Weekly = ..." line. The charts remain. */}
-        {/* If you want the Weekly subtitle removed too, tell me. */}
-
-        {/* Upcoming range */}
+        {/* Upcoming BOP range */}
         <Card title="Upcoming BOP Date Range">
           <div className="grid md:grid-cols-5 gap-3 items-end">
             <label className="block md:col-span-2">
@@ -663,10 +667,7 @@ export default function Dashboard() {
           <Card title="Upcoming BOP Meetings (Editable)">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-slate-600">Table supports vertical + horizontal scrolling.</div>
-              <div className="text-xs text-slate-600">
-                Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>, <b>BOP Status</b>,{" "}
-                <b>Follow-Up Date</b>, <b>Status</b>.
-              </div>
+              {sortHelp}
             </div>
 
             <ExcelTable
@@ -675,22 +676,21 @@ export default function Dashboard() {
               onUpdate={updateCell}
               extraLeftCols={[
                 { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
-                { label: "Phone", render: (r) => String(r.phone || "") },
-                { label: "Email", render: (r) => String(r.email || "") },
               ]}
-              preferredOrder={["BOP_Date", "created_at", "BOP_Status", "Followup_Date", "status"]}
               maxHeightClass="max-h-[420px]"
               sortState={sortUpcoming}
               onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
+              preferredOrder={["BOP_Date", "created_at", "BOP_Status", "Followup_Date", "status"]}
+              stickyFirstCol // Client Name frozen
             />
           </Card>
         )}
 
         {/* Client Progress Summary */}
         <Card title="Client Progress Summary">
-          <div className="flex flex-col md:flex-row md:items-center gap-3 mb-3">
+          <div className="flex flex-col md:flex-row gap-2 md:items-center mb-3">
             <input
-              className="w-full md:w-72 border border-slate-300 px-3 py-2"
+              className="w-full md:w-[420px] border border-slate-300 px-4 py-3"
               placeholder="Filter by client name…"
               value={progressFilter}
               onChange={(e) => setProgressFilter(e.target.value)}
@@ -698,20 +698,17 @@ export default function Dashboard() {
             <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
               {progressLoading ? "Loading…" : "Refresh"}
             </Button>
+
             <div className="text-xs text-slate-600 md:ml-auto">Click headers to sort.</div>
           </div>
 
-          <div className="overflow-auto border border-slate-500 bg-white max-h-[520px]">
+          <div className="overflow-auto border border-slate-500 bg-white max-h-[460px]">
             <table className="min-w-[1300px] w-full border-collapse">
               <thead className="sticky top-0 bg-slate-100 z-10">
                 <tr className="text-left text-xs font-semibold text-slate-700">
-                  <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
-                    <button
-                      type="button"
-                      className="inline-flex items-center hover:underline"
-                      onClick={() => setProgressSort((cur) => toggleProgressSort(cur, "client_name"))}
-                    >
-                      Client Name {sortIcon(progressSort.key, progressSort.dir, "client_name")}
+                  <th className="border border-slate-500 px-2 py-2 whitespace-nowrap sticky left-0 bg-slate-100 z-20">
+                    <button className="inline-flex items-center hover:underline" type="button" onClick={() => onToggleProgressSort("client_name")}>
+                      Client Name
                     </button>
                   </th>
                   <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">First Name</th>
@@ -720,91 +717,54 @@ export default function Dashboard() {
                   <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">Email</th>
 
                   <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
-                    <button
-                      type="button"
-                      className="inline-flex items-center hover:underline"
-                      onClick={() => setProgressSort((cur) => toggleProgressSort(cur, "last_call_date"))}
-                    >
-                      Last Call On {sortIcon(progressSort.key, progressSort.dir, "last_call_date")}
+                    <button className="inline-flex items-center hover:underline" type="button" onClick={() => onToggleProgressSort("last_call_date")}>
+                      Last Call On
                     </button>
                   </th>
                   <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
-                    <button
-                      type="button"
-                      className="inline-flex items-center hover:underline"
-                      onClick={() => setProgressSort((cur) => toggleProgressSort(cur, "call_attempts"))}
-                    >
-                      No of Calls {sortIcon(progressSort.key, progressSort.dir, "call_attempts")}
-                    </button>
-                  </th>
-
-                  <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
-                    <button
-                      type="button"
-                      className="inline-flex items-center hover:underline"
-                      onClick={() => setProgressSort((cur) => toggleProgressSort(cur, "last_bop_date"))}
-                    >
-                      Last BOP Call On {sortIcon(progressSort.key, progressSort.dir, "last_bop_date")}
+                    <button className="inline-flex items-center hover:underline" type="button" onClick={() => onToggleProgressSort("call_attempts")}>
+                      No of Calls
                     </button>
                   </th>
                   <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
-                    <button
-                      type="button"
-                      className="inline-flex items-center hover:underline"
-                      onClick={() => setProgressSort((cur) => toggleProgressSort(cur, "bop_attempts"))}
-                    >
-                      No of BOP Calls {sortIcon(progressSort.key, progressSort.dir, "bop_attempts")}
-                    </button>
-                  </th>
-
-                  <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
-                    <button
-                      type="button"
-                      className="inline-flex items-center hover:underline"
-                      onClick={() => setProgressSort((cur) => toggleProgressSort(cur, "last_followup_date"))}
-                    >
-                      Last FollowUp On {sortIcon(progressSort.key, progressSort.dir, "last_followup_date")}
+                    <button className="inline-flex items-center hover:underline" type="button" onClick={() => onToggleProgressSort("last_bop_date")}>
+                      Last BOP Call On
                     </button>
                   </th>
                   <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
-                    <button
-                      type="button"
-                      className="inline-flex items-center hover:underline"
-                      onClick={() => setProgressSort((cur) => toggleProgressSort(cur, "followup_attempts"))}
-                    >
-                      No of FollowUp Calls {sortIcon(progressSort.key, progressSort.dir, "followup_attempts")}
+                    <button className="inline-flex items-center hover:underline" type="button" onClick={() => onToggleProgressSort("bop_attempts")}>
+                      No of BOP Calls
+                    </button>
+                  </th>
+                  <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
+                    <button className="inline-flex items-center hover:underline" type="button" onClick={() => onToggleProgressSort("last_followup_date")}>
+                      Last FollowUp On
+                    </button>
+                  </th>
+                  <th className="border border-slate-500 px-2 py-2 whitespace-nowrap">
+                    <button className="inline-flex items-center hover:underline" type="button" onClick={() => onToggleProgressSort("followup_attempts")}>
+                      No of FollowUp Calls
                     </button>
                   </th>
                 </tr>
               </thead>
 
               <tbody>
-                {progressViewRows.map((r) => (
-                  <tr key={String(r.clientid)} className="hover:bg-slate-50">
-                    <td className="border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-slate-800">
-                      {r.client_name}
+                {progressView.map((r, idx) => (
+                  <tr key={String(r.clientid ?? idx)} className="hover:bg-slate-50">
+                    <td className="border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-slate-800 sticky left-0 bg-white z-10">
+                      {String(r.client_name || "")}
                     </td>
                     <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{String(r.first_name || "")}</td>
                     <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{String(r.last_name || "")}</td>
                     <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{String(r.phone || "")}</td>
                     <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{String(r.email || "")}</td>
-
-                    <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">
-                      {r.last_call_date ? new Date(r.last_call_date).toLocaleString() : ""}
-                    </td>
+                    <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{safeDateLabel(r.last_call_date)}</td>
                     <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{String(r.call_attempts ?? "")}</td>
-
-                    <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">
-                      {r.last_bop_date ? new Date(r.last_bop_date).toLocaleString() : ""}
-                    </td>
+                    <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{safeDateLabel(r.last_bop_date)}</td>
                     <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{String(r.bop_attempts ?? "")}</td>
-
-                    <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">
-                      {r.last_followup_date ? new Date(r.last_followup_date).toLocaleString() : ""}
-                    </td>
-                    <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">
-                      {String(r.followup_attempts ?? "")}
-                    </td>
+                    <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{safeDateLabel(r.last_followup_date)}</td>
+                    <td className="border border-slate-300 px-2 py-2 whitespace-nowrap">{String(r.followup_attempts ?? "")}</td>
                   </tr>
                 ))}
               </tbody>
@@ -843,7 +803,7 @@ export default function Dashboard() {
                 className="w-full border border-slate-300 px-3 py-2 text-sm"
                 value={filterInterestType}
                 onChange={(e) => setFilterInterestType(e.target.value)}
-                placeholder="e.g., client"
+                placeholder="Contains…"
               />
             </div>
             <div>
@@ -870,7 +830,7 @@ export default function Dashboard() {
                 className="w-full border border-slate-300 px-3 py-2 text-sm"
                 value={filterBopStatus}
                 onChange={(e) => setFilterBopStatus(e.target.value)}
-                placeholder="e.g., scheduled"
+                placeholder="Contains…"
               />
             </div>
             <div>
@@ -879,13 +839,13 @@ export default function Dashboard() {
                 className="w-full border border-slate-300 px-3 py-2 text-sm"
                 value={filterFollowUpStatus}
                 onChange={(e) => setFilterFollowUpStatus(e.target.value)}
-                placeholder="e.g., pending"
+                placeholder="Contains…"
               />
             </div>
           </div>
 
           <div className="mt-2 text-xs text-slate-600">
-            Tip: Enter filters and click <b>Go</b> to apply. Page size is 50. (All filters are case-insensitive.)
+            Tip: Enter filters and click <b>Go</b> to apply. Search/filters are not case sensitive.
           </div>
         </Card>
 
@@ -897,11 +857,7 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <div className="text-xs text-slate-600">
-                Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>, <b>BOP Status</b>,{" "}
-                <b>Follow-Up Date</b>, <b>Status</b>.
-              </div>
-
+              {sortHelp}
               <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
                 <span className="text-xs font-semibold text-slate-600">Go to page</span>
                 <input
@@ -925,7 +881,6 @@ export default function Dashboard() {
                   Go
                 </Button>
               </div>
-
               <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
                 Previous
               </Button>
@@ -946,6 +901,8 @@ export default function Dashboard() {
               maxHeightClass="max-h-[560px]"
               sortState={sortAll}
               onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
+              stickyFirstCol // Client Name frozen
+              resizableColumns // enable column resizing for this table
             />
           )}
         </Card>
@@ -963,6 +920,8 @@ function ExcelTable({
   sortState,
   onSortChange,
   preferredOrder,
+  stickyFirstCol,
+  resizableColumns,
 }: {
   rows: Row[];
   savingId: string | null;
@@ -972,8 +931,30 @@ function ExcelTable({
   sortState: { key: SortKey; dir: SortDir };
   onSortChange: (key: SortKey) => void;
   preferredOrder?: string[];
+  stickyFirstCol?: boolean;
+  resizableColumns?: boolean;
 }) {
   const [openCell, setOpenCell] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+
+  // Close popup when clicking outside
+  useEffect(() => {
+    function onDocDown(e: MouseEvent) {
+      if (!openCell) return;
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+      if (popoverRef.current && popoverRef.current.contains(t)) return;
+      setOpenCell(null);
+    }
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
+  }, [openCell]);
+
+  const sortIcon = (k?: SortKey) => {
+    if (!k) return null;
+    if (sortState.key !== k) return <span className="ml-1 text-slate-400">↕</span>;
+    return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
+  };
 
   const keys = useMemo(() => {
     if (!rows.length) return [] as string[];
@@ -987,10 +968,51 @@ function ExcelTable({
     return ordered;
   }, [rows, preferredOrder]);
 
-  const headerSortIcon = (k?: SortKey) => {
-    if (!k) return null;
-    if (sortState.key !== k) return <span className="ml-1 text-slate-400">↕</span>;
-    return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
+  // Column widths (resizable)
+  // index includes extraLeftCols first, then keys
+  const [colW, setColW] = useState<Record<number, number>>({});
+  const dragRef = useRef<{
+    idx: number;
+    startX: number;
+    startW: number;
+  } | null>(null);
+
+  const onStartResize = (idx: number, e: React.MouseEvent) => {
+    if (!resizableColumns) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const startW = colW[idx] ?? 160;
+    dragRef.current = { idx, startX: e.clientX, startW };
+    const onMove = (ev: MouseEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const next = Math.max(80, Math.min(600, d.startW + (ev.clientX - d.startX)));
+      setColW((p) => ({ ...p, [d.idx]: next }));
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  const thStyle = (idx: number): React.CSSProperties | undefined => {
+    if (!resizableColumns) return undefined;
+    const w = colW[idx];
+    if (!w) return undefined;
+    return { width: w, minWidth: w, maxWidth: w };
+  };
+
+  const stickyStyle = (isSticky: boolean): React.CSSProperties | undefined => {
+    if (!isSticky) return undefined;
+    return { position: "sticky", left: 0, zIndex: 20 };
+  };
+
+  const tdStickyStyle = (isSticky: boolean): React.CSSProperties | undefined => {
+    if (!isSticky) return undefined;
+    return { position: "sticky", left: 0, zIndex: 10, background: "white" };
   };
 
   return (
@@ -998,51 +1020,76 @@ function ExcelTable({
       <table className="min-w-[2600px] w-full border-collapse">
         <thead className="sticky top-0 bg-slate-100 z-10">
           <tr className="text-left text-xs font-semibold text-slate-700">
-            {extraLeftCols.map((c) => (
-              <th key={c.label} className="border border-slate-500 px-2 py-2 whitespace-nowrap">
-                {c.sortable ? (
-                  <button
-                    className="inline-flex items-center hover:underline"
-                    onClick={() => onSortChange(c.sortable!)}
-                    type="button"
-                  >
-                    {c.label}
-                    {headerSortIcon(c.sortable)}
-                  </button>
-                ) : (
-                  c.label
-                )}
-              </th>
-            ))}
+            {extraLeftCols.map((c, i) => {
+              const isSticky = Boolean(stickyFirstCol && i === 0);
+              return (
+                <th
+                  key={c.label}
+                  className={`border border-slate-500 px-2 py-2 whitespace-nowrap ${isSticky ? "bg-slate-100" : ""}`}
+                  style={{ ...thStyle(i), ...stickyStyle(isSticky) }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      {c.sortable ? (
+                        <button className="inline-flex items-center hover:underline" onClick={() => onSortChange(c.sortable!)} type="button">
+                          {c.label}
+                          {sortIcon(c.sortable)}
+                        </button>
+                      ) : (
+                        c.label
+                      )}
+                    </div>
 
-            {keys.map((k) => {
+                    {resizableColumns && (
+                      <div
+                        onMouseDown={(e) => onStartResize(i, e)}
+                        className="w-2 h-5 cursor-col-resize opacity-60 hover:opacity-100"
+                        title="Drag to resize"
+                      />
+                    )}
+                  </div>
+                </th>
+              );
+            })}
+
+            {keys.map((k, j) => {
+              const idx = extraLeftCols.length + j;
+
               const sortable =
                 k === "created_at"
-                  ? ("created_at" as SortKey)
+                  ? "created_at"
                   : k === "BOP_Date"
-                  ? ("BOP_Date" as SortKey)
-                  : k === "BOP_Status"
-                  ? ("BOP_Status" as SortKey)
-                  : k === "Followup_Date"
-                  ? ("Followup_Date" as SortKey)
-                  : k === "status"
-                  ? ("status" as SortKey)
-                  : undefined;
+                    ? "BOP_Date"
+                    : k === "BOP_Status"
+                      ? "BOP_Status"
+                      : k === "Followup_Date"
+                        ? "Followup_Date"
+                        : k === "status"
+                          ? "status"
+                          : undefined;
 
               return (
-                <th key={k} className="border border-slate-500 px-2 py-2 whitespace-nowrap">
-                  {sortable ? (
-                    <button
-                      className="inline-flex items-center hover:underline"
-                      onClick={() => onSortChange(sortable)}
-                      type="button"
-                    >
-                      {labelFor(k)}
-                      {headerSortIcon(sortable)}
-                    </button>
-                  ) : (
-                    labelFor(k)
-                  )}
+                <th key={k} className="border border-slate-500 px-2 py-2 whitespace-nowrap" style={thStyle(idx)}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      {sortable ? (
+                        <button className="inline-flex items-center hover:underline" onClick={() => onSortChange(sortable as SortKey)} type="button">
+                          {labelFor(k)}
+                          {sortIcon(sortable as SortKey)}
+                        </button>
+                      ) : (
+                        labelFor(k)
+                      )}
+                    </div>
+
+                    {resizableColumns && (
+                      <div
+                        onMouseDown={(e) => onStartResize(idx, e)}
+                        className="w-2 h-5 cursor-col-resize opacity-60 hover:opacity-100"
+                        title="Drag to resize"
+                      />
+                    )}
+                  </div>
                 </th>
               );
             })}
@@ -1052,21 +1099,27 @@ function ExcelTable({
         <tbody>
           {rows.map((r) => (
             <tr key={String(r.id)} className="hover:bg-slate-50">
-              {extraLeftCols.map((c) => (
-                <td key={c.label} className="border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-slate-800">
-                  {c.render(r)}
-                </td>
-              ))}
+              {extraLeftCols.map((c, i) => {
+                const isSticky = Boolean(stickyFirstCol && i === 0);
+                return (
+                  <td
+                    key={c.label}
+                    className="border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-slate-800"
+                    style={tdStickyStyle(isSticky)}
+                  >
+                    {c.render(r)}
+                  </td>
+                );
+              })}
 
               {keys.map((k) => {
                 const cellId = `${r.id}:${k}`;
                 const val = r[k];
 
                 if (k === "created_at") {
-                  const d = new Date(r.created_at);
                   return (
                     <td key={k} className="border border-slate-300 px-2 py-2 whitespace-nowrap">
-                      {Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString()}
+                      {safeDateLabel(r.created_at)}
                     </td>
                   );
                 }
@@ -1076,7 +1129,7 @@ function ExcelTable({
                   const display = items.join(", ");
                   return (
                     <td key={k} className="border border-slate-300 px-2 py-2 align-top">
-                      <div className="relative">
+                      <div className="relative" ref={openCell === cellId ? popoverRef : undefined}>
                         <button
                           type="button"
                           className="w-full text-left text-slate-800 whitespace-normal break-words"
@@ -1087,8 +1140,11 @@ function ExcelTable({
 
                         {openCell === cellId && (
                           <div className="absolute left-0 top-full mt-1 w-72 max-w-[70vw] bg-white border border-slate-500 shadow-lg z-20">
-                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">
-                              {labelFor(k)}
+                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300 flex items-center justify-between">
+                              <span>{labelFor(k)}</span>
+                              <button className="text-slate-600 hover:underline" type="button" onClick={() => setOpenCell(null)}>
+                                Close
+                              </button>
                             </div>
                             <ul className="max-h-48 overflow-auto">
                               {(items.length ? items : ["(empty)"]).map((x, idx) => (
@@ -1097,11 +1153,6 @@ function ExcelTable({
                                 </li>
                               ))}
                             </ul>
-                            <div className="p-2">
-                              <Button variant="secondary" onClick={() => setOpenCell(null)}>
-                                Close
-                              </Button>
-                            </div>
                           </div>
                         )}
                       </div>
@@ -1118,8 +1169,8 @@ function ExcelTable({
                       type={isDateTime ? "datetime-local" : "text"}
                       className="w-full bg-transparent border-0 outline-none text-sm"
                       defaultValue={defaultValue}
-                      onBlur={(e) => onUpdate(String(r.id), k, e.target.value)}
                       disabled={savingId === String(r.id)}
+                      onBlur={(e) => onUpdate(String(r.id), k, e.target.value)}
                     />
                   </td>
                 );
