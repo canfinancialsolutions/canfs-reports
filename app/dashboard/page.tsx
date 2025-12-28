@@ -432,7 +432,7 @@ setRecords(clientSideFiltered);
     <div className="min-h-screen">
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
         <header className="flex items-center gap-3">
-          <img src="/can-logo.png" className="h-10 w-auto" alt="CAN Financial Solutions" />
+          <img src="/CANLogo.jpeg" className="h-10 w-auto" alt="CAN Financial Solutions" />
           <div>
             <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
             <div className="text-sm text-slate-500">Excel-style tables, editable follow-ups, and trends</div>
