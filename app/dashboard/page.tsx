@@ -90,37 +90,6 @@ const LABEL_OVERRIDES: Record<string, string> = {
   FollowUp_Status: "Follow-Up Status",
 };
 
-
-
-const SELECT_OPTIONS: Record<string, string[]> = {
-  BOP_Status: [
-    "Presented",
-    "Business",
-    "Client",
-    "Clarification",
-    "Follow-Up 1",
-    "Follow-Up 2",
-    "Follow-Up 3",
-    "Not Interested",
-    "Closed",
-  ],
-  FollowUp_Status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
-  Followup_Status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
-  status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
-  Status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
-  client_status: ["New", "Interested", "Not Interested", "Referral", "Purchased", "Re-Open"],
-};
-
-const READONLY_COLS = new Set([
-  "interest_type",
-  "business_opportunities",
-  "wealth_solutions",
-  "profession",
-  "preferred_days",
-  "preferred_time",
-  "referred_by",
-]);
-
 function labelFor(key: string) {
   if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];
   const s = key
@@ -245,7 +214,6 @@ export default function Dashboard() {
   });
   const [progressPage, setProgressPage] = useState(0);
   const [progressVisible, setProgressVisible] = useState(true);
-  const [allResultsVisible, setAllResultsVisible] = useState(true);
 
   // Search + All Records
   const [q, setQ] = useState("");
@@ -690,7 +658,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weekly} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
+                  <LineChart data={weekly}>
                     <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -723,7 +691,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthly} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
+                  <BarChart data={monthly}>
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -806,11 +774,144 @@ export default function Dashboard() {
               maxHeightClass="max-h-[420px]"
               sortState={sortUpcoming}
               onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
-              excludeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
               stickyLeftCount={1}
             />
           </Card>
         )}
+
+        {/* Search */}
+        <Card title="Search">
+          <div className="flex flex-col md:flex-row gap-2 md:items-center">
+            <input
+              className="w-full border border-slate-300 px-4 py-3"
+              placeholder="Search by first name, last name, or phone"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <Button onClick={() => loadPage(0)}>Go</Button>
+            <div className="text-sm text-slate-600 md:ml-auto">
+              {total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page
+            </div>
+          </div>
+
+          <div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Client Name</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterClient}
+                onChange={(e) => setFilterClient(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Interest Type</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterInterestType}
+                onChange={(e) => setFilterInterestType(e.target.value)}
+                placeholder="e.g., client"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Business Opportunities</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterBusinessOpp}
+                onChange={(e) => setFilterBusinessOpp(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Wealth Solutions</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterWealthSolutions}
+                onChange={(e) => setFilterWealthSolutions(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">BOP Status</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterBopStatus}
+                onChange={(e) => setFilterBopStatus(e.target.value)}
+                placeholder="e.g., scheduled"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Follow-Up Status</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterFollowUpStatus}
+                onChange={(e) => setFilterFollowUpStatus(e.target.value)}
+                placeholder="e.g., pending"
+              />
+            </div>
+          </div>
+
+          <div className="mt-2 text-xs text-slate-600">
+            Tip: Enter filters and click <b>Go</b> to apply. Page size is {ALL_PAGE_SIZE}.
+          </div>
+        </Card>
+
+        {/* All Records */}
+        <Card title="All Records (Editable)">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
+            <div className="text-sm text-slate-600">
+              Page <b>{page + 1}</b> of <b>{totalPages}</b>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {sortHelp}
+              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
+                <span className="text-xs font-semibold text-slate-600">Go to page</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  className="w-20 border border-slate-300 px-2 py-1 text-sm"
+                  value={pageJump}
+                  onChange={(e) => setPageJump(e.target.value)}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    const n = Number(pageJump);
+                    if (!Number.isFinite(n)) return;
+                    const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
+                    loadPage(p - 1);
+                  }}
+                  disabled={loading || totalPages <= 1}
+                >
+                  Go
+                </Button>
+              </div>
+              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
+                Previous
+              </Button>
+              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
+                Next
+              </Button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="text-slate-600">Loading…</div>
+          ) : (
+            <ExcelTableEditable
+              rows={records}
+              savingId={savingId}
+              onUpdate={updateCell}
+              extraLeftCols={extraClientCol}
+              maxHeightClass="max-h-[560px]"
+              sortState={sortAll}
+              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
+              stickyLeftCount={1}
+            />
+          )}
+        </Card>
 
         {/* Client Progress Summary */}
         <Card title="Client Progress Summary">
@@ -865,158 +966,6 @@ export default function Dashboard() {
             </div>
           )}
         </Card>
-
-{/* All Records */}
-        <Card title="All Records (Editable)">
-          {/* Search */}
-          <div className="mt-2 mb-4">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <div className="text-sm font-semibold text-slate-700">Search</div>
-              <div className="text-xs text-slate-600">
-                {total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page
-              </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-2 md:items-center">
-              <input
-                className="w-full border border-slate-300 px-4 py-3"
-                placeholder="Search by first name, last name, or phone"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-              <Button onClick={() => loadPage(0)} disabled={loading}>
-                {loading ? "Loading…" : "Go"}
-              </Button>
-              <Button variant="secondary" onClick={() => setAllResultsVisible((v) => !v)}>
-                {allResultsVisible ? "Hide Results" : "Show Results"}
-              </Button>
-            </div>
-
-            <div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
-              <div>
-                <div className="text-xs font-semibold text-slate-600 mb-1">Client Name</div>
-                <input
-                  className="w-full border border-slate-300 px-3 py-2 text-sm"
-                  value={filterClient}
-                  onChange={(e) => setFilterClient(e.target.value)}
-                  placeholder="Contains…"
-                />
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-600 mb-1">Interest Type</div>
-                <input
-                  className="w-full border border-slate-300 px-3 py-2 text-sm"
-                  value={filterInterestType}
-                  onChange={(e) => setFilterInterestType(e.target.value)}
-                  placeholder="e.g., client"
-                />
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-600 mb-1">Business Opportunities</div>
-                <input
-                  className="w-full border border-slate-300 px-3 py-2 text-sm"
-                  value={filterBusinessOpp}
-                  onChange={(e) => setFilterBusinessOpp(e.target.value)}
-                  placeholder="Contains…"
-                />
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-600 mb-1">Wealth Solutions</div>
-                <input
-                  className="w-full border border-slate-300 px-3 py-2 text-sm"
-                  value={filterWealthSolutions}
-                  onChange={(e) => setFilterWealthSolutions(e.target.value)}
-                  placeholder="Contains…"
-                />
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-600 mb-1">BOP Status</div>
-                <input
-                  className="w-full border border-slate-300 px-3 py-2 text-sm"
-                  value={filterBopStatus}
-                  onChange={(e) => setFilterBopStatus(e.target.value)}
-                  placeholder="e.g., scheduled"
-                />
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-600 mb-1">Follow-Up Status</div>
-                <input
-                  className="w-full border border-slate-300 px-3 py-2 text-sm"
-                  value={filterFollowUpStatus}
-                  onChange={(e) => setFilterFollowUpStatus(e.target.value)}
-                  placeholder="e.g., pending"
-                />
-              </div>
-            </div>
-
-            <div className="mt-2 text-xs text-slate-600">
-              Tip: Enter filters and click <b>Go</b> to apply. Page size is {ALL_PAGE_SIZE}.
-            </div>
-          </div>
-
-          
-          {allResultsVisible ? (
-<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
-            <div className="text-sm text-slate-600">
-              Page <b>{page + 1}</b> of <b>{totalPages}</b>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {sortHelp}
-              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
-                <span className="text-xs font-semibold text-slate-600">Go to page</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={totalPages}
-                  className="w-20 border border-slate-300 px-2 py-1 text-sm"
-                  value={pageJump}
-                  onChange={(e) => setPageJump(e.target.value)}
-                />
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    const n = Number(pageJump);
-                    if (!Number.isFinite(n)) return;
-                    const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
-                    loadPage(p - 1);
-                  }}
-                  disabled={loading || totalPages <= 1}
-                >
-                  Go
-                </Button>
-              </div>
-              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
-                Previous
-              </Button>
-              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
-                Next
-              </Button>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="text-slate-600">Loading…</div>
-          ) : (
-            <ExcelTableEditable
-              rows={records}
-              savingId={savingId}
-              onUpdate={updateCell}
-              extraLeftCols={extraClientCol}
-              maxHeightClass="max-h-[560px]"
-              sortState={sortAll}
-              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
-              includeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
-              stickyLeftCount={1}
-            />
-          )}
-        
-          ) : (
-            <div className="px-2 py-3 text-sm text-slate-600">Results hidden.</div>
-          )}
-</Card>
-
-        
       </div>
     </div>
   );
@@ -1186,8 +1135,6 @@ function ExcelTableEditable({
   sortState,
   onSortChange,
   preferredOrder,
-  includeKeys = [],
-  excludeKeys = [],
   stickyLeftCount = 1,
 }: {
   rows: Row[];
@@ -1198,8 +1145,6 @@ function ExcelTableEditable({
   sortState: { key: SortKey; dir: SortDir };
   onSortChange: (key: SortKey) => void;
   preferredOrder?: string[];
-  includeKeys?: string[];
-  excludeKeys?: string[];
   stickyLeftCount?: number;
 }) {
   const { widths, startResize } = useColumnResizer();
@@ -1213,27 +1158,15 @@ function ExcelTableEditable({
   };
 
   const keys = useMemo(() => {
-    const baseKeys = rows.length ? Object.keys(rows[0]).filter((k) => k !== "id") : [];
-    const mergedKeys = [...baseKeys];
-
-    for (const k of includeKeys) {
-      if (k !== "id" && !mergedKeys.includes(k)) mergedKeys.push(k);
-    }
-
-    const exclude = new Set(excludeKeys || []);
-    const filterOut = (arr: string[]) => arr.filter((k) => !exclude.has(k));
-
-    // Apply preferred order when provided
-    if (preferredOrder?.length) {
-      const set = new Set(mergedKeys);
-      const ordered: string[] = [];
-      for (const k of preferredOrder) if (set.has(k)) ordered.push(k);
-      for (const k of mergedKeys) if (!ordered.includes(k)) ordered.push(k);
-      return filterOut(ordered);
-    }
-
-    return filterOut(mergedKeys);
-  }, [rows, preferredOrder, includeKeys, excludeKeys]);
+    if (!rows.length) return [] as string[];
+    const baseKeys = Object.keys(rows[0]).filter((k) => k !== "id");
+    if (!preferredOrder || !preferredOrder.length) return baseKeys;
+    const set = new Set(baseKeys);
+    const ordered: string[] = [];
+    for (const k of preferredOrder) if (set.has(k)) ordered.push(k);
+    for (const k of baseKeys) if (!ordered.includes(k)) ordered.push(k);
+    return ordered;
+  }, [rows, preferredOrder]);
 
   // Column models (extra cols + keys)
   const columns = useMemo(() => {
@@ -1457,79 +1390,23 @@ function ExcelTableEditable({
                 // EDITABLE CELLS (Controlled inputs so selected dates always stay visible)
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
-                const options = SELECT_OPTIONS[k];
-                const isReadOnly = READONLY_COLS.has(k);
 
                 const value =
                   drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
 
-                if (isReadOnly) {
-                  const raw = (r as any)[k];
-                  const display =
-                    raw == null ? "" : Array.isArray(raw) ? raw.join(", ") : String(raw);
-
-                  return (
-                    <td
-                      key={k}
-                      className="border border-slate-300 bg-white align-top"
-                      style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
-                    >
-                      <div className="px-2 py-2 text-sm whitespace-pre-wrap break-words">
-                        {display}
-                      </div>
-                    </td>
-                  );
-                }
-
-                if (options) {
-                  return (
-                    <td
-                      key={k}
-                      className="border border-slate-300 bg-white align-top"
-                      style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
-                    >
-                      <select
-                        className="w-full bg-transparent px-2 py-2 text-sm outline-none"
-                        value={value}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setDrafts((prev) => ({ ...prev, [cellId]: v }));
-                        }}
-                        onBlur={() => handleBlur(r.id as string, k, cellId)}
-                      >
-                        <option value="" />
-                        {options.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  );
-                }
-
                 return (
-                  <td
-                    key={k}
-                    className="border border-slate-300 bg-white align-top"
-                    style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
-                  >
+                  <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
                     <input
                       type={isDateTime ? "datetime-local" : "text"}
-                      className="w-full bg-transparent px-2 py-2 text-sm outline-none"
+                      className="w-full bg-transparent border-0 outline-none text-sm"
                       value={value}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setDrafts((prev) => ({ ...prev, [cellId]: v }));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                      }}
-                      onBlur={() => handleBlur(r.id as string, k, cellId)}
+                      onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
+                      onBlur={() => handleBlur(String(r.id), k, cellId)}
+                      disabled={savingId != null && String(savingId) === String(r.id)}
                     />
                   </td>
                 );
-})}
+              })}
             </tr>
           ))}
         </tbody>
