@@ -311,7 +311,7 @@ export default function DashboardPage() {
 
       const { data, error: e1 } = await supabase
         .from("client_registrations")
-        .select("created_at,bop_date")
+        .select("created_at,BOP_Date")
         .gte("created_at", lastYearISO);
 
       if (e1) throw e1;
@@ -435,8 +435,8 @@ export default function DashboardPage() {
       let countQ = supabase
         .from("client_registrations")
         .select("id", { count: "exact", head: true })
-        .gte("bop_date", startISO)
-        .lte("bop_date", endISO);
+        .gte("BOP_Date", startISO)
+        .lte("BOP_Date", endISO);
 
       const { count, error: cErr } = await countQ;
       if (cErr) throw cErr;
@@ -448,10 +448,10 @@ export default function DashboardPage() {
       let q = supabase
         .from("client_registrations")
         .select(
-          "id,first_name,last_name,phone,email,created_at,status,interest_type,business_opportunities,wealth_solutions,bop_date,BOP_Status,followup_date"
+          "id,first_name,last_name,phone,email,created_at,status,interest_type,business_opportunities,wealth_solutions,BOP_Date,BOP_Status,Followup_Date"
         )
-        .gte("bop_date", startISO)
-        .lte("bop_date", endISO);
+        .gte("BOP_Date", startISO)
+        .lte("BOP_Date", endISO);
 
       q = applyOrder(q, upcomingSort);
 
@@ -509,7 +509,7 @@ export default function DashboardPage() {
       let q = supabase
         .from("client_registrations")
         .select(
-          "id,first_name,last_name,phone,email,created_at,status,profession,preferred_days,preferred_time,referred_by,called_on,bop_date,BOP_Status,followup_date,followup_status,product,issued,comment,remark"
+          "id,first_name,last_name,phone,email,created_at,status,profession,preferred_days,preferred_time,referred_by,CalledOn,BOP_Date,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark, client_status"
         );
 
       if (s) {
@@ -538,7 +538,7 @@ export default function DashboardPage() {
    *  NOTE: If you still get RLS error "client_call_track", that is BACKEND policy.
    *  This code will keep the selected date visible immediately (optimistic UI).
    */
-  async function saveRegistrationDate(id: string, field: "called_on" | "bop_date" | "followup_date", iso: string | null) {
+  async function saveRegistrationDate(id: string, field: "CalledOn" | "BOP_Date" | "followup_date", iso: string | null) {
     const payload: any = {};
     payload[field] = iso;
 
@@ -617,7 +617,7 @@ export default function DashboardPage() {
       { key: "preferred_days", label: "Preferred Days", w: 160 },
       { key: "preferred_time", label: "Preferred Time", w: 160 },
       { key: "referred_by", label: "Referred By", w: 160 },
-      { key: "called_on", label: "Called On", w: 210 },
+      { key: "calledon", label: "Called On", w: 210 },
       { key: "bop_date", label: "BOP Date", w: 210 },
       { key: "bop_status", label: "BOP Status", w: 160 },
       { key: "followup_date", label: "Follow-Up Date", w: 210 },
