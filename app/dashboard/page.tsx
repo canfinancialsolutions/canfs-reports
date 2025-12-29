@@ -495,7 +495,7 @@ export default function Dashboard() {
       const from = nextPage * ALL_PAGE_SIZE;
       const to = from + ALL_PAGE_SIZE - 1;
 
-      let dataQuery = supabase.from("client_registrations").select("id,BOP_Date,created_at,first_name,last_name,phone,email,CalledOn,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status").range(from, to);
+      let dataQuery = supabase.from("client_registrations").select("id,BOP_Date,created_at,status,first_name,last_name,phone,email,CalledOn,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status").range(from, to);
 
       if (search)
         dataQuery = dataQuery.or(
