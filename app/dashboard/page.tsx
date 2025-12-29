@@ -34,7 +34,7 @@ type SortKey =
   | "client"
   | "created_at"
   | "BOP_Date"
-  | "BOP_"
+  | "BOP_Status"
   | "Followup_Date"
   | "status"
   | "CalledOn"
@@ -69,7 +69,7 @@ const DATE_TIME_KEYS = new Set([
 ]);
 
 const LABEL_OVERRIDES: Record<string, string> = {
-  _name: " Name",
+  client_name: "Client Name",
   last_call_date: "Last Call On",
   call_attempts: "No of Calls",
   last_bop_date: "Last BOP Call On",
@@ -89,6 +89,37 @@ const LABEL_OVERRIDES: Record<string, string> = {
   Followup_Date: "Follow-Up Date",
   FollowUp_Status: "Follow-Up Status",
 };
+
+
+
+const SELECT_OPTIONS: Record<string, string[]> = {
+  BOP_Status: [
+    "Presented",
+    "Business",
+    "Client",
+    "Clarification",
+    "Follow-Up 1",
+    "Follow-Up 2",
+    "Follow-Up 3",
+    "Not Interested",
+    "Closed",
+  ],
+  FollowUp_Status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
+  Followup_Status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
+  status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
+  Status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
+  client_status: ["New", "Interested", "Not Interested", "Referral", "Purchased", "Re-Open"],
+};
+
+const READONLY_COLS = new Set([
+  "interest_type",
+  "business_opportunities",
+  "wealth_solutions",
+  "profession",
+  "preferred_days",
+  "preferred_time",
+  "referred_by",
+]);
 
 function labelFor(key: string) {
   if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];
@@ -402,7 +433,7 @@ export default function Dashboard() {
 
       let query = supabase
         .from("client_registrations")
-        .select("id,BOP_Date,created_at,status,first_name,last_name,phone,email,CalledOn,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status")
+        .select("*")
         .gte("BOP_Date", startIso)
         .lt("BOP_Date", endIso)
         .limit(5000);
@@ -426,21 +457,13 @@ export default function Dashboard() {
     setError(null);
     try {
       const supabase = getSupabase();
-      const selectCols =
-        "clientid, first_name, last_name, phone, email, last_call_date, call_attempts, last_bop_date, bop_attempts, last_followup_date, followup_attempts";
-
-      const run = async (viewName: string) =>
-        supabase
-          .from(viewName)
-          .select(selectCols)
-          .order("clientid", { ascending: false })
-          .limit(10000);
-
-      // Prefer the newer view name, fall back to the older one if needed
-      let { data, error } = await run("v_client_progress_report");
-      if (error) {
-        ({ data, error } = await run("v_client_progress_summary"));
-      }
+      const { data, error } = await supabase
+        .from("v_client_progress_summary")
+        .select(
+          "clientid, first_name, last_name, phone, email, last_call_date, call_attempts, last_bop_date, bop_attempts, last_followup_date, followup_attempts"
+        )
+        .order("clientid", { ascending: false })
+        .limit(10000);
 
       if (error) throw error;
 
@@ -495,7 +518,7 @@ export default function Dashboard() {
       const from = nextPage * ALL_PAGE_SIZE;
       const to = from + ALL_PAGE_SIZE - 1;
 
-      let dataQuery = supabase.from("client_registrations").select("id,created_at,status,first_name,last_name,phone,email,CalledOn,BOP_Date,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status").range(from, to);
+      let dataQuery = supabase.from("client_registrations").select("*").range(from, to);
 
       if (search)
         dataQuery = dataQuery.or(
@@ -581,7 +604,7 @@ export default function Dashboard() {
   const sortHelp = (
     <div className="text-xs text-slate-600">
       Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>, <b>BOP Status</b>,{" "}
-      <b>Follow-Up Date</b>, <b>status</b>.
+      <b>Follow-Up Date</b>, <b>Status</b>.
     </div>
   );
 
@@ -643,7 +666,7 @@ export default function Dashboard() {
             <img src="/can-logo.png" className="h-10 w-auto" alt="CAN Financial Solutions" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
-              <div className="text-sm text-slate-500">Protecting Your Tomorrow</div>
+              <div className="text-sm text-slate-500">Excel-style tables, editable follow-ups, and trends</div>
             </div>
           </div>
           <Button variant="secondary" onClick={logout}>
@@ -666,7 +689,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weekly} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                  <LineChart data={weekly}>
                     <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -699,7 +722,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthly} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                  <BarChart data={monthly}>
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -775,71 +798,18 @@ export default function Dashboard() {
               rows={upcoming}
               savingId={savingId}
               onUpdate={updateCell}
-              preferredOrder={["created_at","status","first_name","last_name","phone","email","CalledOn","BOP_Date","BOP_Status","Followup_Date","FollowUp_Status","Product","Issued","Comment","Remark","client_status"]}
+              preferredOrder={["BOP_Date", "created_at", "BOP_Status", "Followup_Date", "status"]}
               extraLeftCols={[
                 { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
               ]}
               maxHeightClass="max-h-[420px]"
               sortState={sortUpcoming}
               onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
-              stickyLeftCount={2}
+              includeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
+              stickyLeftCount={1}
             />
           </Card>
         )}
-
-        {/* Client Progress Summary */}
-        <Card title="Client Progress Summary">
-          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
-            <input
-              className="w-full border border-slate-300 px-4 py-3"
-              placeholder="Filter by client name..."
-              value={progressFilter}
-              onChange={(e) => {
-                setProgressFilter(e.target.value);
-                setProgressPage(0);
-              }}
-            />
-            <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
-              {progressLoading ? "Loading…" : "Refresh"}
-            </Button>
-            <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
-              {progressVisible ? "Hide Table" : "Show Table"}
-            </Button>
-
-            <div className="md:ml-auto flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setProgressPage((p) => Math.max(0, p - 1))}
-                disabled={!progressVisible || progressPageSafe <= 0}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))}
-                disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-
-          <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
-
-          {progressVisible && (
-            <ProgressSummaryTable
-              rows={progressSlice}
-              sortState={progressSort}
-              onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
-            />
-          )}
-
-          {progressVisible && (
-            <div className="mt-2 text-xs text-slate-600">
-              Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page
-            </div>
-          )}
-        </Card>
 
         {/* Search */}
         <Card title="Search">
@@ -970,12 +940,65 @@ export default function Dashboard() {
               maxHeightClass="max-h-[560px]"
               sortState={sortAll}
               onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
+              includeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
               stickyLeftCount={1}
             />
           )}
         </Card>
 
-        
+        {/* Client Progress Summary */}
+        <Card title="Client Progress Summary">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
+            <input
+              className="w-full border border-slate-300 px-4 py-3"
+              placeholder="Filter by client name..."
+              value={progressFilter}
+              onChange={(e) => {
+                setProgressFilter(e.target.value);
+                setProgressPage(0);
+              }}
+            />
+            <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
+              {progressLoading ? "Loading…" : "Refresh"}
+            </Button>
+            <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
+              {progressVisible ? "Hide Table" : "Show Table"}
+            </Button>
+
+            <div className="md:ml-auto flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setProgressPage((p) => Math.max(0, p - 1))}
+                disabled={!progressVisible || progressPageSafe <= 0}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))}
+                disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+
+          <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
+
+          {progressVisible && (
+            <ProgressSummaryTable
+              rows={progressSlice}
+              sortState={progressSort}
+              onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
+            />
+          )}
+
+          {progressVisible && (
+            <div className="mt-2 text-xs text-slate-600">
+              Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );
@@ -1145,6 +1168,7 @@ function ExcelTableEditable({
   sortState,
   onSortChange,
   preferredOrder,
+  includeKeys = [],
   stickyLeftCount = 1,
 }: {
   rows: Row[];
@@ -1155,6 +1179,7 @@ function ExcelTableEditable({
   sortState: { key: SortKey; dir: SortDir };
   onSortChange: (key: SortKey) => void;
   preferredOrder?: string[];
+  includeKeys?: string[];
   stickyLeftCount?: number;
 }) {
   const { widths, startResize } = useColumnResizer();
@@ -1168,15 +1193,24 @@ function ExcelTableEditable({
   };
 
   const keys = useMemo(() => {
-    if (!rows.length) return [] as string[];
-    const baseKeys = Object.keys(rows[0]).filter((k) => k !== "id");
-    if (!preferredOrder || !preferredOrder.length) return baseKeys;
-    const set = new Set(baseKeys);
-    const ordered: string[] = [];
-    for (const k of preferredOrder) if (set.has(k)) ordered.push(k);
-    for (const k of baseKeys) if (!ordered.includes(k)) ordered.push(k);
-    return ordered;
-  }, [rows, preferredOrder]);
+    const baseKeys = rows.length ? Object.keys(rows[0]).filter((k) => k !== "id") : [];
+    const mergedKeys = [...baseKeys];
+
+    for (const k of includeKeys) {
+      if (k !== "id" && !mergedKeys.includes(k)) mergedKeys.push(k);
+    }
+
+    // Apply preferred order when provided
+    if (preferredOrder?.length) {
+      const set = new Set(mergedKeys);
+      const ordered: string[] = [];
+      for (const k of preferredOrder) if (set.has(k)) ordered.push(k);
+      for (const k of mergedKeys) if (!ordered.includes(k)) ordered.push(k);
+      return ordered;
+    }
+
+    return mergedKeys;
+  }, [rows, preferredOrder, includeKeys]);
 
   // Column models (extra cols + keys)
   const columns = useMemo(() => {
@@ -1400,23 +1434,79 @@ function ExcelTableEditable({
                 // EDITABLE CELLS (Controlled inputs so selected dates always stay visible)
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
+                const options = SELECT_OPTIONS[k];
+                const isReadOnly = READONLY_COLS.has(k);
 
                 const value =
                   drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
 
+                if (isReadOnly) {
+                  const raw = (r as any)[k];
+                  const display =
+                    raw == null ? "" : Array.isArray(raw) ? raw.join(", ") : String(raw);
+
+                  return (
+                    <td
+                      key={k}
+                      className="border border-slate-300 bg-white align-top"
+                      style={{ minWidth: colWidths[k] ?? 140, width: colWidths[k] ?? 140 }}
+                    >
+                      <div className="px-2 py-2 text-sm whitespace-pre-wrap break-words">
+                        {display}
+                      </div>
+                    </td>
+                  );
+                }
+
+                if (options) {
+                  return (
+                    <td
+                      key={k}
+                      className="border border-slate-300 bg-white align-top"
+                      style={{ minWidth: colWidths[k] ?? 140, width: colWidths[k] ?? 140 }}
+                    >
+                      <select
+                        className="w-full bg-transparent px-2 py-2 text-sm outline-none"
+                        value={value}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setDrafts((prev) => ({ ...prev, [cellId]: v }));
+                        }}
+                        onBlur={() => handleBlur(r.id as string, k, cellId)}
+                      >
+                        <option value="" />
+                        {options.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  );
+                }
+
                 return (
-                  <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
+                  <td
+                    key={k}
+                    className="border border-slate-300 bg-white align-top"
+                    style={{ minWidth: colWidths[k] ?? 140, width: colWidths[k] ?? 140 }}
+                  >
                     <input
                       type={isDateTime ? "datetime-local" : "text"}
-                      className="w-full bg-transparent border-0 outline-none text-sm"
+                      className="w-full bg-transparent px-2 py-2 text-sm outline-none"
                       value={value}
-                      onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
-                      onBlur={() => handleBlur(String(r.id), k, cellId)}
-                      disabled={savingId != null && String(savingId) === String(r.id)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setDrafts((prev) => ({ ...prev, [cellId]: v }));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                      onBlur={() => handleBlur(r.id as string, k, cellId)}
                     />
                   </td>
                 );
-              })}
+})}
             </tr>
           ))}
         </tbody>
