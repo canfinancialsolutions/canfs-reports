@@ -689,7 +689,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weekly} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
+                  <LineChart data={weekly}>
                     <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -722,7 +722,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthly} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
+                  <BarChart data={monthly}>
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -798,14 +798,14 @@ export default function Dashboard() {
               rows={upcoming}
               savingId={savingId}
               onUpdate={updateCell}
-              preferredOrder={["BOP_Date", "created_at", "BOP_Status", "Followup_Date", "status"]}
+              preferredOrder={[ "created_at","BOP_Date", "BOP_Status", "Followup_Date", "status"]}
               extraLeftCols={[
                 { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
               ]}
               maxHeightClass="max-h-[420px]"
               sortState={sortUpcoming}
               onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
-              excludeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
+              includeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
               stickyLeftCount={1}
             />
           </Card>
@@ -888,137 +888,7 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        {/* Client Progress Summary */}
-        <Card title="Client Progress Summary">
-          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
-            <input
-              className="w-full border border-slate-300 px-4 py-3"
-              placeholder="Filter by client name..."
-              value={progressFilter}
-              onChange={(e) => {
-                setProgressFilter(e.target.value);
-                setProgressPage(0);
-              }}
-            />
-            <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
-              {progressLoading ? "Loading…" : "Refresh"}
-            </Button>
-            <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
-              {progressVisible ? "Hide Table" : "Show Table"}
-            </Button>
-
-            <div className="md:ml-auto flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setProgressPage((p) => Math.max(0, p - 1))}
-                disabled={!progressVisible || progressPageSafe <= 0}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))}
-                disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-
-          <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
-
-          {progressVisible && (
-            <ProgressSummaryTable
-              rows={progressSlice}
-              sortState={progressSort}
-              onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
-            />
-          )}
-
-          {progressVisible && (
-            <div className="mt-2 text-xs text-slate-600">
-              Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page
-            </div>
-          )}
-        </Card>
-		{/* Search */}
-        <Card title="Search">
-          <div className="flex flex-col md:flex-row gap-2 md:items-center">
-            <input
-              className="w-full border border-slate-300 px-4 py-3"
-              placeholder="Search by first name, last name, or phone"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <Button onClick={() => loadPage(0)}>Go</Button>
-            <div className="text-sm text-slate-600 md:ml-auto">
-              {total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page
-            </div>
-          </div>
-
-          <div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Client Name</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterClient}
-                onChange={(e) => setFilterClient(e.target.value)}
-                placeholder="Contains…"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Interest Type</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterInterestType}
-                onChange={(e) => setFilterInterestType(e.target.value)}
-                placeholder="e.g., client"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Business Opportunities</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterBusinessOpp}
-                onChange={(e) => setFilterBusinessOpp(e.target.value)}
-                placeholder="Contains…"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Wealth Solutions</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterWealthSolutions}
-                onChange={(e) => setFilterWealthSolutions(e.target.value)}
-                placeholder="Contains…"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">BOP Status</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterBopStatus}
-                onChange={(e) => setFilterBopStatus(e.target.value)}
-                placeholder="e.g., scheduled"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Follow-Up Status</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterFollowUpStatus}
-                onChange={(e) => setFilterFollowUpStatus(e.target.value)}
-                placeholder="e.g., pending"
-              />
-            </div>
-          </div>
-
-          <div className="mt-2 text-xs text-slate-600">
-            Tip: Enter filters and click <b>Go</b> to apply. Page size is {ALL_PAGE_SIZE}.
-          </div>
-        </Card>
-
-{/* All Records */}
+        {/* All Records */}
         <Card title="All Records (Editable)">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
             <div className="text-sm text-slate-600">
@@ -1076,9 +946,61 @@ export default function Dashboard() {
           )}
         </Card>
 
-        
-  //    </div>
- //   </div>
+        {/* Client Progress Summary */}
+        <Card title="Client Progress Summary">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
+            <input
+              className="w-full border border-slate-300 px-4 py-3"
+              placeholder="Filter by client name..."
+              value={progressFilter}
+              onChange={(e) => {
+                setProgressFilter(e.target.value);
+                setProgressPage(0);
+              }}
+            />
+            <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
+              {progressLoading ? "Loading…" : "Refresh"}
+            </Button>
+            <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
+              {progressVisible ? "Hide Table" : "Show Table"}
+            </Button>
+
+            <div className="md:ml-auto flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setProgressPage((p) => Math.max(0, p - 1))}
+                disabled={!progressVisible || progressPageSafe <= 0}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))}
+                disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+
+          <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
+
+          {progressVisible && (
+            <ProgressSummaryTable
+              rows={progressSlice}
+              sortState={progressSort}
+              onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
+            />
+          )}
+
+          {progressVisible && (
+            <div className="mt-2 text-xs text-slate-600">
+              Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
   );
 }
 
@@ -1247,7 +1169,6 @@ function ExcelTableEditable({
   onSortChange,
   preferredOrder,
   includeKeys = [],
-  excludeKeys = [],
   stickyLeftCount = 1,
 }: {
   rows: Row[];
@@ -1259,7 +1180,6 @@ function ExcelTableEditable({
   onSortChange: (key: SortKey) => void;
   preferredOrder?: string[];
   includeKeys?: string[];
-  excludeKeys?: string[];
   stickyLeftCount?: number;
 }) {
   const { widths, startResize } = useColumnResizer();
@@ -1280,20 +1200,17 @@ function ExcelTableEditable({
       if (k !== "id" && !mergedKeys.includes(k)) mergedKeys.push(k);
     }
 
-    const exclude = new Set(excludeKeys || []);
-    const filterOut = (arr: string[]) => arr.filter((k) => !exclude.has(k));
-
     // Apply preferred order when provided
     if (preferredOrder?.length) {
       const set = new Set(mergedKeys);
       const ordered: string[] = [];
       for (const k of preferredOrder) if (set.has(k)) ordered.push(k);
       for (const k of mergedKeys) if (!ordered.includes(k)) ordered.push(k);
-      return filterOut(ordered);
+      return ordered;
     }
 
-    return filterOut(mergedKeys);
-  }, [rows, preferredOrder, includeKeys, excludeKeys]);
+    return mergedKeys;
+  }, [rows, preferredOrder, includeKeys]);
 
   // Column models (extra cols + keys)
   const columns = useMemo(() => {
