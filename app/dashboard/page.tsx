@@ -37,17 +37,17 @@ type RegistrationRow = {
   preferred_time?: string | null;
   referred_by?: string | null;
 
-  called_on?: string | null;
+  CalledOn?: string | null;
   BOP_Date?: string | null;
   BOP_Status?: string | null;
 
-  followup_date?: string | null;
-  followup_status?: string | null;
+  Followup_Date?: string | null;
+  FollowUp_Status?: string | null;
 
-  product?: string | null;
-  issued?: string | null;
-  comment?: string | null;
-  remark?: string | null;
+  Product?: string | null;
+  Issued?: string | null;
+  Comment?: string | null;
+  Remark?: string | null;
 };
 
 type ProgressRow = {
@@ -128,7 +128,7 @@ function applyOrder(query: any, sort: SortState) {
   const map: Record<string, string> = {
     created_date: "created_at",
     status: "status",
-    called_on: "called_on",
+    CalledOn: "CalledOn",
     BOP_Date: "BOP_Date",
     BOP_Status: "BOP_Status",
     Followup_Date: "Followup_Date",
@@ -534,7 +534,7 @@ export default function DashboardPage() {
     }
   }
 
-  /** Save date columns (called_on, BOP_Date, Followup_Date)
+  /** Save date columns (CalledOn, BOP_Date, Followup_Date)
    *  NOTE: If you still get RLS error "client_call_track", that is BACKEND policy.
    *  This code will keep the selected date visible immediately (optimistic UI).
    */
@@ -992,7 +992,7 @@ export default function DashboardPage() {
                   const clientName = `${safeText(r.first_name)} ${safeText(r.last_name)}`.trim() || "(no name)";
                   const d = draftDate[r.id] || {};
 
-                  const calledInput = d.called ?? toDateTimeLocalValue(r.called_on);
+                  const calledInput = d.called ?? toDateTimeLocalValue(r.CalledOn);
                   const bopInput = d.bop ?? toDateTimeLocalValue(r.BOP_Date);
                   const followInput = d.follow ?? toDateTimeLocalValue(r.followup_date);
 
@@ -1007,7 +1007,7 @@ export default function DashboardPage() {
                       <Cell width={allWidths["referred_by"]}>{safeText(r.referred_by)}</Cell>
 
                       {/* Called On (editable + must persist in state immediately) */}
-                      <Cell width={allWidths["called_on"]}>
+                      <Cell width={allWidths["CalledOn"]}>
                         <input
                           type="datetime-local"
                           className="w-full bg-transparent outline-none"
@@ -1018,10 +1018,10 @@ export default function DashboardPage() {
 
                             const iso = fromDateTimeLocalValue(v);
                             // optimistic UI: update row immediately so it doesn't disappear on blur
-                            setAllRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, called_on: iso } : x)));
+                            setAllRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, CalledOn: iso } : x)));
 
                             // persist
-                            saveRegistrationDate(r.id, "called_on", iso).catch((err: any) => {
+                            saveRegistrationDate(r.id, "CalledOn", iso).catch((err: any) => {
                               setError(err?.message || "Failed to save Called On");
                             });
                           }}
