@@ -90,6 +90,37 @@ const LABEL_OVERRIDES: Record<string, string> = {
   FollowUp_Status: "Follow-Up Status",
 };
 
+
+
+const SELECT_OPTIONS: Record<string, string[]> = {
+  BOP_Status: [
+    "Presented",
+    "Business",
+    "Client",
+    "Clarification",
+    "Follow-Up 1",
+    "Follow-Up 2",
+    "Follow-Up 3",
+    "Not Interested",
+    "Closed",
+  ],
+  FollowUp_Status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
+  Followup_Status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
+  status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
+  Status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
+  client_status: ["New", "Interested", "Not Interested", "Referral", "Purchased", "Re-Open"],
+};
+
+const READONLY_COLS = new Set([
+  "interest_type",
+  "business_opportunities",
+  "wealth_solutions",
+  "profession",
+  "preferred_days",
+  "preferred_time",
+  "referred_by",
+]);
+
 function labelFor(key: string) {
   if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];
   const s = key
@@ -658,7 +689,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weekly}>
+                  <LineChart data={weekly} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
                     <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -691,7 +722,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthly}>
+                  <BarChart data={monthly} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -774,6 +805,7 @@ export default function Dashboard() {
               maxHeightClass="max-h-[420px]"
               sortState={sortUpcoming}
               onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
+              excludeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
               stickyLeftCount={1}
             />
           </Card>
@@ -856,63 +888,6 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        {/* All Records */}
-        <Card title="All Records (Editable)">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
-            <div className="text-sm text-slate-600">
-              Page <b>{page + 1}</b> of <b>{totalPages}</b>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {sortHelp}
-              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
-                <span className="text-xs font-semibold text-slate-600">Go to page</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={totalPages}
-                  className="w-20 border border-slate-300 px-2 py-1 text-sm"
-                  value={pageJump}
-                  onChange={(e) => setPageJump(e.target.value)}
-                />
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    const n = Number(pageJump);
-                    if (!Number.isFinite(n)) return;
-                    const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
-                    loadPage(p - 1);
-                  }}
-                  disabled={loading || totalPages <= 1}
-                >
-                  Go
-                </Button>
-              </div>
-              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
-                Previous
-              </Button>
-              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
-                Next
-              </Button>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="text-slate-600">Loading…</div>
-          ) : (
-            <ExcelTableEditable
-              rows={records}
-              savingId={savingId}
-              onUpdate={updateCell}
-              extraLeftCols={extraClientCol}
-              maxHeightClass="max-h-[560px]"
-              sortState={sortAll}
-              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
-              stickyLeftCount={1}
-            />
-          )}
-        </Card>
-
         {/* Client Progress Summary */}
         <Card title="Client Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
@@ -966,6 +941,66 @@ export default function Dashboard() {
             </div>
           )}
         </Card>
+
+{/* All Records */}
+        <Card title="All Records (Editable)">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
+            <div className="text-sm text-slate-600">
+              Page <b>{page + 1}</b> of <b>{totalPages}</b>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {sortHelp}
+              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
+                <span className="text-xs font-semibold text-slate-600">Go to page</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  className="w-20 border border-slate-300 px-2 py-1 text-sm"
+                  value={pageJump}
+                  onChange={(e) => setPageJump(e.target.value)}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    const n = Number(pageJump);
+                    if (!Number.isFinite(n)) return;
+                    const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
+                    loadPage(p - 1);
+                  }}
+                  disabled={loading || totalPages <= 1}
+                >
+                  Go
+                </Button>
+              </div>
+              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
+                Previous
+              </Button>
+              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
+                Next
+              </Button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="text-slate-600">Loading…</div>
+          ) : (
+            <ExcelTableEditable
+              rows={records}
+              savingId={savingId}
+              onUpdate={updateCell}
+              extraLeftCols={extraClientCol}
+              maxHeightClass="max-h-[560px]"
+              sortState={sortAll}
+              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
+              includeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
+              stickyLeftCount={1}
+            />
+          )}
+        </Card>
+
+        
       </div>
     </div>
   );
@@ -1135,6 +1170,8 @@ function ExcelTableEditable({
   sortState,
   onSortChange,
   preferredOrder,
+  includeKeys = [],
+  excludeKeys = [],
   stickyLeftCount = 1,
 }: {
   rows: Row[];
@@ -1145,11 +1182,78 @@ function ExcelTableEditable({
   sortState: { key: SortKey; dir: SortDir };
   onSortChange: (key: SortKey) => void;
   preferredOrder?: string[];
+  includeKeys?: string[];
+  excludeKeys?: string[];
   stickyLeftCount?: number;
 }) {
   const { widths, startResize } = useColumnResizer();
   const [openCell, setOpenCell] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  // Save while typing (debounced per cell).
+  const saveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const inFlightRef = useRef<Record<string, Promise<void>>>({});
+
+  useEffect(() => {
+    return () => {
+      for (const t of Object.values(saveTimersRef.current)) clearTimeout(t);
+    };
+  }, []);
+
+  const commitCell = async (
+    id: string,
+    key: string,
+    cellId: string,
+    rawValue: string,
+    kind: "text" | "datetime" | "checkbox" | "select" = "text",
+    clearDraftOnSuccess = false
+  ) => {
+    // Normalize value the same way blur-save used to.
+    const nextValue = (() => {
+      if (kind === "datetime") return fromLocalInput(rawValue);
+      if (kind === "checkbox") return rawValue;
+      const trimmed = (rawValue ?? "").trim();
+      return trimmed ? trimmed : "";
+    })();
+
+    const prior = inFlightRef.current[cellId];
+    const run = async () => {
+      await onUpdate(id, key, nextValue);
+      // Clear draft only after successful save, and only when we explicitly want to.
+      if (clearDraftOnSuccess) {
+        setDrafts((prev) => {
+          if (!(cellId in prev)) return prev;
+          const cp = { ...prev };
+          delete cp[cellId];
+          return cp;
+        });
+      }
+    };
+
+    const p = (prior ? prior.catch(() => {}) : Promise.resolve()).then(run);
+    inFlightRef.current[cellId] = p;
+    try {
+      await p;
+    } finally {
+      if (inFlightRef.current[cellId] === p) delete inFlightRef.current[cellId];
+    }
+  };
+
+  const scheduleCellSave = (
+    id: string,
+    key: string,
+    cellId: string,
+    rawValue: string,
+    kind: "text" | "datetime" | "checkbox" | "select" = "text",
+    delayMs = 250
+  ) => {
+    const existing = saveTimersRef.current[cellId];
+    if (existing) clearTimeout(existing);
+    saveTimersRef.current[cellId] = setTimeout(() => {
+      delete saveTimersRef.current[cellId];
+      void commitCell(id, key, cellId, rawValue, kind);
+    }, delayMs);
+  };
 
   const sortIcon = (k?: SortKey) => {
     if (!k) return null;
@@ -1158,15 +1262,27 @@ function ExcelTableEditable({
   };
 
   const keys = useMemo(() => {
-    if (!rows.length) return [] as string[];
-    const baseKeys = Object.keys(rows[0]).filter((k) => k !== "id");
-    if (!preferredOrder || !preferredOrder.length) return baseKeys;
-    const set = new Set(baseKeys);
-    const ordered: string[] = [];
-    for (const k of preferredOrder) if (set.has(k)) ordered.push(k);
-    for (const k of baseKeys) if (!ordered.includes(k)) ordered.push(k);
-    return ordered;
-  }, [rows, preferredOrder]);
+    const baseKeys = rows.length ? Object.keys(rows[0]).filter((k) => k !== "id") : [];
+    const mergedKeys = [...baseKeys];
+
+    for (const k of includeKeys) {
+      if (k !== "id" && !mergedKeys.includes(k)) mergedKeys.push(k);
+    }
+
+    const exclude = new Set(excludeKeys || []);
+    const filterOut = (arr: string[]) => arr.filter((k) => !exclude.has(k));
+
+    // Apply preferred order when provided
+    if (preferredOrder?.length) {
+      const set = new Set(mergedKeys);
+      const ordered: string[] = [];
+      for (const k of preferredOrder) if (set.has(k)) ordered.push(k);
+      for (const k of mergedKeys) if (!ordered.includes(k)) ordered.push(k);
+      return filterOut(ordered);
+    }
+
+    return filterOut(mergedKeys);
+  }, [rows, preferredOrder, includeKeys, excludeKeys]);
 
   // Column models (extra cols + keys)
   const columns = useMemo(() => {
@@ -1234,18 +1350,24 @@ function ExcelTableEditable({
     return val ?? "";
   };
 
-  const handleBlur = async (rowId: string, key: string, cellId: string) => {
-    const v = drafts[cellId] ?? "";
-    try {
-      await onUpdate(String(rowId), key, v);
-    } finally {
-      // After save attempt, keep UI stable: clear draft so it renders from updated row value
-      setDrafts((prev) => {
-        const next = { ...prev };
-        delete next[cellId];
-        return next;
-      });
+  const handleBlur = (rowId: string, key: string, cellId: string) => {
+    const raw = drafts[cellId] ?? "";
+    setOpenCell(null);
+
+    // Flush any scheduled save for this cell and commit immediately.
+    const t = saveTimersRef.current[cellId];
+    if (t) {
+      clearTimeout(t);
+      delete saveTimersRef.current[cellId];
     }
+
+    const kind: "text" | "datetime" | "checkbox" | "select" = DATE_TIME_KEYS.has(key)
+      ? "datetime"
+      : SELECT_OPTIONS[key]
+        ? "select"
+        : "text";
+
+    void commitCell(String(rowId), key, cellId, raw, kind, true);
   };
 
   return (
@@ -1390,23 +1512,88 @@ function ExcelTableEditable({
                 // EDITABLE CELLS (Controlled inputs so selected dates always stay visible)
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
+                const options = SELECT_OPTIONS[k];
+                const isReadOnly = READONLY_COLS.has(k);
 
                 const value =
                   drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
 
+                if (isReadOnly) {
+                  const raw = (r as any)[k];
+                  const display =
+                    raw == null ? "" : Array.isArray(raw) ? raw.join(", ") : String(raw);
+
+                  return (
+                    <td
+                      key={k}
+                      className="border border-slate-300 bg-white align-top"
+                      style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
+                    >
+                      <div className="px-2 py-2 text-sm whitespace-pre-wrap break-words">
+                        {display}
+                      </div>
+                    </td>
+                  );
+                }
+
+                if (options) {
+                  return (
+                    <td
+                      key={k}
+                      className="border border-slate-300 bg-white align-top"
+                      style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
+                    >
+                      <select
+                        className="w-full bg-transparent px-2 py-2 text-sm outline-none"
+                        value={value}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setDrafts((prev) => ({ ...prev, [cellId]: v }));
+                          scheduleCellSave(r.id as string, k, cellId, v, "select", 0);
+                        }}
+                        onBlur={() => handleBlur(r.id as string, k, cellId)}
+                      >
+                        <option value="" />
+                        {options.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  );
+                }
+
                 return (
-                  <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
+                  <td
+                    key={k}
+                    className="border border-slate-300 bg-white align-top"
+                    style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
+                  >
                     <input
                       type={isDateTime ? "datetime-local" : "text"}
-                      className="w-full bg-transparent border-0 outline-none text-sm"
+                      className="w-full bg-transparent px-2 py-2 text-sm outline-none"
                       value={value}
-                      onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
-                      onBlur={() => handleBlur(String(r.id), k, cellId)}
-                      disabled={savingId != null && String(savingId) === String(r.id)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setDrafts((prev) => ({ ...prev, [cellId]: v }));
+                        scheduleCellSave(
+                          r.id as string,
+                          k,
+                          cellId,
+                          v,
+                          isDateTime ? "datetime" : "text",
+                          isDateTime ? 250 : 250
+                        );
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                      onBlur={() => handleBlur(r.id as string, k, cellId)}
                     />
                   </td>
                 );
-              })}
+})}
             </tr>
           ))}
         </tbody>
