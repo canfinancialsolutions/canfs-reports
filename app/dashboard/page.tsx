@@ -38,7 +38,7 @@ type RegistrationRow = {
   referred_by?: string | null;
 
   called_on?: string | null;
-  bop_date?: string | null;
+  BOP_Date?: string | null;
   BOP_Status?: string | null;
 
   followup_date?: string | null;
@@ -129,10 +129,10 @@ function applyOrder(query: any, sort: SortState) {
     created_date: "created_at",
     status: "status",
     called_on: "called_on",
-    bop_date: "bop_date",
-    bop_status: "BOP_Status",
-    followup_date: "followup_date",
-    followup_status: "followup_status",
+    BOP_Date: "BOP_Date",
+    BOP_Status: "BOP_Status",
+    Followup_Date: "Followup_Date",
+    FollowUp_Status: "FollowUp_Status",
     email: "email",
     phone: "phone",
     first_name: "first_name",
@@ -316,7 +316,7 @@ export default function DashboardPage() {
 
       if (e1) throw e1;
 
-      const rows = (data ?? []) as { created_at: string | null; bop_date: string | null }[];
+      const rows = (data ?? []) as { created_at: string | null; BOP_Date: string | null }[];
 
       // Weekly (last 5 weeks incl current): group by week start (Sunday)
       const weeks: { label: string; prospects: number; bops: number }[] = [];
@@ -340,8 +340,8 @@ export default function DashboardPage() {
         }).length;
 
         const bops = rows.filter((r) => {
-          if (!r.bop_date) return false;
-          const t = new Date(r.bop_date).getTime();
+          if (!r.BOP_Date) return false;
+          const t = new Date(r.BOP_Date).getTime();
           return t >= startMs && t <= endMs;
         }).length;
 
@@ -367,8 +367,8 @@ export default function DashboardPage() {
         }).length;
 
         const bops = rows.filter((r) => {
-          if (!r.bop_date) return false;
-          const t = new Date(r.bop_date).getTime();
+          if (!r.BOP_Date) return false;
+          const t = new Date(r.BOP_Date).getTime();
           return t >= startMs && t <= endMs;
         }).length;
 
@@ -534,7 +534,7 @@ export default function DashboardPage() {
     }
   }
 
-  /** Save date columns (called_on, bop_date, followup_date)
+  /** Save date columns (called_on, BOP_Date, Followup_Date)
    *  NOTE: If you still get RLS error "client_call_track", that is BACKEND policy.
    *  This code will keep the selected date visible immediately (optimistic UI).
    */
@@ -618,14 +618,14 @@ export default function DashboardPage() {
       { key: "preferred_time", label: "Preferred Time", w: 160 },
       { key: "referred_by", label: "Referred By", w: 160 },
       { key: "calledon", label: "Called On", w: 210 },
-      { key: "bop_date", label: "BOP Date", w: 210 },
-      { key: "bop_status", label: "BOP Status", w: 160 },
-      { key: "followup_date", label: "Follow-Up Date", w: 210 },
-      { key: "followup_status", label: "Follow-Up Status", w: 180 },
-      { key: "product", label: "Product", w: 160 },
-      { key: "issued", label: "Issued", w: 210 },
+      { key: "BOP_Date", label: "BOP Date", w: 210 },
+      { key: "BOP_Status", label: "BOP Status", w: 160 },
+      { key: "Followup_Date", label: "Follow-Up Date", w: 210 },
+      { key: "FollowUp_Status", label: "Follow-Up Status", w: 180 },
+      { key: "Product", label: "Product", w: 160 },
+      { key: "Issued", label: "Issued", w: 210 },
       { key: "comment", label: "Comment", w: 220 },
-      { key: "remark", label: "Remark", w: 180 },
+      { key: "Remark", label: "Remark", w: 180 },
     ],
     []
   );
@@ -637,7 +637,7 @@ export default function DashboardPage() {
   const upcomingCols = useMemo(
     () => [
       { key: "client_name", label: "Client Name", w: 180, sticky: true },
-      { key: "bop_date", label: "BOP Date", w: 210 },
+      { key: "BOP_Date", label: "BOP Date", w: 210 },
       { key: "created_date", label: "Created Date", w: 140 },
       { key: "bop_status", label: "BOP Status", w: 160 },
       { key: "followup_date", label: "Follow-Up Date", w: 210 },
@@ -904,7 +904,7 @@ export default function DashboardPage() {
                           {clientName}
                         </Cell>
 
-                        <Cell width={upcomingWidths["bop_date"]}>{formatDisplayDate(r.bop_date)}</Cell>
+                        <Cell width={upcomingWidths["BOP_Date"]}>{formatDisplayDate(r.BOP_Date)}</Cell>
                         <Cell width={upcomingWidths["created_date"]}>
                           {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}
                         </Cell>
@@ -993,7 +993,7 @@ export default function DashboardPage() {
                   const d = draftDate[r.id] || {};
 
                   const calledInput = d.called ?? toDateTimeLocalValue(r.called_on);
-                  const bopInput = d.bop ?? toDateTimeLocalValue(r.bop_date);
+                  const bopInput = d.bop ?? toDateTimeLocalValue(r.BOP_Date);
                   const followInput = d.follow ?? toDateTimeLocalValue(r.followup_date);
 
                   return (
@@ -1037,7 +1037,7 @@ export default function DashboardPage() {
                       </Cell>
 
                       {/* BOP Date */}
-                      <Cell width={allWidths["bop_date"]}>
+                      <Cell width={allWidths["BOP_Date"]}>
                         <input
                           type="datetime-local"
                           className="w-full bg-transparent outline-none"
@@ -1047,9 +1047,9 @@ export default function DashboardPage() {
                             setDraftDate((prev) => ({ ...prev, [r.id]: { ...(prev[r.id] || {}), bop: v } }));
 
                             const iso = fromDateTimeLocalValue(v);
-                            setAllRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, bop_date: iso } : x)));
+                            setAllRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, BOP_Date: iso } : x)));
 
-                            saveRegistrationDate(r.id, "bop_date", iso).catch((err: any) => {
+                            saveRegistrationDate(r.id, "BOP_Date", iso).catch((err: any) => {
                               setError(err?.message || "Failed to save BOP Date");
                             });
                           }}
