@@ -509,7 +509,7 @@ export default function DashboardPage() {
       let q = supabase
         .from("client_registrations")
         .select(
-          "id,first_name,last_name,phone,email,created_at,status,profession,preferred_days,preferred_time,referred_by,CalledOn,BOP_Date,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark, client_status"
+          "id,first_name,last_name,phone,email,created_at,status,profession,preferred_days,preferred_time,referred_by,CalledOn,BOP_Date,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status"
         );
 
       if (s) {
@@ -624,7 +624,7 @@ export default function DashboardPage() {
       { key: "FollowUp_Status", label: "Follow-Up Status", w: 180 },
       { key: "Product", label: "Product", w: 160 },
       { key: "Issued", label: "Issued", w: 210 },
-      { key: "comment", label: "Comment", w: 220 },
+      { key: "Comment", label: "Comment", w: 220 },
       { key: "Remark", label: "Remark", w: 180 },
     ],
     []
@@ -1095,10 +1095,10 @@ export default function DashboardPage() {
                       </Cell>
 
                       <Cell width={allWidths["FollowUp_Status"]}>{safeText(r.FollowUp_Status)}</Cell>
-                      <Cell width={allWidths["Product"]}>{safeText(r.product)}</Cell>
+                      <Cell width={allWidths["Product"]}>{safeText(r.Product)}</Cell>
                       <Cell width={allWidths["Issued"]}>{formatDisplayDate(r.Issued)}</Cell>
-                      <Cell width={allWidths["Comment"]}>{safeText(r.comment)}</Cell>
-                      <Cell width={allWidths["Remark"]}>{safeText(r.remark)}</Cell>
+                      <Cell width={allWidths["Comment"]}>{safeText(r.Comment)}</Cell>
+                      <Cell width={allWidths["Remark"]}>{safeText(r.Remark)}</Cell>
                     </tr>
                   );
                 })}
