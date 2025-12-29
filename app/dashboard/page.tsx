@@ -245,6 +245,7 @@ export default function Dashboard() {
   });
   const [progressPage, setProgressPage] = useState(0);
   const [progressVisible, setProgressVisible] = useState(true);
+  const [allResultsVisible, setAllResultsVisible] = useState(true);
 
   // Search + All Records
   const [q, setQ] = useState("");
@@ -811,83 +812,6 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* Search */}
-        <Card title="Search">
-          <div className="flex flex-col md:flex-row gap-2 md:items-center">
-            <input
-              className="w-full border border-slate-300 px-4 py-3"
-              placeholder="Search by first name, last name, or phone"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <Button onClick={() => loadPage(0)}>Go</Button>
-            <div className="text-sm text-slate-600 md:ml-auto">
-              {total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page
-            </div>
-          </div>
-
-          <div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Client Name</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterClient}
-                onChange={(e) => setFilterClient(e.target.value)}
-                placeholder="Contains…"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Interest Type</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterInterestType}
-                onChange={(e) => setFilterInterestType(e.target.value)}
-                placeholder="e.g., client"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Business Opportunities</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterBusinessOpp}
-                onChange={(e) => setFilterBusinessOpp(e.target.value)}
-                placeholder="Contains…"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Wealth Solutions</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterWealthSolutions}
-                onChange={(e) => setFilterWealthSolutions(e.target.value)}
-                placeholder="Contains…"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">BOP Status</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterBopStatus}
-                onChange={(e) => setFilterBopStatus(e.target.value)}
-                placeholder="e.g., scheduled"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Follow-Up Status</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterFollowUpStatus}
-                onChange={(e) => setFilterFollowUpStatus(e.target.value)}
-                placeholder="e.g., pending"
-              />
-            </div>
-          </div>
-
-          <div className="mt-2 text-xs text-slate-600">
-            Tip: Enter filters and click <b>Go</b> to apply. Page size is {ALL_PAGE_SIZE}.
-          </div>
-        </Card>
-
         {/* Client Progress Summary */}
         <Card title="Client Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
@@ -944,7 +868,95 @@ export default function Dashboard() {
 
 {/* All Records */}
         <Card title="All Records (Editable)">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
+          {/* Search */}
+          <div className="mt-2 mb-4">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="text-sm font-semibold text-slate-700">Search</div>
+              <div className="text-xs text-slate-600">
+                {total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-2 md:items-center">
+              <input
+                className="w-full border border-slate-300 px-4 py-3"
+                placeholder="Search by first name, last name, or phone"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              <Button onClick={() => loadPage(0)} disabled={loading}>
+                {loading ? "Loading…" : "Go"}
+              </Button>
+              <Button variant="secondary" onClick={() => setAllResultsVisible((v) => !v)}>
+                {allResultsVisible ? "Hide Results" : "Show Results"}
+              </Button>
+            </div>
+
+            <div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
+              <div>
+                <div className="text-xs font-semibold text-slate-600 mb-1">Client Name</div>
+                <input
+                  className="w-full border border-slate-300 px-3 py-2 text-sm"
+                  value={filterClient}
+                  onChange={(e) => setFilterClient(e.target.value)}
+                  placeholder="Contains…"
+                />
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-600 mb-1">Interest Type</div>
+                <input
+                  className="w-full border border-slate-300 px-3 py-2 text-sm"
+                  value={filterInterestType}
+                  onChange={(e) => setFilterInterestType(e.target.value)}
+                  placeholder="e.g., client"
+                />
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-600 mb-1">Business Opportunities</div>
+                <input
+                  className="w-full border border-slate-300 px-3 py-2 text-sm"
+                  value={filterBusinessOpp}
+                  onChange={(e) => setFilterBusinessOpp(e.target.value)}
+                  placeholder="Contains…"
+                />
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-600 mb-1">Wealth Solutions</div>
+                <input
+                  className="w-full border border-slate-300 px-3 py-2 text-sm"
+                  value={filterWealthSolutions}
+                  onChange={(e) => setFilterWealthSolutions(e.target.value)}
+                  placeholder="Contains…"
+                />
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-600 mb-1">BOP Status</div>
+                <input
+                  className="w-full border border-slate-300 px-3 py-2 text-sm"
+                  value={filterBopStatus}
+                  onChange={(e) => setFilterBopStatus(e.target.value)}
+                  placeholder="e.g., scheduled"
+                />
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-600 mb-1">Follow-Up Status</div>
+                <input
+                  className="w-full border border-slate-300 px-3 py-2 text-sm"
+                  value={filterFollowUpStatus}
+                  onChange={(e) => setFilterFollowUpStatus(e.target.value)}
+                  placeholder="e.g., pending"
+                />
+              </div>
+            </div>
+
+            <div className="mt-2 text-xs text-slate-600">
+              Tip: Enter filters and click <b>Go</b> to apply. Page size is {ALL_PAGE_SIZE}.
+            </div>
+          </div>
+
+          
+          {allResultsVisible ? (
+<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
             <div className="text-sm text-slate-600">
               Page <b>{page + 1}</b> of <b>{totalPages}</b>
             </div>
@@ -998,7 +1010,11 @@ export default function Dashboard() {
               stickyLeftCount={1}
             />
           )}
-        </Card>
+        
+          ) : (
+            <div className="px-2 py-3 text-sm text-slate-600">Results hidden.</div>
+          )}
+</Card>
 
         
       </div>
