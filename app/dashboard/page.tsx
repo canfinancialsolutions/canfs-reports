@@ -1449,7 +1449,7 @@ function ExcelTableEditable({
                     <td
                       key={k}
                       className="border border-slate-300 bg-white align-top"
-                      style={{ minWidth: colWidths[k] ?? 140, width: colWidths[k] ?? 140 }}
+                      style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
                     >
                       <div className="px-2 py-2 text-sm whitespace-pre-wrap break-words">
                         {display}
@@ -1463,7 +1463,7 @@ function ExcelTableEditable({
                     <td
                       key={k}
                       className="border border-slate-300 bg-white align-top"
-                      style={{ minWidth: colWidths[k] ?? 140, width: colWidths[k] ?? 140 }}
+                      style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
                     >
                       <select
                         className="w-full bg-transparent px-2 py-2 text-sm outline-none"
@@ -1489,7 +1489,7 @@ function ExcelTableEditable({
                   <td
                     key={k}
                     className="border border-slate-300 bg-white align-top"
-                    style={{ minWidth: colWidths[k] ?? 140, width: colWidths[k] ?? 140 }}
+                    style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
                   >
                     <input
                       type={isDateTime ? "datetime-local" : "text"}
