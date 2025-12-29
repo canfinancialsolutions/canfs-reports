@@ -1094,11 +1094,11 @@ export default function DashboardPage() {
                         />
                       </Cell>
 
-                      <Cell width={allWidths["followup_status"]}>{safeText(r.followup_status)}</Cell>
-                      <Cell width={allWidths["product"]}>{safeText(r.product)}</Cell>
-                      <Cell width={allWidths["issued"]}>{formatDisplayDate(r.issued)}</Cell>
-                      <Cell width={allWidths["comment"]}>{safeText(r.comment)}</Cell>
-                      <Cell width={allWidths["remark"]}>{safeText(r.remark)}</Cell>
+                      <Cell width={allWidths["FollowUp_Status"]}>{safeText(r.FollowUp_Status)}</Cell>
+                      <Cell width={allWidths["Product"]}>{safeText(r.product)}</Cell>
+                      <Cell width={allWidths["Issued"]}>{formatDisplayDate(r.Issued)}</Cell>
+                      <Cell width={allWidths["Comment"]}>{safeText(r.comment)}</Cell>
+                      <Cell width={allWidths["Remark"]}>{safeText(r.remark)}</Cell>
                     </tr>
                   );
                 })}
