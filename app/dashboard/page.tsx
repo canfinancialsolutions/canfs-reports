@@ -495,7 +495,7 @@ export default function Dashboard() {
       const from = nextPage * ALL_PAGE_SIZE;
       const to = from + ALL_PAGE_SIZE - 1;
 
-      let dataQuery = supabase.from("client_registrations").select("id,BOP_Date,created_at,status,first_name,last_name,phone,email,CalledOn,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status").range(from, to);
+      let dataQuery = supabase.from("client_registrations").select("id,created_at,status,first_name,last_name,phone,email,CalledOn,BOP_Date,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status").range(from, to);
 
       if (search)
         dataQuery = dataQuery.or(
@@ -643,7 +643,7 @@ export default function Dashboard() {
             <img src="/can-logo.png" className="h-10 w-auto" alt="CAN Financial Solutions" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
-              <div className="text-sm text-slate-500">Excel-style tables, editable follow-ups, and trends</div>
+              <div className="text-sm text-slate-500">Protecting Your Tomorrow</div>
             </div>
           </div>
           <Button variant="secondary" onClick={logout}>
