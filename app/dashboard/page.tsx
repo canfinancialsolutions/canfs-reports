@@ -34,7 +34,7 @@ type SortKey =
   | "client"
   | "created_at"
   | "BOP_Date"
-  | "BOP_Status"
+  | "BOP_"
   | "Followup_Date"
   | "status"
   | "CalledOn"
@@ -69,7 +69,7 @@ const DATE_TIME_KEYS = new Set([
 ]);
 
 const LABEL_OVERRIDES: Record<string, string> = {
-  client_name: "Client Name",
+  _name: " Name",
   last_call_date: "Last Call On",
   call_attempts: "No of Calls",
   last_bop_date: "Last BOP Call On",
@@ -581,7 +581,7 @@ export default function Dashboard() {
   const sortHelp = (
     <div className="text-xs text-slate-600">
       Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>, <b>BOP Status</b>,{" "}
-      <b>Follow-Up Date</b>, <b>Status</b>.
+      <b>Follow-Up Date</b>, <b>status</b>.
     </div>
   );
 
@@ -775,7 +775,7 @@ export default function Dashboard() {
               rows={upcoming}
               savingId={savingId}
               onUpdate={updateCell}
-              preferredOrder={["BOP_Date","created_at","first_name","last_name","phone","email","CalledOn","BOP_Status","Followup_Date","FollowUp_Status","Product","Issued","Comment","Remark","client_status"]}
+              preferredOrder={["BOP_Date","created_at","status","first_name","last_name","phone","email","CalledOn","BOP_Status","Followup_Date","FollowUp_Status","Product","Issued","Comment","Remark","client_status"]}
               extraLeftCols={[
                 { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
               ]}
