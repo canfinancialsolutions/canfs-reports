@@ -90,6 +90,37 @@ const LABEL_OVERRIDES: Record<string, string> = {
   FollowUp_Status: "Follow-Up Status",
 };
 
+
+
+const SELECT_OPTIONS: Record<string, string[]> = {
+  BOP_Status: [
+    "Presented",
+    "Business",
+    "Client",
+    "Clarification",
+    "Follow-Up 1",
+    "Follow-Up 2",
+    "Follow-Up 3",
+    "Not Interested",
+    "Closed",
+  ],
+  FollowUp_Status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
+  Followup_Status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
+  status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
+  Status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
+  client_status: ["New", "Interested", "Not Interested", "Referral", "Purchased", "Re-Open"],
+};
+
+const READONLY_COLS = new Set([
+  "interest_type",
+  "business_opportunities",
+  "wealth_solutions",
+  "profession",
+  "preferred_days",
+  "preferred_time",
+  "referred_by",
+]);
+
 function labelFor(key: string) {
   if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];
   const s = key
@@ -109,22 +140,6 @@ function labelFor(key: string) {
 
 function clientName(r: Row) {
   return `${r.first_name || ""} ${r.last_name || ""}`.trim();
-}
-
-
-function matchesGlobalSearch(r: any, needle: string) {
-  if (!needle) return true;
-  const n = needle.toLowerCase();
-  const full = `${r?.first_name || ""} ${r?.last_name || ""}`.trim();
-  const fields = [
-    r?.client_name,
-    full,
-    r?.first_name,
-    r?.last_name,
-    r?.phone,
-    r?.email,
-  ];
-  return fields.some((v) => String(v ?? "").toLowerCase().includes(n));
 }
 
 function toLocalInput(value: any) {
@@ -241,14 +256,6 @@ export default function Dashboard() {
   const [filterFollowUpStatus, setFilterFollowUpStatus] = useState("");
 
   const [records, setRecords] = useState<Row[]>([]);
-  const [allRows, setAllRows] = useState<Row[]>([]);
-  const [allLoaded, setAllLoaded] = useState(false);
-  const [allFetching, setAllFetching] = useState(false);
-  const allRowsRef = useRef<Row[]>([]);
-
-  useEffect(() => {
-    allRowsRef.current = allRows;
-  }, [allRows]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [pageJump, setPageJump] = useState("1");
@@ -268,8 +275,7 @@ export default function Dashboard() {
           window.location.href = "/";
           return;
         }
-        await Promise.all([fetchTrends(), fetchProgressSummary(), fetchAllRecords()]);
-        await loadPage(0);
+        await Promise.all([fetchTrends(), fetchProgressSummary(), loadPage(0)]);
       } catch (e: any) {
         setError(e?.message || "Failed to initialize");
       } finally {
@@ -283,18 +289,6 @@ export default function Dashboard() {
     loadPage(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortAll.key, sortAll.dir]);
-
-  useEffect(() => {
-    if (!allLoaded) return;
-    const t = setTimeout(() => {
-      setProgressPage(0);
-      loadPage(0);
-    }, 250);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, allLoaded]);
-
-
 
   useEffect(() => {
     if (upcoming.length) fetchUpcoming();
@@ -427,23 +421,21 @@ export default function Dashboard() {
     }
   }
 
-  
   async function fetchUpcoming() {
     setUpcomingLoading(true);
     setError(null);
     try {
       const supabase = getSupabase();
-
-      // Use date-string boundaries (local midnight) to avoid timezone shifts.
-      const startTs = `${rangeStart}T00:00:00`;
-      const endDay = addDays(parseISO(rangeEnd), 1);
-      const endTs = `${format(endDay, "yyyy-MM-dd")}T00:00:00`;
+      const start = new Date(rangeStart);
+      const end = new Date(rangeEnd);
+      const startIso = start.toISOString();
+      const endIso = new Date(end.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
       let query = supabase
         .from("client_registrations")
         .select("*")
-        .gte("BOP_Date", startTs)
-        .lt("BOP_Date", endTs)
+        .gte("BOP_Date", startIso)
+        .lt("BOP_Date", endIso)
         .limit(5000);
 
       query = applySort(query, sortUpcoming);
@@ -459,7 +451,6 @@ export default function Dashboard() {
       setUpcomingLoading(false);
     }
   }
-
 
   async function fetchProgressSummary() {
     setProgressLoading(true);
@@ -500,157 +491,77 @@ export default function Dashboard() {
     }
   }
 
-  
-  async function fetchAllRecords() {
-    if (allLoaded || allFetching) return;
-    setAllFetching(true);
-    setError(null);
-    try {
-      const supabase = getSupabase();
-      const pageSize = 5000;
-      let from = 0;
-      const acc: Row[] = [];
-
-      while (true) {
-        const { data, error } = await supabase
-          .from("client_registrations")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .range(from, from + pageSize - 1);
-
-        if (error) throw error;
-
-        const batch = (data || []) as Row[];
-        acc.push(...batch);
-
-        if (batch.length < pageSize) break;
-
-        from += pageSize;
-        if (from >= 200000) break; // safety cap
-      }
-
-      allRowsRef.current = acc;
-      setAllRows(acc);
-      setAllLoaded(true);
-    } catch (e: any) {
-      setError(e?.message || "Failed to load all records");
-    } finally {
-      setAllFetching(false);
-    }
-  }
-
-
   async function loadPage(nextPage: number) {
     setError(null);
     setLoading(true);
     try {
-      if (!allLoaded && allRowsRef.current.length === 0) {
-        await fetchAllRecords();
-      }
+      const supabase = getSupabase();
+      const search = q.trim();
+      const fc = filterClient.trim();
+      const fi = filterInterestType.trim();
+      const fb = filterBopStatus.trim();
 
-      const needle = q.trim().toLowerCase();
-      const fc = filterClient.trim().toLowerCase();
-      const fi = filterInterestType.trim().toLowerCase();
+      let countQuery = supabase.from("client_registrations").select("id", { count: "exact", head: true });
+
+      if (search)
+        countQuery = countQuery.or(
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
+        );
+      if (fc) countQuery = countQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
+      if (fi) countQuery = countQuery.eq("interest_type", fi);
+      if (fb) countQuery = countQuery.eq("BOP_Status", fb);
+
+      const { count, error: cErr } = await countQuery;
+      if (cErr) throw cErr;
+      setTotal(count ?? 0);
+
+      const from = nextPage * ALL_PAGE_SIZE;
+      const to = from + ALL_PAGE_SIZE - 1;
+
+      let dataQuery = supabase.from("client_registrations").select("*").range(from, to);
+
+      if (search)
+        dataQuery = dataQuery.or(
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
+        );
+      if (fc) dataQuery = dataQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
+      if (fi) dataQuery = dataQuery.eq("interest_type", fi);
+      if (fb) dataQuery = dataQuery.eq("BOP_Status", fb);
+
+      dataQuery = applySort(dataQuery, sortAll);
+
+      const { data, error } = await dataQuery;
+      if (error) throw error;
+
+      const raw = (data || []) as any[];
       const fbo = filterBusinessOpp.trim().toLowerCase();
       const fws = filterWealthSolutions.trim().toLowerCase();
-      const fb = filterBopStatus.trim().toLowerCase();
       const ffu = filterFollowUpStatus.trim().toLowerCase();
 
-      const filtered = (allRowsRef.current || []).filter((row: any) => {
-        if (needle && !matchesGlobalSearch(row, needle)) return false;
+      const clientSideFiltered = raw.filter((row) => {
+        const opp = Array.isArray(row.business_opportunities)
+          ? row.business_opportunities.join(",")
+          : String(row.business_opportunities || "");
+        const ws = Array.isArray(row.wealth_solutions)
+          ? row.wealth_solutions.join(",")
+          : String(row.wealth_solutions || "");
+        const fu = String(row.FollowUp_Status ?? row.Followup_Status ?? "").toLowerCase();
 
-        if (fc) {
-          const nm = `${row.first_name || ""} ${row.last_name || ""}`.trim().toLowerCase();
-          if (!nm.includes(fc)) return false;
-        }
-
-        if (fi) {
-          if (String(row.interest_type || "").toLowerCase() !== fi) return false;
-        }
-
-        if (fb) {
-          if (String(row.BOP_Status || "").toLowerCase() !== fb) return false;
-        }
-
-        if (fbo) {
-          const opp = asListItems(row.business_opportunities).join(",").toLowerCase();
-          if (!opp.includes(fbo)) return false;
-        }
-
-        if (fws) {
-          const ws = asListItems(row.wealth_solutions).join(",").toLowerCase();
-          if (!ws.includes(fws)) return false;
-        }
-
-        if (ffu) {
-          const fu = String(row.FollowUp_Status ?? row.Followup_Status ?? "").toLowerCase();
-          if (!fu.includes(ffu)) return false;
-        }
-
-        return true;
+        const okOpp = !fbo || opp.toLowerCase().includes(fbo);
+        const okWs = !fws || ws.toLowerCase().includes(fws);
+        const okFu = !ffu || fu.includes(ffu);
+        return okOpp && okWs && okFu;
       });
 
-      const ascending = sortAll.dir === "asc";
-      const sortKey = sortAll.key;
-
-      const asTime = (v: any) => {
-        if (!v) return Number.NaN;
-        const d = new Date(String(v));
-        const t = d.getTime();
-        return Number.isNaN(t) ? Number.NaN : t;
-      };
-
-      const asText = (v: any) => String(v ?? "").toLowerCase();
-
-      const sorted = [...filtered].sort((a: any, b: any) => {
-        const dir = ascending ? 1 : -1;
-
-        if (sortKey === "client") {
-          return dir * asText(clientName(a)).localeCompare(asText(clientName(b)));
-        }
-
-        const va = a?.[sortKey];
-        const vb = b?.[sortKey];
-
-        const isDateKey =
-          sortKey === "created_at" ||
-          sortKey === "BOP_Date" ||
-          sortKey === "Followup_Date" ||
-          sortKey === "CalledOn" ||
-          sortKey === "Issued";
-
-        if (isDateKey) {
-          const ta = asTime(va);
-          const tb = asTime(vb);
-          if (Number.isNaN(ta) && Number.isNaN(tb)) return 0;
-          if (Number.isNaN(ta)) return 1;
-          if (Number.isNaN(tb)) return -1;
-          return dir * (ta - tb);
-        }
-
-        if (typeof va === "number" && typeof vb === "number") return dir * (va - vb);
-
-        return dir * asText(va).localeCompare(asText(vb));
-      });
-
-      setTotal(sorted.length);
-
-      const totalPagesLocal = Math.max(1, Math.ceil(sorted.length / ALL_PAGE_SIZE));
-      const safePage = Math.min(Math.max(0, nextPage), totalPagesLocal - 1);
-
-      const from = safePage * ALL_PAGE_SIZE;
-      const pageRows = sorted.slice(from, from + ALL_PAGE_SIZE);
-
-      setRecords(pageRows);
-      setPage(safePage);
-      setPageJump(String(safePage + 1));
+      setRecords(clientSideFiltered);
+      setPage(nextPage);
+      setPageJump(String(nextPage + 1));
     } catch (e: any) {
       setError(e?.message || "Failed to load records");
     } finally {
       setLoading(false);
     }
   }
-
 
   async function updateCell(id: string, key: string, rawValue: string) {
     setSavingId(id);
@@ -670,7 +581,6 @@ export default function Dashboard() {
         prev.map((r) => (String(r.id) === String(id) ? { ...r, [key]: payload[key] } : r));
 
       setRecords(patch);
-      setAllRows(patch);
       setUpcoming(patch);
     } catch (e: any) {
       setError(e?.message || "Update failed");
@@ -705,11 +615,11 @@ export default function Dashboard() {
 
   // -------- Progress Summary (filter/sort/paginate client-side) --------
   const progressFilteredSorted = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = progressFilter.trim().toLowerCase();
 
-    const filtered = (progressRows || []).filter((r: any) => {
+    const filtered = (progressRows || []).filter((r) => {
       if (!needle) return true;
-      return matchesGlobalSearch(r, needle);
+      return String(r.client_name || "").toLowerCase().includes(needle);
     });
 
     const dirMul = progressSort.dir === "asc" ? 1 : -1;
@@ -739,13 +649,7 @@ export default function Dashboard() {
     });
 
     return filtered;
-  }, [progressRows, q, progressSort]);
-
-  const upcomingFiltered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return upcoming;
-    return (upcoming || []).filter((r: any) => matchesGlobalSearch(r, needle));
-  }, [upcoming, q]);
+  }, [progressRows, progressFilter, progressSort]);
 
   const progressTotalPages = Math.max(1, Math.ceil(progressFilteredSorted.length / PROGRESS_PAGE_SIZE));
   const progressPageSafe = Math.min(progressTotalPages - 1, Math.max(0, progressPage));
@@ -785,7 +689,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weekly}>
+                  <LineChart data={weekly} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
                     <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -818,7 +722,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthly}>
+                  <BarChart data={monthly} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -872,7 +776,7 @@ export default function Dashboard() {
             <Button
               variant="secondary"
               onClick={() => setUpcomingVisible((v) => !v)}
-              disabled={upcomingLoading}
+              disabled={!upcoming.length && !upcomingVisible}
             >
               {upcomingVisible ? "Hide Upcoming Table" : "Show Upcoming Table"}
             </Button>
@@ -883,7 +787,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Upcoming Table */}
-        {upcomingVisible && upcomingFiltered.length > 0 && (
+        {upcomingVisible && upcoming.length > 0 && (
           <Card title="Upcoming BOP Meetings (Editable)">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-slate-600">Table supports vertical + horizontal scrolling.</div>
@@ -891,7 +795,7 @@ export default function Dashboard() {
             </div>
 
             <ExcelTableEditable
-              rows={upcomingFiltered}
+              rows={upcoming}
               savingId={savingId}
               onUpdate={updateCell}
               preferredOrder={["BOP_Date", "created_at", "BOP_Status", "Followup_Date", "status"]}
@@ -901,6 +805,7 @@ export default function Dashboard() {
               maxHeightClass="max-h-[420px]"
               sortState={sortUpcoming}
               onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
+              excludeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
               stickyLeftCount={1}
             />
           </Card>
@@ -983,81 +888,15 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        {/* All Records */}
-        <Card title="All Records (Editable)">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
-            <div className="text-sm text-slate-600">
-              Page <b>{page + 1}</b> of <b>{totalPages}</b>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {sortHelp}
-              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
-                <span className="text-xs font-semibold text-slate-600">Search</span>
-                <input
-                  className="w-56 border border-slate-300 px-2 py-1 text-sm"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Name / phone / email"
-                />
-              </div>
-              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
-                <span className="text-xs font-semibold text-slate-600">Go to page</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={totalPages}
-                  className="w-20 border border-slate-300 px-2 py-1 text-sm"
-                  value={pageJump}
-                  onChange={(e) => setPageJump(e.target.value)}
-                />
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    const n = Number(pageJump);
-                    if (!Number.isFinite(n)) return;
-                    const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
-                    loadPage(p - 1);
-                  }}
-                  disabled={loading || totalPages <= 1}
-                >
-                  Go
-                </Button>
-              </div>
-              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
-                Previous
-              </Button>
-              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
-                Next
-              </Button>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="text-slate-600">Loading…</div>
-          ) : (
-            <ExcelTableEditable
-              rows={records}
-              savingId={savingId}
-              onUpdate={updateCell}
-              extraLeftCols={extraClientCol}
-              maxHeightClass="max-h-[560px]"
-              sortState={sortAll}
-              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
-              stickyLeftCount={1}
-            />
-          )}
-        </Card>
-
         {/* Client Progress Summary */}
         <Card title="Client Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
             <input
               className="w-full border border-slate-300 px-4 py-3"
               placeholder="Filter by client name..."
-              value={q}
+              value={progressFilter}
               onChange={(e) => {
-                setQ(e.target.value);
+                setProgressFilter(e.target.value);
                 setProgressPage(0);
               }}
             />
@@ -1102,6 +941,66 @@ export default function Dashboard() {
             </div>
           )}
         </Card>
+
+{/* All Records */}
+        <Card title="All Records (Editable)">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
+            <div className="text-sm text-slate-600">
+              Page <b>{page + 1}</b> of <b>{totalPages}</b>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {sortHelp}
+              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
+                <span className="text-xs font-semibold text-slate-600">Go to page</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  className="w-20 border border-slate-300 px-2 py-1 text-sm"
+                  value={pageJump}
+                  onChange={(e) => setPageJump(e.target.value)}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    const n = Number(pageJump);
+                    if (!Number.isFinite(n)) return;
+                    const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
+                    loadPage(p - 1);
+                  }}
+                  disabled={loading || totalPages <= 1}
+                >
+                  Go
+                </Button>
+              </div>
+              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
+                Previous
+              </Button>
+              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
+                Next
+              </Button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="text-slate-600">Loading…</div>
+          ) : (
+            <ExcelTableEditable
+              rows={records}
+              savingId={savingId}
+              onUpdate={updateCell}
+              extraLeftCols={extraClientCol}
+              maxHeightClass="max-h-[560px]"
+              sortState={sortAll}
+              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
+              includeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
+              stickyLeftCount={1}
+            />
+          )}
+        </Card>
+
+        
       </div>
     </div>
   );
@@ -1271,6 +1170,8 @@ function ExcelTableEditable({
   sortState,
   onSortChange,
   preferredOrder,
+  includeKeys = [],
+  excludeKeys = [],
   stickyLeftCount = 1,
 }: {
   rows: Row[];
@@ -1281,6 +1182,8 @@ function ExcelTableEditable({
   sortState: { key: SortKey; dir: SortDir };
   onSortChange: (key: SortKey) => void;
   preferredOrder?: string[];
+  includeKeys?: string[];
+  excludeKeys?: string[];
   stickyLeftCount?: number;
 }) {
   const { widths, startResize } = useColumnResizer();
@@ -1294,15 +1197,27 @@ function ExcelTableEditable({
   };
 
   const keys = useMemo(() => {
-    if (!rows.length) return [] as string[];
-    const baseKeys = Object.keys(rows[0]).filter((k) => k !== "id");
-    if (!preferredOrder || !preferredOrder.length) return baseKeys;
-    const set = new Set(baseKeys);
-    const ordered: string[] = [];
-    for (const k of preferredOrder) if (set.has(k)) ordered.push(k);
-    for (const k of baseKeys) if (!ordered.includes(k)) ordered.push(k);
-    return ordered;
-  }, [rows, preferredOrder]);
+    const baseKeys = rows.length ? Object.keys(rows[0]).filter((k) => k !== "id") : [];
+    const mergedKeys = [...baseKeys];
+
+    for (const k of includeKeys) {
+      if (k !== "id" && !mergedKeys.includes(k)) mergedKeys.push(k);
+    }
+
+    const exclude = new Set(excludeKeys || []);
+    const filterOut = (arr: string[]) => arr.filter((k) => !exclude.has(k));
+
+    // Apply preferred order when provided
+    if (preferredOrder?.length) {
+      const set = new Set(mergedKeys);
+      const ordered: string[] = [];
+      for (const k of preferredOrder) if (set.has(k)) ordered.push(k);
+      for (const k of mergedKeys) if (!ordered.includes(k)) ordered.push(k);
+      return filterOut(ordered);
+    }
+
+    return filterOut(mergedKeys);
+  }, [rows, preferredOrder, includeKeys, excludeKeys]);
 
   // Column models (extra cols + keys)
   const columns = useMemo(() => {
@@ -1526,23 +1441,79 @@ function ExcelTableEditable({
                 // EDITABLE CELLS (Controlled inputs so selected dates always stay visible)
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
+                const options = SELECT_OPTIONS[k];
+                const isReadOnly = READONLY_COLS.has(k);
 
                 const value =
                   drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
 
+                if (isReadOnly) {
+                  const raw = (r as any)[k];
+                  const display =
+                    raw == null ? "" : Array.isArray(raw) ? raw.join(", ") : String(raw);
+
+                  return (
+                    <td
+                      key={k}
+                      className="border border-slate-300 bg-white align-top"
+                      style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
+                    >
+                      <div className="px-2 py-2 text-sm whitespace-pre-wrap break-words">
+                        {display}
+                      </div>
+                    </td>
+                  );
+                }
+
+                if (options) {
+                  return (
+                    <td
+                      key={k}
+                      className="border border-slate-300 bg-white align-top"
+                      style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
+                    >
+                      <select
+                        className="w-full bg-transparent px-2 py-2 text-sm outline-none"
+                        value={value}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setDrafts((prev) => ({ ...prev, [cellId]: v }));
+                        }}
+                        onBlur={() => handleBlur(r.id as string, k, cellId)}
+                      >
+                        <option value="" />
+                        {options.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  );
+                }
+
                 return (
-                  <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
+                  <td
+                    key={k}
+                    className="border border-slate-300 bg-white align-top"
+                    style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
+                  >
                     <input
                       type={isDateTime ? "datetime-local" : "text"}
-                      className="w-full bg-transparent border-0 outline-none text-sm"
+                      className="w-full bg-transparent px-2 py-2 text-sm outline-none"
                       value={value}
-                      onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
-                      onBlur={() => handleBlur(String(r.id), k, cellId)}
-                      disabled={savingId != null && String(savingId) === String(r.id)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setDrafts((prev) => ({ ...prev, [cellId]: v }));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                      onBlur={() => handleBlur(r.id as string, k, cellId)}
                     />
                   </td>
                 );
-              })}
+})}
             </tr>
           ))}
         </tbody>
