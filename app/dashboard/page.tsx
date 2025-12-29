@@ -402,7 +402,7 @@ export default function Dashboard() {
 
       let query = supabase
         .from("client_registrations")
-        .select("id,BOP_Date,created_at,first_name,last_name,phone,email,CalledOn,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status")
+        .select("id,BOP_Date,created_at,status,first_name,last_name,phone,email,CalledOn,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status")
         .gte("BOP_Date", startIso)
         .lt("BOP_Date", endIso)
         .limit(5000);
