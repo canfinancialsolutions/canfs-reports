@@ -1,1234 +1,771 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  Legend,
-  BarChart,
-  Bar,
-} from "recharts";
+export const dynamic = "force-dynamic";
 
+import { useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
+import { addDays, addYears, endOfWeek, format, isValid, parseISO, startOfWeek, startOfYear, subWeeks } from "date-fns";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, BarChart, Bar, LabelList } from "recharts";
+import { getSupabase } from "@/lib/supabaseClient";
+import { Button, Card } from "@/components/ui";
+
+type Row = Record<string, any>;
+type SortKey = "client" | "created_at" | "BOP_Date" | "BOP_Status" | "Followup_Date" | "status";
 type SortDir = "asc" | "desc";
-type SortState = { key: string; dir: SortDir };
 
-type RegistrationRow = {
-  id: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  phone?: string | null;
-  email?: string | null;
+const PAGE_SIZE = 50;
+const READONLY_LIST_COLS = new Set(["interest_type", "business_opportunities", "wealth_solutions", "preferred_days"]);
 
-  created_at?: string | null;
-  status?: string | null;
-
-  interest_type?: string | null;
-  business_opportunities?: string | null;
-  wealth_solutions?: string | null;
-
-  profession?: string | null;
-  preferred_days?: string | null;
-  preferred_time?: string | null;
-  referred_by?: string | null;
-
-  CalledOn?: string | null;
-  BOP_Date?: string | null;
-  BOP_Status?: string | null;
-
-  Followup_Date?: string | null;
-  FollowUp_Status?: string | null;
-
-  Product?: string | null;
-  Issued?: string | null;
-  Comment?: string | null;
-  Remark?: string | null;
+const LABEL_OVERRIDES: Record<string, string> = {
+  client_name: "Client Name",
+  last_call_date: "Last Call On",
+  call_attempts: "No of Calls",
+  last_bop_date: "Last BOP Call On",
+  bop_attempts: "No of BOP Calls",
+  last_followup_date: "Last FollowUp On",
+  followup_attempts: "No of FollowUp Calls",
+  created_at: "Created Date",
+  interest_type: "Interest Type",
+  business_opportunities: "Business Opportunities",
+  wealth_solutions: "Wealth Solutions",
+  preferred_days: "Preferred Days",
+  preferred_time: "Preferred Time",
+  referred_by: "Referred By",
+  CalledOn: "Called On",
+  BOP_Date: "BOP Date",
+  BOP_Status: "BOP Status",
+  Followup_Date: "Follow-Up Date",
+  FollowUp_Status: "Follow-Up Status",
 };
 
-type ProgressRow = {
-  client_name: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  phone?: string | null;
-  email?: string | null;
-
-  last_call_date?: string | null;
-  call_attempts?: number | null;
-
-  last_bop_date?: string | null;
-  bop_attempts?: number | null;
-
-  last_followup_date?: string | null;
-  followup_attempts?: number | null;
-};
-
-const PAGE_SIZE = 20;
-
-function getSupabase(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key);
+function labelFor(key: string) {
+  if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];
+  const s = key.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").trim();
+  const acronyms = new Set(["BOP", "ID", "API", "URL", "CAN"]);
+  return s
+    .split(/\s+/)
+    .map((w) => (acronyms.has(w.toUpperCase()) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+    .join(" ");
 }
 
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
+function clientName(r: Row) {
+  return `${r.first_name || ""} ${r.last_name || ""}`.trim();
 }
 
-/** Convert ISO -> value for <input type="datetime-local"> (local time) */
-function toDateTimeLocalValue(iso: string | null | undefined) {
-  if (!iso) return "";
-  const d = new Date(iso);
+function toLocalInput(value: string | null) {
+  if (!value) return "";
+  const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(
-    d.getHours()
-  )}:${pad2(d.getMinutes())}`;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-
-/** Convert datetime-local string -> ISO (UTC) */
-function fromDateTimeLocalValue(v: string) {
-  if (!v) return null;
-  // v is like "YYYY-MM-DDTHH:mm"
-  const d = new Date(v);
+function fromLocalInput(value: string) {
+  if (!value?.trim()) return null;
+  const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
 }
-
-function formatDisplayDate(iso: string | null | undefined) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString();
+function asListItems(value: any): string[] {
+  if (value == null) return [];
+  if (Array.isArray(value)) return value.map((v) => String(v)).filter(Boolean);
+  const s = String(value).trim();
+  if (!s) return [];
+  if (s.includes(",")) return s.split(",").map((x) => x.trim()).filter(Boolean);
+  return [s];
+}
+function toggleSort(cur: { key: SortKey; dir: SortDir }, k: SortKey) {
+  if (cur.key !== k) return { key: k, dir: "asc" as SortDir };
+  return { key: k, dir: cur.dir === "asc" ? ("desc" as SortDir) : ("asc" as SortDir) };
 }
 
-function safeText(v: any) {
-  if (v === null || v === undefined) return "";
-  return String(v);
-}
-
-/**
- * IMPORTANT: Sort must happen on the SERVER (Supabase query),
- * then pagination (range) is applied after ordering.
- */
-function applyOrder(query: any, sort: SortState) {
-  const asc = sort.dir === "asc";
-  const key = sort.key;
-
-  // special: client_name sorts by last_name then first_name (change if you have "client_name" column)
-  if (key === "client_name") {
-    return query
-      .order("last_name", { ascending: asc, nullsLast: true })
-      .order("first_name", { ascending: asc, nullsLast: true });
-  }
-
-  const map: Record<string, string> = {
-    created_date: "created_at",
-    status: "status",
-    CalledOn: "CalledOn",
-    BOP_Date: "BOP_Date",
-    BOP_Status: "BOP_Status",
-    Followup_Date: "Followup_Date",
-    FollowUp_Status: "FollowUp_Status",
-    email: "email",
-    phone: "phone",
-    first_name: "first_name",
-    last_name: "last_name",
-  };
-
-  const col = map[key] ?? key;
-  return query.order(col, { ascending: asc, nullsLast: true });
-}
-
-/** =========================
- *  Resizable columns (all tables)
- *  drag the thin handle at the right edge of each header
- *  ========================= */
-function useColumnWidths(initial: Record<string, number>) {
-  const [widths, setWidths] = useState<Record<string, number>>(initial);
-
-  const resizingRef = useRef<{
-    key: string;
-    startX: number;
-    startW: number;
-  } | null>(null);
-
-  useEffect(() => {
-    function onMove(e: MouseEvent) {
-      if (!resizingRef.current) return;
-      const { key, startX, startW } = resizingRef.current;
-      const delta = e.clientX - startX;
-      const next = Math.max(60, startW + delta);
-      setWidths((prev) => ({ ...prev, [key]: next }));
-    }
-    function onUp() {
-      resizingRef.current = null;
-    }
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
-
-  function startResize(key: string, e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    const th = (e.currentTarget as HTMLDivElement).parentElement as HTMLTableCellElement | null;
-    const currentWidth = widths[key] ?? th?.getBoundingClientRect().width ?? 160;
-    resizingRef.current = { key, startX: e.clientX, startW: currentWidth };
-  }
-
-  return { widths, setWidths, startResize };
-}
-
-function HeaderCell(props: {
-  label: string;
-  sortKey?: string;
-  sort?: SortState;
-  onSort?: (key: string) => void;
-  width?: number;
-  stickyLeft?: boolean;
-  stickyTop?: boolean;
-  zIndex?: number;
-  startResize?: (key: string, e: React.MouseEvent) => void;
-  resizeKey?: string;
-}) {
-  const {
-    label,
-    sortKey,
-    sort,
-    onSort,
-    width,
-    stickyLeft,
-    stickyTop,
-    zIndex,
-    startResize,
-    resizeKey,
-  } = props;
-
-  const isSorted = !!sortKey && sort?.key === sortKey;
-  const arrow = isSorted ? (sort?.dir === "asc" ? " ↑" : " ↓") : "";
-
-  const style: React.CSSProperties = {
-    width: width ? `${width}px` : undefined,
-    minWidth: width ? `${width}px` : undefined,
-    maxWidth: width ? `${width}px` : undefined,
-    position: stickyLeft || stickyTop ? "sticky" : undefined,
-    left: stickyLeft ? 0 : undefined,
-    top: stickyTop ? 0 : undefined,
-    zIndex: zIndex ?? (stickyLeft && stickyTop ? 30 : stickyLeft ? 20 : stickyTop ? 10 : 1),
-    background: "#f8fafc",
-  };
-
-  return (
-    <th
-      className="border border-slate-500 px-3 py-2 text-left text-xs font-semibold text-slate-700 relative select-none"
-      style={style}
-      onClick={() => {
-        if (sortKey && onSort) onSort(sortKey);
-      }}
-    >
-      <div className="flex items-center gap-2">
-        <span className="truncate">{label + arrow}</span>
-      </div>
-
-      {/* thin drag handle at right edge */}
-      {startResize && resizeKey ? (
-        <div
-          className="absolute top-0 right-0 h-full w-[6px] cursor-col-resize"
-          onMouseDown={(e) => startResize(resizeKey, e)}
-        />
-      ) : null}
-    </th>
-  );
-}
-
-function Cell(props: {
-  children: React.ReactNode;
-  width?: number;
-  stickyLeft?: boolean;
-  stickyTop?: boolean;
-  zIndex?: number;
-  className?: string;
-}) {
-  const { children, width, stickyLeft, stickyTop, zIndex, className } = props;
-  const style: React.CSSProperties = {
-    width: width ? `${width}px` : undefined,
-    minWidth: width ? `${width}px` : undefined,
-    maxWidth: width ? `${width}px` : undefined,
-    position: stickyLeft || stickyTop ? "sticky" : undefined,
-    left: stickyLeft ? 0 : undefined,
-    top: stickyTop ? 0 : undefined,
-    zIndex: zIndex ?? (stickyLeft && stickyTop ? 25 : stickyLeft ? 15 : stickyTop ? 5 : 1),
-    background: stickyLeft ? "white" : undefined,
-  };
-
-  return (
-    <td className={`border border-slate-300 px-3 py-2 align-top ${className ?? ""}`} style={style}>
-      {children}
-    </td>
-  );
-}
-
-export default function DashboardPage() {
-  const supabase = useMemo(() => getSupabase(), []);
-
+export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
 
-  // Logout
-  async function logout() {
-    try {
-      setError(null);
-      await supabase.auth.signOut();
-      // optionally redirect if you have a login page
-      // window.location.href = "/";
-    } catch (e: any) {
-      setError(e?.message || "Logout failed");
-    }
+  // Trends
+  const [weekly, setWeekly] = useState<{ weekEnd: string; prospects: number; bops: number }[]>([]);
+  const [monthly, setMonthly] = useState<{ month: string; prospects: number; bops: number }[]>([]);
+  const [trendLoading, setTrendLoading] = useState(false);
+
+  // Upcoming
+  const [rangeStart, setRangeStart] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [rangeEnd, setRangeEnd] = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
+  const [upcoming, setUpcoming] = useState<Row[]>([]);
+  const [upcomingLoading, setUpcomingLoading] = useState(false);
+  const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKey; dir: SortDir }>({ key: "BOP_Date", dir: "asc" });
+
+// Client Progress Summary
+const [progressRows, setProgressRows] = useState<Row[]>([]);
+const [progressLoading, setProgressLoading] = useState(false);
+const [progressFilter, setProgressFilter] = useState("");
+const [progressSort, setProgressSort] = useState<{ key: "client_name"; dir: SortDir }>({ key: "client_name", dir: "asc" });
+
+
+  // Search + All Records
+  const [q, setQ] = useState("");
+  const [filterClient, setFilterClient] = useState("");
+  const [filterInterestType, setFilterInterestType] = useState("");
+  const [filterBusinessOpp, setFilterBusinessOpp] = useState("");
+  const [filterWealthSolutions, setFilterWealthSolutions] = useState("");
+  const [filterBopStatus, setFilterBopStatus] = useState("");
+  const [filterFollowUpStatus, setFilterFollowUpStatus] = useState("");
+  const [records, setRecords] = useState<Row[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [pageJump, setPageJump] = useState("1");
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const supabase = getSupabase();
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          window.location.href = "/";
+          return;
+        }
+        await Promise.all([fetchTrends(), fetchProgressSummary(), loadPage(0)]);
+      } catch (e: any) {
+        setError(e?.message || "Failed to initialize");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    loadPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortAll.key, sortAll.dir]);
+
+  useEffect(() => {
+    if (upcoming.length) fetchUpcoming();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortUpcoming.key, sortUpcoming.dir]);
+
+  function applySort(query: any, sort: { key: SortKey; dir: SortDir }) {
+    const ascending = sort.dir === "asc";
+    if (sort.key === "client") return query.order("first_name", { ascending }).order("last_name", { ascending });
+    return query.order(sort.key, { ascending });
   }
 
-  /** ======================
-   * Trends
-   * ====================== */
-  const [trendsLoading, setTrendsLoading] = useState(false);
-  const [weeklyData, setWeeklyData] = useState<any[]>([]);
-  const [monthlyData, setMonthlyData] = useState<any[]>([]);
-
-  async function loadTrends() {
-    setTrendsLoading(true);
+  async function fetchTrends() {
+    setTrendLoading(true);
     setError(null);
-
     try {
-      // Pull enough rows to compute charts (last year + recent weeks)
-      const now = new Date();
-      const startOfYear = new Date(now.getFullYear(), 0, 1);
-      const lastYearISO = startOfYear.toISOString();
+      const supabase = getSupabase();
+      const start = startOfWeek(subWeeks(new Date(), 4), { weekStartsOn: 1 });
 
-      const { data, error: e1 } = await supabase
+      const { data: createdRows, error: createdErr } = await supabase
         .from("client_registrations")
-        .select("created_at,BOP_Date")
-        .gte("created_at", lastYearISO);
+        .select("created_at, BOP_Date")
+        .gte("created_at", start.toISOString())
+        .order("created_at", { ascending: true })
+        .limit(100000);
 
-      if (e1) throw e1;
+      if (createdErr) throw createdErr;
 
-      const rows = (data ?? []) as { created_at: string | null; BOP_Date: string | null }[];
-
-      // Weekly (last 5 weeks incl current): group by week start (Sunday)
-      const weeks: { label: string; prospects: number; bops: number }[] = [];
-      const end = new Date();
-      end.setHours(0, 0, 0, 0);
-
+      const weekEnds: string[] = [];
+      const weekCount = new Map<string, number>();
+      const bopWeekCount = new Map<string, number>();
       for (let i = 4; i >= 0; i--) {
-        const wkEnd = new Date(end);
-        wkEnd.setDate(wkEnd.getDate() - i * 7);
-
-        const wkStart = new Date(wkEnd);
-        wkStart.setDate(wkStart.getDate() - 6);
-
-        const startMs = wkStart.getTime();
-        const endMs = new Date(wkEnd.getFullYear(), wkEnd.getMonth(), wkEnd.getDate(), 23, 59, 59).getTime();
-
-        const prospects = rows.filter((r) => {
-          if (!r.created_at) return false;
-          const t = new Date(r.created_at).getTime();
-          return t >= startMs && t <= endMs;
-        }).length;
-
-        const bops = rows.filter((r) => {
-          if (!r.BOP_Date) return false;
-          const t = new Date(r.BOP_Date).getTime();
-          return t >= startMs && t <= endMs;
-        }).length;
-
-        weeks.push({
-          label: wkEnd.toISOString().slice(0, 10),
-          prospects,
-          bops,
-        });
+        const wkStart = startOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
+        const wkEnd = endOfWeek(wkStart, { weekStartsOn: 1 });
+        const key = format(wkEnd, "yyyy-MM-dd");
+        weekEnds.push(key);
+        weekCount.set(key, 0);
+        bopWeekCount.set(key, 0);
       }
 
-      // Monthly (current year)
-      const months: { label: string; prospects: number; bops: number }[] = [];
-      for (let m = 0; m < 12; m++) {
-        const mStart = new Date(now.getFullYear(), m, 1);
-        const mEnd = new Date(now.getFullYear(), m + 1, 0, 23, 59, 59);
-        const startMs = mStart.getTime();
-        const endMs = mEnd.getTime();
+      for (const r of createdRows || []) {
+        const created = parseISO(String((r as any).created_at));
+        if (isValid(created)) {
+          const wkEnd = endOfWeek(created, { weekStartsOn: 1 });
+          const key = format(wkEnd, "yyyy-MM-dd");
+          if (weekCount.has(key)) weekCount.set(key, (weekCount.get(key) || 0) + 1);
+        }
 
-        const prospects = rows.filter((r) => {
-          if (!r.created_at) return false;
-          const t = new Date(r.created_at).getTime();
-          return t >= startMs && t <= endMs;
-        }).length;
-
-        const bops = rows.filter((r) => {
-          if (!r.BOP_Date) return false;
-          const t = new Date(r.BOP_Date).getTime();
-          return t >= startMs && t <= endMs;
-        }).length;
-
-        months.push({
-          label: `${now.getFullYear()}-${pad2(m + 1)}`,
-          prospects,
-          bops,
-        });
+        const bopRaw = (r as any).BOP_Date;
+        if (bopRaw) {
+          const bop = parseISO(String(bopRaw));
+          if (isValid(bop)) {
+            const wkEnd2 = endOfWeek(bop, { weekStartsOn: 1 });
+            const key2 = format(wkEnd2, "yyyy-MM-dd");
+            if (bopWeekCount.has(key2)) bopWeekCount.set(key2, (bopWeekCount.get(key2) || 0) + 1);
+          }
+        }
       }
 
-      setWeeklyData(weeks);
-      setMonthlyData(months);
+      setWeekly(weekEnds.map((weekEnd) => ({ weekEnd, prospects: weekCount.get(weekEnd) || 0, bops: bopWeekCount.get(weekEnd) || 0 })));
+
+      const yearStart = startOfYear(new Date());
+      const nextYear = addYears(yearStart, 1);
+
+      const { data: yearRows, error: yearErr } = await supabase
+        .from("client_registrations")
+        .select("created_at, BOP_Date")
+        .gte("created_at", yearStart.toISOString())
+        .lt("created_at", nextYear.toISOString())
+        .order("created_at", { ascending: true })
+        .limit(200000);
+
+      if (yearErr) throw yearErr;
+
+      const y = yearStart.getFullYear();
+      const monthCount = new Map<string, number>();
+      const bopMonthCount = new Map<string, number>();
+      for (let m = 1; m <= 12; m++) {
+        const k = `${y}-${String(m).padStart(2, "0")}`;
+        monthCount.set(k, 0);
+        bopMonthCount.set(k, 0);
+      }
+
+      for (const r of yearRows || []) {
+        const created = parseISO(String((r as any).created_at));
+        if (isValid(created)) {
+          const key = format(created, "yyyy-MM");
+          if (monthCount.has(key)) monthCount.set(key, (monthCount.get(key) || 0) + 1);
+        }
+
+        const bopRaw = (r as any).BOP_Date;
+        if (bopRaw) {
+          const bop = parseISO(String(bopRaw));
+          if (isValid(bop)) {
+            const key2 = format(bop, "yyyy-MM");
+            if (bopMonthCount.has(key2)) bopMonthCount.set(key2, (bopMonthCount.get(key2) || 0) + 1);
+          }
+        }
+      }
+
+      setMonthly(Array.from(monthCount.keys()).map((month) => ({ month, prospects: monthCount.get(month) || 0, bops: bopMonthCount.get(month) || 0 })));
     } catch (e: any) {
       setError(e?.message || "Failed to load trends");
     } finally {
-      setTrendsLoading(false);
+      setTrendLoading(false);
     }
   }
 
-  /** ======================
-   * Upcoming BOP meetings
-   * ====================== */
-  const [upcomingStart, setUpcomingStart] = useState<string>(() => {
-    const d = new Date();
-    return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}/${d.getFullYear()}`;
-  });
-  const [upcomingEnd, setUpcomingEnd] = useState<string>(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}/${d.getFullYear()}`;
-  });
-
-  const [upcomingVisible, setUpcomingVisible] = useState(true);
-  const [upcomingLoading, setUpcomingLoading] = useState(false);
-  const [upcomingRows, setUpcomingRows] = useState<RegistrationRow[]>([]);
-  const [upcomingSort, setUpcomingSort] = useState<SortState>({ key: "client_name", dir: "asc" });
-  const [upcomingPage, setUpcomingPage] = useState(0);
-  const [upcomingTotal, setUpcomingTotal] = useState(0);
-
-  function parseMMDDYYYY(s: string) {
-    const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!m) return null;
-    const mm = Number(m[1]);
-    const dd = Number(m[2]);
-    const yyyy = Number(m[3]);
-    const d = new Date(yyyy, mm - 1, dd);
-    if (Number.isNaN(d.getTime())) return null;
-    return d;
-  }
-
-  async function loadUpcoming(page: number) {
+  async function fetchUpcoming() {
     setUpcomingLoading(true);
     setError(null);
-
     try {
-      const s = parseMMDDYYYY(upcomingStart);
-      const e = parseMMDDYYYY(upcomingEnd);
-      if (!s || !e) throw new Error("Invalid start/end date (use MM/DD/YYYY)");
+      const supabase = getSupabase();
+      const start = new Date(rangeStart);
+      const end = new Date(rangeEnd);
+      const startIso = start.toISOString();
+      const endIso = new Date(end.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
-      const startISO = new Date(s.getFullYear(), s.getMonth(), s.getDate(), 0, 0, 0).toISOString();
-      const endISO = new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59).toISOString();
+      let query = supabase.from("client_registrations").select("*").gte("BOP_Date", startIso).lt("BOP_Date", endIso).limit(5000);
+      query = applySort(query, sortUpcoming);
 
-      // count
-      let countQ = supabase
-        .from("client_registrations")
-        .select("id", { count: "exact", head: true })
-        .gte("BOP_Date", startISO)
-        .lte("BOP_Date", endISO);
-
-      const { count, error: cErr } = await countQ;
-      if (cErr) throw cErr;
-      setUpcomingTotal(count ?? 0);
-
-      const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      let q = supabase
-        .from("client_registrations")
-        .select(
-          "id,first_name,last_name,phone,email,created_at,status,interest_type,business_opportunities,wealth_solutions,BOP_Date,BOP_Status,Followup_Date"
-        )
-        .gte("BOP_Date", startISO)
-        .lte("BOP_Date", endISO);
-
-      q = applyOrder(q, upcomingSort);
-
-      const { data, error: e2 } = await q.range(from, to);
-      if (e2) throw e2;
-
-      setUpcomingRows((data ?? []) as any);
-      setUpcomingPage(page);
+      const { data, error } = await query;
+      if (error) throw error;
+      setUpcoming(data || []);
     } catch (e: any) {
-      setError(e?.message || "Failed to load upcoming");
+      setError(e?.message || "Failed to load upcoming meetings");
     } finally {
       setUpcomingLoading(false);
     }
+
+
+async function _fetchProgressSummary() {
+  setProgressLoading(true);
+  setError(null);
+  try {
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+      .from("v_client_progress_summary")
+      .select("clientid, first_name, last_name, phone, email, last_call_date, call_attempts, last_bop_date, bop_attempts, last_followup_date, followup_attempts")
+      .order("clientid", { ascending: false })
+      .limit(5000);
+
+    if (error) throw error;
+
+    const rows = (data || []).map((r: any) => ({
+      clientid: r.clientid,
+      client_name: `${r.first_name || ""} ${r.last_name || ""}`.trim(),
+      first_name: r.first_name,
+      last_name: r.last_name,
+      phone: r.phone,
+      email: r.email,
+      last_call_date: r.last_call_date,
+      call_attempts: r.call_attempts,
+      last_bop_date: r.last_bop_date,
+      bop_attempts: r.bop_attempts,
+      last_followup_date: r.last_followup_date,
+      followup_attempts: r.followup_attempts,
+    }));
+
+    setProgressRows(rows);
+  } catch (e: any) {
+    setError(e?.message || "Failed to load Client Progress Summary");
+  } finally {
+    setProgressLoading(false);
   }
 
-  /** ======================
-   * All Records (Editable)
-   * ====================== */
-  const [allQ, setAllQ] = useState("");
-  const [allLoading, setAllLoading] = useState(false);
-  const [allRows, setAllRows] = useState<RegistrationRow[]>([]);
-  const [allSort, setAllSort] = useState<SortState>({ key: "client_name", dir: "asc" });
-  const [allPage, setAllPage] = useState(0);
-  const [allTotal, setAllTotal] = useState(0);
 
-  // Draft input cache so the datetime-local never “disappears” during typing
-  const [draftDate, setDraftDate] = useState<Record<string, { called?: string; bop?: string; follow?: string }>>({});
+// Keep both names to avoid build errors if one is referenced
+async function fetchProgressSummary() {
+  return _fetchProgressSummary();
+}
+async function fetchProgressSummary() {
+  return _fetchProgressSummary();
+}
 
-  async function loadAll(page: number) {
-    setAllLoading(true);
+}
+
+  }
+
+  async function loadPage(nextPage: number) {
     setError(null);
-
+    setLoading(true);
     try {
-      const s = allQ.trim();
+      const supabase = getSupabase();
+      const search = q.trim();
+      const fc = filterClient.trim();
+      const fi = filterInterestType.trim();
+      const fb = filterBopStatus.trim();
 
-      // count
-      let countQ = supabase
-        .from("client_registrations")
-        .select("id", { count: "exact", head: true });
-
-      if (s) {
-        // ilike is case-insensitive
-        countQ = countQ.or(
-          `first_name.ilike.%${s}%,last_name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`
-        );
-      }
-
-      const { count, error: cErr } = await countQ;
+      let countQuery = supabase.from("client_registrations").select("id", { count: "exact", head: true });
+      if (search) countQuery = countQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
+      if (fc) countQuery = countQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
+      if (fi) countQuery = countQuery.eq("interest_type", fi);
+      if (fb) countQuery = countQuery.eq("BOP_Status", fb);
+      const { count, error: cErr } = await countQuery;
       if (cErr) throw cErr;
-      setAllTotal(count ?? 0);
+      setTotal(count ?? 0);
 
-      const from = page * PAGE_SIZE;
+      const from = nextPage * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      let q = supabase
-        .from("client_registrations")
-        .select(
-          "id,first_name,last_name,phone,email,created_at,status,profession,preferred_days,preferred_time,referred_by,CalledOn,BOP_Date,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status"
-        );
+      let dataQuery = supabase.from("client_registrations").select("*").range(from, to);
+      if (search) dataQuery = dataQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`);
+      if (fc) dataQuery = dataQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
+      if (fi) dataQuery = dataQuery.eq("interest_type", fi);
+      if (fb) dataQuery = dataQuery.eq("BOP_Status", fb);
+      dataQuery = applySort(dataQuery, sortAll);
 
-      if (s) {
-        q = q.or(
-          `first_name.ilike.%${s}%,last_name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`
-        );
-      }
+      const { data, error } = await dataQuery;
+      if (error) throw error;
 
-      // ✅ server-side sort (whole dataset)
-      q = applyOrder(q, allSort);
+const raw = (data || []) as any[];
+const fbo = filterBusinessOpp.trim().toLowerCase();
+const fws = filterWealthSolutions.trim().toLowerCase();
+const ffu = filterFollowUpStatus.trim().toLowerCase();
 
-      // ✅ paginate after ordering
-      const { data, error: e2 } = await q.range(from, to);
-      if (e2) throw e2;
+const clientSideFiltered = raw.filter((row) => {
+  const opp = Array.isArray(row.business_opportunities) ? row.business_opportunities.join(",") : String(row.business_opportunities || "");
+  const ws = Array.isArray(row.wealth_solutions) ? row.wealth_solutions.join(",") : String(row.wealth_solutions || "");
+  const fu = String(row.FollowUp_Status ?? row.Followup_Status ?? "").toLowerCase();
 
-      setAllRows((data ?? []) as any);
-      setAllPage(page);
+  const okOpp = !fbo || opp.toLowerCase().includes(fbo);
+  const okWs = !fws || ws.toLowerCase().includes(fws);
+  const okFu = !ffu || fu.includes(ffu);
+  return okOpp && okWs && okFu;
+});
+
+setRecords(clientSideFiltered);
+      setPage(nextPage);
+      setPageJump(String(nextPage + 1));
     } catch (e: any) {
-      setError(e?.message || "Failed to load all records");
+      setError(e?.message || "Failed to load records");
     } finally {
-      setAllLoading(false);
+      setLoading(false);
     }
   }
 
-  /** Save date columns (CalledOn, BOP_Date, Followup_Date)
-   *  NOTE: If you still get RLS error "client_call_track", that is BACKEND policy.
-   *  This code will keep the selected date visible immediately (optimistic UI).
-   */
-  async function saveRegistrationDate(id: string, field: "CalledOn" | "BOP_Date" | "Followup_Date", iso: string | null) {
-    const payload: any = {};
-    payload[field] = iso;
+  const totalPages = Math.max(1, Math.ceil((total || 0) / PAGE_SIZE));
+  const canPrev = page > 0;
+  const canNext = (page + 1) * PAGE_SIZE < total;
 
-    const { error: e1 } = await supabase.from("client_registrations").update(payload).eq("id", id);
-    if (e1) throw e1;
-  }
+  const exportUpcomingXlsx = () => {
+    const ws = XLSX.utils.json_to_sheet(upcoming);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Upcoming_BOP");
+    XLSX.writeFile(wb, `Upcoming_BOP_${rangeStart}_to_${rangeEnd}.xlsx`);
+  };
 
-  /** ======================
-   * Client Progress Summary
-   * ====================== */
-  const [progressVisible, setProgressVisible] = useState(true);
-  const [progressFilter, setProgressFilter] = useState("");
-  const [progressLoading, setProgressLoading] = useState(false);
-  const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
-  const [progressSort, setProgressSort] = useState<SortState>({ key: "client_name", dir: "asc" });
-  const [progressPage, setProgressPage] = useState(0);
-  const [progressTotal, setProgressTotal] = useState(0);
-
-  async function loadProgress(page: number) {
-    setProgressLoading(true);
+  const updateCell = async (id: string, key: string, rawValue: string) => {
+    setSavingId(id);
     setError(null);
-
     try {
-      const s = progressFilter.trim();
+      const supabase = getSupabase();
+      const payload: any = {};
 
-      // Prefer a view/table if you have it (client_progress_summary)
-      // If it doesn't exist, show a helpful error.
-      let countQ = supabase
-        .from("client_progress_summary")
-        .select("client_name", { count: "exact", head: true });
+      const isDateTime = key === "BOP_Date" || key === "CalledOn" || key === "Followup_Date" || key === "Issued";
+      payload[key] = isDateTime ? fromLocalInput(rawValue) : rawValue?.trim() ? rawValue : null;
 
-      if (s) {
-        countQ = countQ.ilike("client_name", `%${s}%`);
-      }
+      const { error } = await supabase.from("client_registrations").update(payload).eq("id", id);
+      if (error) throw error;
 
-      const { count, error: cErr } = await countQ;
-      if (cErr) throw cErr;
-      setProgressTotal(count ?? 0);
-
-      const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      let q = supabase
-        .from("client_progress_summary")
-        .select(
-          "client_name,first_name,last_name,phone,email,last_call_date,call_attempts,last_bop_date,bop_attempts,last_followup_date,followup_attempts"
-        );
-
-      if (s) q = q.ilike("client_name", `%${s}%`);
-
-      // server sort for whole dataset
-      q = applyOrder(q, progressSort);
-
-      const { data, error: e2 } = await q.range(from, to);
-      if (e2) throw e2;
-
-      setProgressRows((data ?? []) as any);
-      setProgressPage(page);
+      const patch = (prev: Row[]) => prev.map((r) => (String(r.id) === String(id) ? { ...r, [key]: payload[key] } : r));
+      setRecords(patch);
+      setUpcoming(patch);
     } catch (e: any) {
-      setError(
-        e?.message ||
-          'Failed to load Client Progress Summary. Make sure "client_progress_summary" exists or share your current query/view.'
-      );
+      setError(e?.message || "Update failed");
     } finally {
-      setProgressLoading(false);
+      setSavingId(null);
     }
-  }
+  };
 
-  /** ======================
-   * Column definitions + widths
-   * ====================== */
-  // All Records columns (make ALL resizable)
-  const allCols = useMemo(
-    () => [
-      { key: "client_name", label: "Client Name", w: 180, sticky: true },
-      { key: "preferred_days", label: "Preferred Days", w: 160 },
-      { key: "preferred_time", label: "Preferred Time", w: 160 },
-      { key: "referred_by", label: "Referred By", w: 160 },
-      { key: "calledon", label: "Called On", w: 210 },
-      { key: "BOP_Date", label: "BOP Date", w: 210 },
-      { key: "BOP_Status", label: "BOP Status", w: 160 },
-      { key: "Followup_Date", label: "Follow-Up Date", w: 210 },
-      { key: "FollowUp_Status", label: "Follow-Up Status", w: 180 },
-      { key: "Product", label: "Product", w: 160 },
-      { key: "Issued", label: "Issued", w: 210 },
-      { key: "Comment", label: "Comment", w: 220 },
-      { key: "Remark", label: "Remark", w: 180 },
-    ],
-    []
+  const sortHelp = (
+    <div className="text-xs text-slate-600">
+      Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>, <b>BOP Status</b>, <b>Follow-Up Date</b>, <b>Status</b>.
+    </div>
   );
 
-  const { widths: allWidths, startResize: startResizeAll } = useColumnWidths(
-    Object.fromEntries(allCols.map((c) => [c.key, c.w]))
-  );
-
-  const upcomingCols = useMemo(
-    () => [
-      { key: "client_name", label: "Client Name", w: 180, sticky: true },
-      { key: "BOP_Date", label: "BOP Date", w: 210 },
-      { key: "created_date", label: "Created Date", w: 140 },
-      { key: "BOP_Status", label: "BOP Status", w: 160 },
-      { key: "Followup_Date", label: "Follow-Up Date", w: 210 },
-      { key: "status", label: "Status", w: 120 },
-      { key: "interest_type", label: "Interest Type", w: 160 },
-      { key: "business_opportunities", label: "Business Opportunities", w: 220 },
-      { key: "wealth_solutions", label: "Wealth Solutions", w: 220 },
-    ],
-    []
-  );
-
-  const { widths: upcomingWidths, startResize: startResizeUpcoming } = useColumnWidths(
-    Object.fromEntries(upcomingCols.map((c) => [c.key, c.w]))
-  );
-
-  const progressCols = useMemo(
-    () => [
-      { key: "client_name", label: "Client Name", w: 180, sticky: true },
-      { key: "first_name", label: "First Name", w: 90 },
-      { key: "last_name", label: "Last Name", w: 90 },
-      { key: "phone", label: "Phone", w: 120 },
-      { key: "email", label: "Email", w: 220 },
-      { key: "last_call_date", label: "Last Call On", w: 190 },
-      { key: "call_attempts", label: "No of Calls", w: 90 },
-      { key: "last_bop_date", label: "Last BOP Call On", w: 200 },
-      { key: "bop_attempts", label: "No of BOP Calls", w: 120 },
-      { key: "last_followup_date", label: "Last FollowUp On", w: 200 },
-      { key: "followup_attempts", label: "No of FollowUp Calls", w: 140 },
-    ],
-    []
-  );
-
-  const { widths: progressWidths, startResize: startResizeProgress } = useColumnWidths(
-    Object.fromEntries(progressCols.map((c) => [c.key, c.w]))
-  );
-
-  /** ======================
-   * Initial load
-   * ====================== */
-  useEffect(() => {
-    loadTrends();
-    loadAll(0);
-    loadUpcoming(0);
-    loadProgress(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /** ======================
-   * Sort handlers (server sort + reset to page 0)
-   * ====================== */
-  function toggleSort(prev: SortState, key: string): SortState {
-    if (prev.key === key) return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
-    return { key, dir: "asc" };
-  }
-
-  function onAllSort(key: string) {
-    setAllSort((p) => {
-      const next = toggleSort(p, key);
-      // reload first page
-      setTimeout(() => loadAll(0), 0);
-      return next;
-    });
-  }
-
-  function onUpcomingSort(key: string) {
-    setUpcomingSort((p) => {
-      const next = toggleSort(p, key);
-      setTimeout(() => loadUpcoming(0), 0);
-      return next;
-    });
-  }
-
-  function onProgressSort(key: string) {
-    setProgressSort((p) => {
-      const next = toggleSort(p, key);
-      setTimeout(() => loadProgress(0), 0);
-      return next;
-    });
-  }
-
-  /** ======================
-   * Pagination helpers
-   * ====================== */
-  function pageCount(total: number) {
-    return Math.max(1, Math.ceil(total / PAGE_SIZE));
-  }
+  const extraClientCol = useMemo(() => [{ label: "Client Name", sortable: "client" as SortKey, render: (r: Row) => clientName(r) }], []);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen">
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
-        {/* Header */}
-        <header className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="text-xl font-semibold text-slate-900">Excel-style tables, editable follow-ups, and trends</div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
-              onClick={logout}
-            >
-              Logout
-            </button>
+        <header className="flex items-center gap-3">
+          <img src="/can-logo.png" className="h-10 w-auto" alt="CAN Financial Solutions" />
+          <div>
+            <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
+            <div className="text-sm text-slate-500">Excel-style tables, editable follow-ups, and trends</div>
           </div>
         </header>
 
-        {/* Error */}
-        {error ? (
-          <div className="border border-red-200 bg-red-50 text-red-800 rounded-xl p-3 text-sm">{error}</div>
-        ) : null}
+        {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
 
-        {/* Trends */}
-        <section className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Trends</h2>
-            <button
-              className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-              onClick={loadTrends}
-              disabled={trendsLoading}
-            >
-              Refresh
-            </button>
-          </div>
+        {/* 1) Trends (vertical) */}
+        <Card title="Trends">
+  <div className="flex items-center justify-between mb-3">
+    <div className="text-xs font-semibold text-slate-600">Weekly = No of Prespect vs BOP (last 5 weeks incl current)</div>
+    <Button variant="secondary" onClick={fetchTrends}>Refresh</Button>
+  </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-            <div>
-              <div className="text-sm font-medium text-slate-700 mb-2">Weekly (Last 5 Weeks)</div>
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weeklyData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    {/* Different colors */}
-                    <Line type="monotone" dataKey="prospects" name="prospects" stroke="#2563eb" strokeWidth={2} dot />
-                    <Line type="monotone" dataKey="bops" name="bops" stroke="#16a34a" strokeWidth={2} dot />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div>
-              <div className="text-sm font-medium text-slate-700 mb-2">Monthly (Current Year)</div>
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    {/* Different colors */}
-                    <Bar dataKey="prospects" name="prospects" fill="#2563eb" />
-                    <Bar dataKey="bops" name="bops" fill="#16a34a" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Upcoming BOP Date Range */}
-        <section className="bg-white rounded-2xl border border-slate-200 p-5">
-          <h2 className="text-lg font-semibold text-slate-900">Upcoming BOP Date Range</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 items-end">
-            <div className="md:col-span-2">
-              <label className="block text-sm text-slate-700 mb-1">Start</label>
-              <input
-                className="w-full px-3 py-2 rounded-lg border border-slate-200"
-                value={upcomingStart}
-                onChange={(e) => setUpcomingStart(e.target.value)}
-                placeholder="MM/DD/YYYY"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm text-slate-700 mb-1">End</label>
-              <input
-                className="w-full px-3 py-2 rounded-lg border border-slate-200"
-                value={upcomingEnd}
-                onChange={(e) => setUpcomingEnd(e.target.value)}
-                placeholder="MM/DD/YYYY"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-                onClick={() => loadUpcoming(0)}
-                disabled={upcomingLoading}
-              >
-                Load
-              </button>
-
-              <button
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
-                onClick={() => setUpcomingVisible((v) => !v)}
-              >
-                {upcomingVisible ? "Hide Upcoming Table" : "Show Upcoming Table"}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* Upcoming BOP Meetings */}
-        {upcomingVisible ? (
-          <section className="bg-white rounded-2xl border border-slate-200 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-slate-900">Upcoming BOP Meetings (Editable)</h2>
-              <div className="flex items-center gap-2">
-                <div className="text-sm text-slate-600">
-                  Page {upcomingPage + 1} of {pageCount(upcomingTotal)}
-                </div>
-                <button
-                  className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-                  onClick={() => loadUpcoming(Math.max(0, upcomingPage - 1))}
-                  disabled={upcomingPage <= 0 || upcomingLoading}
-                >
-                  Previous
-                </button>
-                <button
-                  className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-                  onClick={() => loadUpcoming(Math.min(pageCount(upcomingTotal) - 1, upcomingPage + 1))}
-                  disabled={upcomingPage >= pageCount(upcomingTotal) - 1 || upcomingLoading}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-
-            <div className="text-sm text-slate-600 mt-1">Table supports vertical + horizontal scrolling.</div>
-
-            <div className="mt-3 overflow-auto border border-slate-500 bg-white max-h-[420px]">
-              <table className="min-w-[1400px] w-full border-collapse" style={{ tableLayout: "fixed" }}>
-                <thead>
-                  <tr>
-                    {upcomingCols.map((c) => (
-                      <HeaderCell
-                        key={c.key}
-                        label={c.label}
-                        sortKey={c.key}
-                        sort={upcomingSort}
-                        onSort={onUpcomingSort}
-                        width={upcomingWidths[c.key]}
-                        stickyLeft={c.sticky}
-                        stickyTop
-                        zIndex={c.sticky ? 35 : 15}
-                        startResize={startResizeUpcoming}
-                        resizeKey={c.key}
-                      />
-                    ))}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {upcomingRows.map((r) => {
-                    const clientName = `${safeText(r.first_name)} ${safeText(r.last_name)}`.trim() || "(no name)";
-                    return (
-                      <tr key={r.id}>
-                        <Cell width={upcomingWidths["client_name"]} stickyLeft className="font-semibold">
-                          {clientName}
-                        </Cell>
-
-                        <Cell width={upcomingWidths["BOP_Date"]}>{formatDisplayDate(r.BOP_Date)}</Cell>
-                        <Cell width={upcomingWidths["created_date"]}>
-                          {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}
-                        </Cell>
-                        <Cell width={upcomingWidths["bop_status"]}>{safeText(r.BOP_Status)}</Cell>
-                        <Cell width={upcomingWidths["Followup_Date"]}>{formatDisplayDate(r.Followup_Date)}</Cell>
-                        <Cell width={upcomingWidths["status"]}>{safeText(r.status)}</Cell>
-                        <Cell width={upcomingWidths["interest_type"]}>{safeText(r.interest_type)}</Cell>
-                        <Cell width={upcomingWidths["business_opportunities"]}>{safeText(r.business_opportunities)}</Cell>
-                        <Cell width={upcomingWidths["wealth_solutions"]}>{safeText(r.wealth_solutions)}</Cell>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        ) : null}
-
-        {/* All Records (Editable) */}
-        <section className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-slate-900">All Records (Editable)</h2>
-
-            <div className="flex items-center gap-2">
-              <div className="text-sm text-slate-600">
-                Page {allPage + 1} of {pageCount(allTotal)}
-              </div>
-              <button
-                className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-                onClick={() => loadAll(Math.max(0, allPage - 1))}
-                disabled={allPage <= 0 || allLoading}
-              >
-                Previous
-              </button>
-              <button
-                className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-                onClick={() => loadAll(Math.min(pageCount(allTotal) - 1, allPage + 1))}
-                disabled={allPage >= pageCount(allTotal) - 1 || allLoading}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-center gap-2">
-            <input
-              className="w-full md:w-[420px] px-3 py-2 rounded-lg border border-slate-200"
-              value={allQ}
-              onChange={(e) => setAllQ(e.target.value)}
-              placeholder="Search (name / phone / email)..."
-            />
-            <button
-              className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-              onClick={() => loadAll(0)}
-              disabled={allLoading}
-            >
-              Refresh
-            </button>
-          </div>
-
-          <div className="mt-3 overflow-auto border border-slate-500 bg-white max-h-[520px]">
-            <table className="min-w-[1700px] w-full border-collapse" style={{ tableLayout: "fixed" }}>
-              <thead>
-                <tr>
-                  {allCols.map((c) => (
-                    <HeaderCell
-                      key={c.key}
-                      label={c.label}
-                      sortKey={c.key}
-                      sort={allSort}
-                      onSort={onAllSort}
-                      width={allWidths[c.key]}
-                      stickyLeft={c.sticky}
-                      stickyTop
-                      zIndex={c.sticky ? 35 : 15}
-                      startResize={startResizeAll}
-                      resizeKey={c.key}
-                    />
-                  ))}
-                </tr>
-              </thead>
-
-              <tbody>
-                {allRows.map((r) => {
-                  const clientName = `${safeText(r.first_name)} ${safeText(r.last_name)}`.trim() || "(no name)";
-                  const d = draftDate[r.id] || {};
-
-                  const calledInput = d.called ?? toDateTimeLocalValue(r.CalledOn);
-                  const bopInput = d.bop ?? toDateTimeLocalValue(r.BOP_Date);
-                  const followInput = d.follow ?? toDateTimeLocalValue(r.Followup_Date);
-
-                  return (
-                    <tr key={r.id}>
-                      <Cell width={allWidths["client_name"]} stickyLeft className="font-semibold">
-                        {clientName}
-                      </Cell>
-
-                      <Cell width={allWidths["preferred_days"]}>{safeText(r.preferred_days)}</Cell>
-                      <Cell width={allWidths["preferred_time"]}>{safeText(r.preferred_time)}</Cell>
-                      <Cell width={allWidths["referred_by"]}>{safeText(r.referred_by)}</Cell>
-
-                      {/* Called On (editable + must persist in state immediately) */}
-                      <Cell width={allWidths["CalledOn"]}>
-                        <input
-                          type="datetime-local"
-                          className="w-full bg-transparent outline-none"
-                          value={calledInput}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setDraftDate((prev) => ({ ...prev, [r.id]: { ...(prev[r.id] || {}), called: v } }));
-
-                            const iso = fromDateTimeLocalValue(v);
-                            // optimistic UI: update row immediately so it doesn't disappear on blur
-                            setAllRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, CalledOn: iso } : x)));
-
-                            // persist
-                            saveRegistrationDate(r.id, "CalledOn", iso).catch((err: any) => {
-                              setError(err?.message || "Failed to save Called On");
-                            });
-                          }}
-                          onBlur={() => {
-                            // once blur happens, clear draft so it reuses saved value
-                            setDraftDate((prev) => {
-                              const next = { ...prev };
-                              if (next[r.id]) next[r.id] = { ...next[r.id], called: undefined };
-                              return next;
-                            });
-                          }}
-                        />
-                      </Cell>
-
-                      {/* BOP Date */}
-                      <Cell width={allWidths["BOP_Date"]}>
-                        <input
-                          type="datetime-local"
-                          className="w-full bg-transparent outline-none"
-                          value={bopInput}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setDraftDate((prev) => ({ ...prev, [r.id]: { ...(prev[r.id] || {}), bop: v } }));
-
-                            const iso = fromDateTimeLocalValue(v);
-                            setAllRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, BOP_Date: iso } : x)));
-
-                            saveRegistrationDate(r.id, "BOP_Date", iso).catch((err: any) => {
-                              setError(err?.message || "Failed to save BOP Date");
-                            });
-                          }}
-                          onBlur={() => {
-                            setDraftDate((prev) => {
-                              const next = { ...prev };
-                              if (next[r.id]) next[r.id] = { ...next[r.id], bop: undefined };
-                              return next;
-                            });
-                          }}
-                        />
-                      </Cell>
-
-                      <Cell width={allWidths["bop_status"]}>{safeText(r.BOP_Status)}</Cell>
-
-                      {/* Follow-Up Date */}
-                      <Cell width={allWidths["Followup_Date"]}>
-                        <input
-                          type="datetime-local"
-                          className="w-full bg-transparent outline-none"
-                          value={followInput}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setDraftDate((prev) => ({ ...prev, [r.id]: { ...(prev[r.id] || {}), follow: v } }));
-
-                            const iso = fromDateTimeLocalValue(v);
-                            setAllRows((prev) =>
-                              prev.map((x) => (x.id === r.id ? { ...x, Followup_Date: iso } : x))
-                            );
-
-                            saveRegistrationDate(r.id, "Followup_Date", iso).catch((err: any) => {
-                              setError(err?.message || "Failed to save Follow-Up Date");
-                            });
-                          }}
-                          onBlur={() => {
-                            setDraftDate((prev) => {
-                              const next = { ...prev };
-                              if (next[r.id]) next[r.id] = { ...next[r.id], follow: undefined };
-                              return next;
-                            });
-                          }}
-                        />
-                      </Cell>
-
-                      <Cell width={allWidths["FollowUp_Status"]}>{safeText(r.FollowUp_Status)}</Cell>
-                      <Cell width={allWidths["Product"]}>{safeText(r.Product)}</Cell>
-                      <Cell width={allWidths["Issued"]}>{formatDisplayDate(r.Issued)}</Cell>
-                      <Cell width={allWidths["Comment"]}>{safeText(r.Comment)}</Cell>
-                      <Cell width={allWidths["Remark"]}>{safeText(r.Remark)}</Cell>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* NOTE about RLS */}
-          <div className="mt-2 text-xs text-slate-500">
-            If saving dates still fails with{" "}
-            <span className="font-mono">new row violates row-level security policy for table "client_call_track"</span>,
-            that is a Supabase RLS policy issue (backend). Your UI will keep the selected date visible immediately,
-            but you must fix the RLS policy or remove the insert into <span className="font-mono">client_call_track</span>{" "}
-            to persist it permanently.
-          </div>
-        </section>
-
-        {/* Client Progress Summary */}
-        <section className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-slate-900">Client Progress Summary</h2>
-
-            <div className="flex items-center gap-2">
-              <button
-                className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-                onClick={() => loadProgress(0)}
-                disabled={progressLoading}
-              >
-                Refresh
-              </button>
-              <button
-                className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
-                onClick={() => setProgressVisible((v) => !v)}
-              >
-                {progressVisible ? "Hide Table" : "Show Table"}
-              </button>
-
-              <div className="text-sm text-slate-600 ml-2">
-                Page {progressPage + 1} of {pageCount(progressTotal)}
-              </div>
-              <button
-                className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-                onClick={() => loadProgress(Math.max(0, progressPage - 1))}
-                disabled={progressPage <= 0 || progressLoading}
-              >
-                Previous
-              </button>
-              <button
-                className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-                onClick={() => loadProgress(Math.min(pageCount(progressTotal) - 1, progressPage + 1))}
-                disabled={progressPage >= pageCount(progressTotal) - 1 || progressLoading}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-center gap-2">
-            <input
-              className="w-full md:w-[520px] px-3 py-2 rounded-lg border border-slate-200"
-              value={progressFilter}
-              onChange={(e) => setProgressFilter(e.target.value)}
-              placeholder="Filter by client name..."
-            />
-            <button
-              className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-              onClick={() => loadProgress(0)}
-              disabled={progressLoading}
-            >
-              Apply
-            </button>
-          </div>
-
-          {progressVisible ? (
-            <div className="mt-3 overflow-auto border border-slate-500 bg-white max-h-[420px]">
-              <table className="min-w-[1500px] w-full border-collapse" style={{ tableLayout: "fixed" }}>
-                <thead>
-                  <tr>
-                    {progressCols.map((c) => (
-                      <HeaderCell
-                        key={c.key}
-                        label={c.label}
-                        sortKey={c.key}
-                        sort={progressSort}
-                        onSort={onProgressSort}
-                        width={progressWidths[c.key]}
-                        stickyLeft={c.sticky}
-                        stickyTop
-                        zIndex={c.sticky ? 35 : 15}
-                        startResize={startResizeProgress}
-                        resizeKey={c.key}
-                      />
-                    ))}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {progressRows.map((r, idx) => (
-                    <tr key={`${r.client_name}-${idx}`}>
-                      <Cell width={progressWidths["client_name"]} stickyLeft className="font-semibold">
-                        {r.client_name}
-                      </Cell>
-                      <Cell width={progressWidths["first_name"]}>{safeText(r.first_name)}</Cell>
-                      <Cell width={progressWidths["last_name"]}>{safeText(r.last_name)}</Cell>
-                      <Cell width={progressWidths["phone"]}>{safeText(r.phone)}</Cell>
-                      <Cell width={progressWidths["email"]}>{safeText(r.email)}</Cell>
-
-                      <Cell width={progressWidths["last_call_date"]}>{formatDisplayDate(r.last_call_date)}</Cell>
-                      <Cell width={progressWidths["call_attempts"]}>
-                        {/* Don’t show zero */}
-                        {r.call_attempts && r.call_attempts !== 0 ? r.call_attempts : ""}
-                      </Cell>
-
-                      <Cell width={progressWidths["last_bop_date"]}>{formatDisplayDate(r.last_bop_date)}</Cell>
-                      <Cell width={progressWidths["bop_attempts"]}>
-                        {r.bop_attempts && r.bop_attempts !== 0 ? r.bop_attempts : ""}
-                      </Cell>
-
-                      <Cell width={progressWidths["last_followup_date"]}>{formatDisplayDate(r.last_followup_date)}</Cell>
-                      <Cell width={progressWidths["followup_attempts"]}>
-                        {r.followup_attempts && r.followup_attempts !== 0 ? r.followup_attempts : ""}
-                      </Cell>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </section>
+  <div className="grid lg:grid-cols-2 gap-6">
+    <div>
+      <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={weekly}>
+            <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Line type="monotone" dataKey="prospects" stroke="#2563eb" dot>
+  <LabelList dataKey="prospects" position="top" />
+</Line>
+<Line type="monotone" dataKey="bops" stroke="#f97316" dot>
+  <LabelList dataKey="bops" position="top" />
+</Line>
+          </LineChart>
+        </ResponsiveContainer>
       </div>
+    </div>
+
+    <div>
+      <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={monthly}>
+            <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Bar dataKey="prospects" fill="#16a34a">
+  <LabelList dataKey="prospects" position="top" />
+</Bar>
+<Bar dataKey="bops" fill="#9333ea">
+  <LabelList dataKey="bops" position="top" />
+</Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  </div>
+
+  {trendLoading && <div className="mt-2 text-xs text-slate-500">Loading…</div>}
+</Card>
+
+        {/* 2) Upcoming BOP range */}
+        <Card title="Upcoming BOP Date Range">
+          <div className="grid md:grid-cols-5 gap-3 items-end">
+            <label className="block md:col-span-2">
+              <div className="text-xs font-semibold text-slate-600 mb-1">Start</div>
+              <input type="date" className="w-full border border-slate-300 px-3 py-2" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
+            </label>
+            <label className="block md:col-span-2">
+              <div className="text-xs font-semibold text-slate-600 mb-1">End</div>
+              <input type="date" className="w-full border border-slate-300 px-3 py-2" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
+            </label>
+            <div className="flex gap-2 md:col-span-1">
+              <Button onClick={fetchUpcoming} disabled={upcomingLoading}>{upcomingLoading ? "Loading…" : "Load"}</Button>
+              <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>Export XLSX</Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* 3) Upcoming table (after selecting range) */}
+        {upcoming.length > 0 && (
+          <Card title="Upcoming BOP Meetings (Editable)">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-600">Table supports vertical + horizontal scrolling.</div>
+              {sortHelp}
+            </div>
+
+            <ExcelTable
+              rows={upcoming}
+              stickyLeftKeys={["client_name","phone","email","created_at","BOP_Date"]}
+              savingId={savingId}
+              onUpdate={updateCell}
+              preferredOrder={["BOP_Date","created_at","BOP_Status","Followup_Date","status"]}
+              extraLeftCols={[
+                { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
+                { label: "Phone", render: (r) => String(r.phone || "") },
+                { label: "Email", render: (r) => String(r.email || "") },
+              ]}
+              maxHeightClass="max-h-[420px]"
+              sortState={sortUpcoming}
+              onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
+            />
+          </Card>
+        )}
+
+        {/* 4) Search */}
+        <Card title="Search">
+          <div className="flex flex-col md:flex-row gap-2 md:items-center">
+            <input className="w-full border border-slate-300 px-4 py-3" placeholder="Search by first name, last name, or phone"
+              value={q} onChange={(e) => setQ(e.target.value)} />
+            <Button onClick={() => loadPage(0)}>Go</Button>
+            <div className="text-sm text-slate-600 md:ml-auto">{total.toLocaleString()} records • showing {PAGE_SIZE} per page</div>
+          </div>
+        
+<div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">Client Name</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterClient} onChange={(e) => setFilterClient(e.target.value)} placeholder="Contains…" />
+  </div>
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">Interest Type</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterInterestType} onChange={(e) => setFilterInterestType(e.target.value)} placeholder="e.g., client" />
+  </div>
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">Business Opportunities</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterBusinessOpp} onChange={(e) => setFilterBusinessOpp(e.target.value)} placeholder="Contains…" />
+  </div>
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">Wealth Solutions</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterWealthSolutions} onChange={(e) => setFilterWealthSolutions(e.target.value)} placeholder="Contains…" />
+  </div>
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">BOP Status</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterBopStatus} onChange={(e) => setFilterBopStatus(e.target.value)} placeholder="e.g., scheduled" />
+  </div>
+  <div>
+    <div className="text-xs font-semibold text-slate-600 mb-1">Follow-Up Status</div>
+    <input className="w-full border border-slate-300 px-3 py-2 text-sm" value={filterFollowUpStatus} onChange={(e) => setFilterFollowUpStatus(e.target.value)} placeholder="e.g., pending" />
+  </div>
+</div>
+<div className="mt-2 text-xs text-slate-600">
+  Tip: Enter filters and click <b>Go</b> to apply. Page size is 50.
+</div>
+
+        </Card>
+
+        {/* 5) All Records */}
+        <Card title="All Records (Editable) — Pagination (50 per page)">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
+            <div className="text-sm text-slate-600">Page <b>{page + 1}</b> of <b>{totalPages}</b></div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {sortHelp}
+              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
+                <span className="text-xs font-semibold text-slate-600">Go to page</span>
+                <input type="number" min={1} max={totalPages} className="w-20 border border-slate-300 px-2 py-1 text-sm"
+                  value={pageJump} onChange={(e) => setPageJump(e.target.value)} />
+                <Button variant="secondary" onClick={() => {
+                  const n = Number(pageJump);
+                  if (!Number.isFinite(n)) return;
+                  const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
+                  loadPage(p - 1);
+                }} disabled={loading || totalPages <= 1}>Go</Button>
+              </div>
+              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>Previous</Button>
+              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>Next</Button>
+            </div>
+          </div>
+
+          {loading ? <div className="text-slate-600">Loading…</div> : (
+            <ExcelTable
+              rows={records}
+              stickyLeftKeys={["client_name"]}
+              savingId={savingId}
+              onUpdate={updateCell}
+              extraLeftCols={extraClientCol}
+              maxHeightClass="max-h-[560px]"
+              sortState={sortAll}
+              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
+            />
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function ExcelTable({
+  rows,
+  savingId,
+  onUpdate,
+  extraLeftCols,
+  maxHeightClass,
+  sortState,
+  onSortChange,
+  preferredOrder,
+  stickyLeftKeys,
+}: {
+  rows: Row[];
+  savingId: string | null;
+  onUpdate: (id: string, key: string, value: string) => void;
+  extraLeftCols: { label: string; render: (r: Row) => string; sortable?: SortKey }[];
+  maxHeightClass: string;
+  sortState: { key: SortKey; dir: SortDir };
+  onSortChange: (key: SortKey) => void;
+  preferredOrder?: string[];
+  stickyLeftKeys?: string[];
+}) {
+  const [openCell, setOpenCell] = useState<string | null>(null);
+
+  const sortIcon = (k?: SortKey) => {
+    if (!k) return null;
+    if (sortState.key !== k) return <span className="ml-1 text-slate-400">↕</span>;
+    return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
+  };
+
+  const keys = useMemo(() => {
+    if (!rows.length) return [] as string[];
+    const baseKeys = Object.keys(rows[0]).filter((k) => k !== "id");
+    if (!preferredOrder || !preferredOrder.length) return baseKeys;
+    const set = new Set(baseKeys);
+    const ordered: string[] = [];
+    for (const k of preferredOrder) {
+      if (set.has(k)) ordered.push(k);
+    }
+    for (const k of baseKeys) {
+      if (!ordered.includes(k)) ordered.push(k);
+    }
+    return ordered;
+  }, [rows, preferredOrder]);
+
+  return (
+    <div className={`overflow-auto border border-slate-500 bg-white ${maxHeightClass}`}>
+      <table className="min-w-[2600px] w-full border-collapse">
+        <thead className="sticky top-0 bg-slate-100 z-10">
+          <tr className="text-left text-xs font-semibold text-slate-700">
+            {extraLeftCols.map((c) => (
+              <th key={c.label} className="border border-slate-500 px-2 py-2 whitespace-nowrap">
+                {c.sortable ? (
+                  <button className="inline-flex items-center hover:underline" onClick={() => onSortChange(c.sortable!)} type="button">
+                    {c.label}{sortIcon(c.sortable)}
+                  </button>
+                ) : c.label}
+              </th>
+            ))}
+
+            {keys.map((k) => {
+              const sortable =
+                k === "created_at" ? "created_at" :
+                k === "BOP_Date" ? "BOP_Date" :
+                k === "BOP_Status" ? "BOP_Status" :
+                k === "Followup_Date" ? "Followup_Date" :
+                k === "status" ? "status" :
+                undefined;
+
+              return (
+                <th key={k} className="border border-slate-500 px-2 py-2 whitespace-nowrap">
+                  {sortable ? (
+                    <button className="inline-flex items-center hover:underline" onClick={() => onSortChange(sortable as SortKey)} type="button">
+                      {labelFor(k)}{sortIcon(sortable as SortKey)}
+                    </button>
+                  ) : labelFor(k)}
+                </th>
+              );
+            })}
+
+            <th className="border border-slate-500 px-2 py-2 whitespace-nowrap"></th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {rows.map((r) => (
+            <tr key={String(r.id)} className="hover:bg-slate-50">
+              {extraLeftCols.map((c) => (
+                <td key={c.label} className="border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-slate-800">
+                  {c.render(r)}
+                </td>
+              ))}
+
+              {keys.map((k) => {
+                const cellId = `${r.id}:${k}`;
+                const val = r[k];
+
+                if (k === "created_at") {
+                  const d = new Date(r.created_at);
+                  return (
+                    <td key={k} className="border border-slate-300 px-2 py-2 whitespace-nowrap">
+                      {Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString()}
+                    </td>
+                  );
+                }
+
+                if (READONLY_LIST_COLS.has(k)) {
+                  const items = asListItems(val);
+                  const display = items.join(", ");
+                  return (
+                    <td key={k} className="border border-slate-300 px-2 py-2 align-top">
+                      <div className="relative">
+                        <button
+                          type="button"
+                          className="w-full text-left text-slate-800 whitespace-normal break-words"
+                          onClick={() => setOpenCell((cur) => (cur === cellId ? null : cellId))}
+                        >
+                          {display || "—"}
+                        </button>
+
+                        {openCell === cellId && (
+                          <div className="absolute left-0 top-full mt-1 w-72 max-w-[70vw] bg-white border border-slate-500 shadow-lg z-20">
+                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">
+                              {labelFor(k)}
+                            </div>
+                            <ul className="max-h-48 overflow-auto">
+                              {(items.length ? items : ["(empty)"]).map((x, idx) => (
+                                <li key={idx} className="px-2 py-1 text-sm border-b border-slate-100">
+                                  {x}
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="p-2">
+                              <Button variant="secondary" onClick={() => setOpenCell(null)}>Close</Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  );
+                }
+
+                const isDateTime = k === "BOP_Date" || k === "CalledOn" || k === "Followup_Date" || k === "Issued";
+                const defaultValue = isDateTime ? toLocalInput(val) : (val ?? "");
+
+                return (
+                  <td key={k} className="border border-slate-300 px-2 py-2">
+                    <input
+                      type={isDateTime ? "datetime-local" : "text"}
+                      className="w-full bg-transparent border-0 outline-none text-sm"
+                      defaultValue={defaultValue}
+                      onBlur={(e) => onUpdate(String(r.id), k, e.target.value)}
+                    />
+                  </td>
+                );
+              })}
+</tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
