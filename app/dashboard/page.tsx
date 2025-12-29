@@ -775,7 +775,7 @@ export default function Dashboard() {
               rows={upcoming}
               savingId={savingId}
               onUpdate={updateCell}
-              preferredOrder={["BOP_Date","created_at","status","first_name","last_name","phone","email","CalledOn","BOP_Status","Followup_Date","FollowUp_Status","Product","Issued","Comment","Remark","client_status"]}
+              preferredOrder={["created_at","status","first_name","last_name","phone","email","CalledOn","BOP_Date","BOP_Status","Followup_Date","FollowUp_Status","Product","Issued","Comment","Remark","client_status"]}
               extraLeftCols={[
                 { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
               ]}
