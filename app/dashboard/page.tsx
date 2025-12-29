@@ -941,6 +941,82 @@ export default function Dashboard() {
             </div>
           )}
         </Card>
+		{/* Search */}
+        <Card title="Search">
+          <div className="flex flex-col md:flex-row gap-2 md:items-center">
+            <input
+              className="w-full border border-slate-300 px-4 py-3"
+              placeholder="Search by first name, last name, or phone"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <Button onClick={() => loadPage(0)}>Go</Button>
+            <div className="text-sm text-slate-600 md:ml-auto">
+              {total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page
+            </div>
+          </div>
+
+          <div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Client Name</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterClient}
+                onChange={(e) => setFilterClient(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Interest Type</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterInterestType}
+                onChange={(e) => setFilterInterestType(e.target.value)}
+                placeholder="e.g., client"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Business Opportunities</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterBusinessOpp}
+                onChange={(e) => setFilterBusinessOpp(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Wealth Solutions</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterWealthSolutions}
+                onChange={(e) => setFilterWealthSolutions(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">BOP Status</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterBopStatus}
+                onChange={(e) => setFilterBopStatus(e.target.value)}
+                placeholder="e.g., scheduled"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Follow-Up Status</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterFollowUpStatus}
+                onChange={(e) => setFilterFollowUpStatus(e.target.value)}
+                placeholder="e.g., pending"
+              />
+            </div>
+          </div>
+
+          <div className="mt-2 text-xs text-slate-600">
+            Tip: Enter filters and click <b>Go</b> to apply. Page size is {ALL_PAGE_SIZE}.
+          </div>
+        </Card>
 
 {/* All Records */}
         <Card title="All Records (Editable)">
