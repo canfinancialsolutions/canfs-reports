@@ -538,7 +538,7 @@ export default function DashboardPage() {
    *  NOTE: If you still get RLS error "client_call_track", that is BACKEND policy.
    *  This code will keep the selected date visible immediately (optimistic UI).
    */
-  async function saveRegistrationDate(id: string, field: "CalledOn" | "BOP_Date" | "followup_date", iso: string | null) {
+  async function saveRegistrationDate(id: string, field: "CalledOn" | "BOP_Date" | "Followup_Date", iso: string | null) {
     const payload: any = {};
     payload[field] = iso;
 
@@ -639,8 +639,8 @@ export default function DashboardPage() {
       { key: "client_name", label: "Client Name", w: 180, sticky: true },
       { key: "BOP_Date", label: "BOP Date", w: 210 },
       { key: "created_date", label: "Created Date", w: 140 },
-      { key: "bop_status", label: "BOP Status", w: 160 },
-      { key: "followup_date", label: "Follow-Up Date", w: 210 },
+      { key: "BOP_Status", label: "BOP Status", w: 160 },
+      { key: "Followup_Date", label: "Follow-Up Date", w: 210 },
       { key: "status", label: "Status", w: 120 },
       { key: "interest_type", label: "Interest Type", w: 160 },
       { key: "business_opportunities", label: "Business Opportunities", w: 220 },
@@ -909,7 +909,7 @@ export default function DashboardPage() {
                           {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}
                         </Cell>
                         <Cell width={upcomingWidths["bop_status"]}>{safeText(r.BOP_Status)}</Cell>
-                        <Cell width={upcomingWidths["followup_date"]}>{formatDisplayDate(r.followup_date)}</Cell>
+                        <Cell width={upcomingWidths["Followup_Date"]}>{formatDisplayDate(r.Followup_Date)}</Cell>
                         <Cell width={upcomingWidths["status"]}>{safeText(r.status)}</Cell>
                         <Cell width={upcomingWidths["interest_type"]}>{safeText(r.interest_type)}</Cell>
                         <Cell width={upcomingWidths["business_opportunities"]}>{safeText(r.business_opportunities)}</Cell>
@@ -994,7 +994,7 @@ export default function DashboardPage() {
 
                   const calledInput = d.called ?? toDateTimeLocalValue(r.CalledOn);
                   const bopInput = d.bop ?? toDateTimeLocalValue(r.BOP_Date);
-                  const followInput = d.follow ?? toDateTimeLocalValue(r.followup_date);
+                  const followInput = d.follow ?? toDateTimeLocalValue(r.Followup_Date);
 
                   return (
                     <tr key={r.id}>
@@ -1066,7 +1066,7 @@ export default function DashboardPage() {
                       <Cell width={allWidths["bop_status"]}>{safeText(r.BOP_Status)}</Cell>
 
                       {/* Follow-Up Date */}
-                      <Cell width={allWidths["followup_date"]}>
+                      <Cell width={allWidths["Followup_Date"]}>
                         <input
                           type="datetime-local"
                           className="w-full bg-transparent outline-none"
@@ -1077,10 +1077,10 @@ export default function DashboardPage() {
 
                             const iso = fromDateTimeLocalValue(v);
                             setAllRows((prev) =>
-                              prev.map((x) => (x.id === r.id ? { ...x, followup_date: iso } : x))
+                              prev.map((x) => (x.id === r.id ? { ...x, Followup_Date: iso } : x))
                             );
 
-                            saveRegistrationDate(r.id, "followup_date", iso).catch((err: any) => {
+                            saveRegistrationDate(r.id, "Followup_Date", iso).catch((err: any) => {
                               setError(err?.message || "Failed to save Follow-Up Date");
                             });
                           }}
