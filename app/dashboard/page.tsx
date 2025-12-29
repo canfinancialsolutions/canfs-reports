@@ -402,7 +402,7 @@ export default function Dashboard() {
 
       let query = supabase
         .from("client_registrations")
-        .select("*")
+        .select("id,BOP_Date,created_at,first_name,last_name,phone,email,CalledOn,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status")
         .gte("BOP_Date", startIso)
         .lt("BOP_Date", endIso)
         .limit(5000);
@@ -426,13 +426,21 @@ export default function Dashboard() {
     setError(null);
     try {
       const supabase = getSupabase();
-      const { data, error } = await supabase
-        .from("v_client_progress_summary")
-        .select(
-          "clientid, first_name, last_name, phone, email, last_call_date, call_attempts, last_bop_date, bop_attempts, last_followup_date, followup_attempts"
-        )
-        .order("clientid", { ascending: false })
-        .limit(10000);
+      const selectCols =
+        "clientid, first_name, last_name, phone, email, last_call_date, call_attempts, last_bop_date, bop_attempts, last_followup_date, followup_attempts";
+
+      const run = async (viewName: string) =>
+        supabase
+          .from(viewName)
+          .select(selectCols)
+          .order("clientid", { ascending: false })
+          .limit(10000);
+
+      // Prefer the newer view name, fall back to the older one if needed
+      let { data, error } = await run("v_client_progress_report");
+      if (error) {
+        ({ data, error } = await run("v_client_progress_summary"));
+      }
 
       if (error) throw error;
 
@@ -487,7 +495,7 @@ export default function Dashboard() {
       const from = nextPage * ALL_PAGE_SIZE;
       const to = from + ALL_PAGE_SIZE - 1;
 
-      let dataQuery = supabase.from("client_registrations").select("*").range(from, to);
+      let dataQuery = supabase.from("client_registrations").select("id,BOP_Date,created_at,first_name,last_name,phone,email,CalledOn,BOP_Status,Followup_Date,FollowUp_Status,Product,Issued,Comment,Remark,client_status").range(from, to);
 
       if (search)
         dataQuery = dataQuery.or(
@@ -658,7 +666,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weekly}>
+                  <LineChart data={weekly} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
                     <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -691,7 +699,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthly}>
+                  <BarChart data={monthly} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -767,17 +775,71 @@ export default function Dashboard() {
               rows={upcoming}
               savingId={savingId}
               onUpdate={updateCell}
-              preferredOrder={["BOP_Date", "created_at", "BOP_Status", "Followup_Date", "status"]}
+              preferredOrder={["BOP_Date","created_at","first_name","last_name","phone","email","CalledOn","BOP_Status","Followup_Date","FollowUp_Status","Product","Issued","Comment","Remark","client_status"]}
               extraLeftCols={[
                 { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
               ]}
               maxHeightClass="max-h-[420px]"
               sortState={sortUpcoming}
               onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
-              stickyLeftCount={1}
+              stickyLeftCount={2}
             />
           </Card>
         )}
+
+        {/* Client Progress Summary */}
+        <Card title="Client Progress Summary">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
+            <input
+              className="w-full border border-slate-300 px-4 py-3"
+              placeholder="Filter by client name..."
+              value={progressFilter}
+              onChange={(e) => {
+                setProgressFilter(e.target.value);
+                setProgressPage(0);
+              }}
+            />
+            <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
+              {progressLoading ? "Loading…" : "Refresh"}
+            </Button>
+            <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
+              {progressVisible ? "Hide Table" : "Show Table"}
+            </Button>
+
+            <div className="md:ml-auto flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setProgressPage((p) => Math.max(0, p - 1))}
+                disabled={!progressVisible || progressPageSafe <= 0}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))}
+                disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+
+          <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
+
+          {progressVisible && (
+            <ProgressSummaryTable
+              rows={progressSlice}
+              sortState={progressSort}
+              onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
+            />
+          )}
+
+          {progressVisible && (
+            <div className="mt-2 text-xs text-slate-600">
+              Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page
+            </div>
+          )}
+        </Card>
 
         {/* Search */}
         <Card title="Search">
@@ -913,59 +975,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Client Progress Summary */}
-        <Card title="Client Progress Summary">
-          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
-            <input
-              className="w-full border border-slate-300 px-4 py-3"
-              placeholder="Filter by client name..."
-              value={progressFilter}
-              onChange={(e) => {
-                setProgressFilter(e.target.value);
-                setProgressPage(0);
-              }}
-            />
-            <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
-              {progressLoading ? "Loading…" : "Refresh"}
-            </Button>
-            <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
-              {progressVisible ? "Hide Table" : "Show Table"}
-            </Button>
-
-            <div className="md:ml-auto flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setProgressPage((p) => Math.max(0, p - 1))}
-                disabled={!progressVisible || progressPageSafe <= 0}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))}
-                disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-
-          <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
-
-          {progressVisible && (
-            <ProgressSummaryTable
-              rows={progressSlice}
-              sortState={progressSort}
-              onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
-            />
-          )}
-
-          {progressVisible && (
-            <div className="mt-2 text-xs text-slate-600">
-              Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page
-            </div>
-          )}
-        </Card>
+        
       </div>
     </div>
   );
