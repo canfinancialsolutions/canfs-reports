@@ -793,7 +793,53 @@ export default function Dashboard() {
                 setProgressPage(0);
               }}
             />
-      
+
+          <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
+
+          {progressVisible && (
+            <div className="mt-2 text-xs text-slate-600">
+              Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page
+            </div>
+          )}
+		  
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
+            <div className="text-sm text-slate-600">
+              Page <b>{page + 1}</b> of <b>{totalPages}</b>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {sortHelp}
+              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
+                <span className="text-xs font-semibold text-slate-600">Go to page</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  className="w-20 border border-slate-300 px-2 py-1 text-sm"
+                  value={pageJump}
+                  onChange={(e) => setPageJump(e.target.value)}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    const n = Number(pageJump);
+                    if (!Number.isFinite(n)) return;
+                    const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
+                    loadPage(p - 1);
+                  }}
+                  disabled={loading || totalPages <= 1}
+                >
+                  Go
+                </Button>
+              </div>
+              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
+                Previous
+              </Button>
+              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
+                Next
+              </Button>
+            </div>
+          </div>
 
           {loading ? (
             <div className="text-slate-600">Loading…</div>
