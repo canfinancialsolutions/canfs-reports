@@ -537,7 +537,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (allRecordsFilterTimerRef.current) clearTimeout(allRecordsFilterTimerRef.current);
     allRecordsFilterTimerRef.current = setTimeout(() => {
-      loadPage(0);
+      loadAllRecords(0);
     }, 250);
     return () => {
       if (allRecordsFilterTimerRef.current) clearTimeout(allRecordsFilterTimerRef.current);
@@ -1340,7 +1340,7 @@ function ExcelTableEditable({
     return val ?? "";
   };
 
-  const /*handleBlur*/ = async (rowId: string, key: string, cellId: string) => {
+  const handleBlur = async (rowId: string, key: string, cellId: string) => {
     const v = drafts[cellId] ?? "";
     try {
       await onUpdate(String(rowId), key, v);
