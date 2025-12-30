@@ -1180,7 +1180,7 @@ function ExcelTableEditable({
     // preferredOrder comes first; remaining keys follow
     const ordered: string[] = [];
     const seen = new Set<string>();
-    for (const k of preferredOrder) {
+    for (const k of (preferredOrder ?? [])) {
       if (keySet.has(k)) {
         ordered.push(k);
         seen.add(k);
