@@ -1544,7 +1544,7 @@ function ExcelTableEditable({
                     if (last && last.cellId === cellId) {
                       e.preventDefault();
                       setDrafts((prev) => ({ ...prev, [cellId]: last.prevValue }));
-                      void commitCell(last.id, last.key, last.cellId, last.prevValue, true);
+                      void commitCell(last.id, last.key, last.cellId, last.prevValue);
                     }
                     return;
                   }
