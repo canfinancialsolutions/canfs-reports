@@ -537,7 +537,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (allRecordsFilterTimerRef.current) clearTimeout(allRecordsFilterTimerRef.current);
     allRecordsFilterTimerRef.current = setTimeout(() => {
-      loadAllRecords(0);
+      loadPage(0);
     }, 250);
     return () => {
       if (allRecordsFilterTimerRef.current) clearTimeout(allRecordsFilterTimerRef.current);
@@ -1340,8 +1340,7 @@ function ExcelTableEditable({
     return val ?? "";
   };
 
-  // Optional: keep a blur-save helper available (not currently wired).
-  const handleBlur = async (rowId: string, key: string, cellId: string) => {
+  const /*handleBlur*/ = async (rowId: string, key: string, cellId: string) => {
     const v = drafts[cellId] ?? "";
     try {
       await onUpdate(String(rowId), key, v);
