@@ -217,9 +217,7 @@ export default function Dashboard() {
 
   // Search + All Records
   const [q, setQ] = useState("");
-  
-  const [allResultsVisible, setAllResultsVisible] = useState(true);
-const [filterClient, setFilterClient] = useState("");
+  const [filterClient, setFilterClient] = useState("");
   const [filterInterestType, setFilterInterestType] = useState("");
   const [filterBusinessOpp, setFilterBusinessOpp] = useState("");
   const [filterWealthSolutions, setFilterWealthSolutions] = useState("");
@@ -468,16 +466,19 @@ const [filterClient, setFilterClient] = useState("");
     try {
       const supabase = getSupabase();
       const search = q.trim();
+      const fc = filterClient.trim();
+      const fi = filterInterestType.trim();
+      const fb = filterBopStatus.trim();
 
       let countQuery = supabase.from("client_registrations").select("id", { count: "exact", head: true });
 
-      // All Records: single quick filter (client name / first / last / phone / email)
-      if (search) {
-        const s = search.replace(/,/g, " ").trim();
+      if (search)
         countQuery = countQuery.or(
-          `client_name.ilike.%${s}%,first_name.ilike.%${s}%,last_name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`
+          `client_name.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
         );
-      }
+      if (fc) countQuery = countQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
+      if (fi) countQuery = countQuery.eq("interest_type", fi);
+      if (fb) countQuery = countQuery.eq("BOP_Status", fb);
 
       const { count, error: cErr } = await countQuery;
       if (cErr) throw cErr;
@@ -488,19 +489,40 @@ const [filterClient, setFilterClient] = useState("");
 
       let dataQuery = supabase.from("client_registrations").select("*").range(from, to);
 
-      if (search) {
-        const s = search.replace(/,/g, " ").trim();
+      if (search)
         dataQuery = dataQuery.or(
-          `client_name.ilike.%${s}%,first_name.ilike.%${s}%,last_name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`
+          `client_name.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
         );
-      }
+      if (fc) dataQuery = dataQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
+      if (fi) dataQuery = dataQuery.eq("interest_type", fi);
+      if (fb) dataQuery = dataQuery.eq("BOP_Status", fb);
 
       dataQuery = applySort(dataQuery, sortAll);
 
       const { data, error } = await dataQuery;
       if (error) throw error;
 
-      setRecords(((data || []) as any[]) ?? []);
+      const raw = (data || []) as any[];
+      const fbo = filterBusinessOpp.trim().toLowerCase();
+      const fws = filterWealthSolutions.trim().toLowerCase();
+      const ffu = filterFollowUpStatus.trim().toLowerCase();
+
+      const clientSideFiltered = raw.filter((row) => {
+        const opp = Array.isArray(row.business_opportunities)
+          ? row.business_opportunities.join(",")
+          : String(row.business_opportunities || "");
+        const ws = Array.isArray(row.wealth_solutions)
+          ? row.wealth_solutions.join(",")
+          : String(row.wealth_solutions || "");
+        const fu = String(row.FollowUp_Status ?? row.Followup_Status ?? "").toLowerCase();
+
+        const okOpp = !fbo || opp.toLowerCase().includes(fbo);
+        const okWs = !fws || ws.toLowerCase().includes(fws);
+        const okFu = !ffu || fu.includes(ffu);
+        return okOpp && okWs && okFu;
+      });
+
+      setRecords(clientSideFiltered);
       setPage(nextPage);
       setPageJump(String(nextPage + 1));
     } catch (e: any) {
@@ -510,26 +532,17 @@ const [filterClient, setFilterClient] = useState("");
     }
   }
 
-  // Debounced live filtering for All Records
+  // Auto-load All Records when filter changes (live filtering)
+  const allRecordsFilterTimerRef = useRef<any>(null);
   useEffect(() => {
-    const t = setTimeout(() => {
-      loadPage(0);
-    }, 300);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (allRecordsFilterTimerRef.current) clearTimeout(allRecordsFilterTimerRef.current);
+    allRecordsFilterTimerRef.current = setTimeout(() => {
+      loadAllRecords(0);
+    }, 250);
+    return () => {
+      if (allRecordsFilterTimerRef.current) clearTimeout(allRecordsFilterTimerRef.current);
+    };
   }, [q]);
-
-  const DB_KEY_MAP: Record<string, string> = {
-    Status: "status",
-    status: "status",
-    BOP_Status: "BOP_Status",
-    bop_status: "BOP_Status",
-    FollowUp_Status: "FollowUp_Status",
-    Followup_Status: "FollowUp_Status",
-    Followup_Status_: "FollowUp_Status",
-    followup_status: "FollowUp_Status",
-    client_status: "client_status",
-  };
 
   async function updateCell(id: string, key: string, rawValue: string) {
     setSavingId(id);
@@ -537,17 +550,16 @@ const [filterClient, setFilterClient] = useState("");
     try {
       const supabase = getSupabase();
       const payload: any = {};
-      const dbKey = DB_KEY_MAP[key] ?? key;
 
-      const isDateTime = DATE_TIME_KEYS.has(dbKey) || DATE_TIME_KEYS.has(key);
-      payload[dbKey] = isDateTime ? fromLocalInput(rawValue) : rawValue?.trim() ? rawValue : null;
+      const isDateTime = DATE_TIME_KEYS.has(key);
+      payload[key] = isDateTime ? fromLocalInput(rawValue) : rawValue?.trim() ? rawValue : null;
 
       const { error } = await supabase.from("client_registrations").update(payload).eq("id", id);
       if (error) throw error;
 
       // Patch local state so the UI immediately shows the saved value
       const patch = (prev: Row[]) =>
-        prev.map((r) => (String(r.id) === String(id) ? { ...r, [key]: payload[dbKey] } : r));
+        prev.map((r) => (String(r.id) === String(id) ? { ...r, [key]: payload[key] } : r));
 
       setRecords(patch);
       setUpcoming(patch);
@@ -658,7 +670,7 @@ const [filterClient, setFilterClient] = useState("");
               <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weekly} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
+                  <LineChart data={weekly} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
                     <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -670,7 +682,7 @@ const [filterClient, setFilterClient] = useState("");
                       dot={{ r: 3 }}
                       activeDot={{ r: 5 }}
                     >
-                      <LabelList dataKey="prospects" position="top" offset={10} fill="#0f172a" />
+                      <LabelList dataKey="prospects" position="top" fill="#0f172a" />
                     </Line>
                     <Line
                       type="monotone"
@@ -680,7 +692,7 @@ const [filterClient, setFilterClient] = useState("");
                       dot={{ r: 3 }}
                       activeDot={{ r: 5 }}
                     >
-                      <LabelList dataKey="bops" position="top" offset={10} fill="#0f172a" />
+                      <LabelList dataKey="bops" position="top" fill="#0f172a" />
                     </Line>
                   </LineChart>
                 </ResponsiveContainer>
@@ -691,15 +703,15 @@ const [filterClient, setFilterClient] = useState("");
               <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthly} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
+                  <BarChart data={monthly} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
                     <Bar dataKey="prospects" fill="#22c55e">
-                      <LabelList dataKey="prospects" position="top" offset={10} fill="#0f172a" />
+                      <LabelList dataKey="prospects" position="top" fill="#0f172a" />
                     </Bar>
                     <Bar dataKey="bops" fill="#a855f7">
-                      <LabelList dataKey="bops" position="top" offset={10} fill="#0f172a" />
+                      <LabelList dataKey="bops" position="top" fill="#0f172a" />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -779,6 +791,140 @@ const [filterClient, setFilterClient] = useState("");
           </Card>
         )}
 
+        {/* Search */}
+        <Card title="Search">
+          <div className="flex flex-col md:flex-row gap-2 md:items-center">
+            <input
+              className="w-full border border-slate-300 px-4 py-3"
+              placeholder="Search by first name, last name, or phone"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <Button onClick={() => loadPage(0)}>Go</Button>
+            <div className="text-sm text-slate-600 md:ml-auto">
+              {total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page
+            </div>
+          </div>
+
+          <div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Client Name</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterClient}
+                onChange={(e) => setFilterClient(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Interest Type</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterInterestType}
+                onChange={(e) => setFilterInterestType(e.target.value)}
+                placeholder="e.g., client"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Business Opportunities</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterBusinessOpp}
+                onChange={(e) => setFilterBusinessOpp(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Wealth Solutions</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterWealthSolutions}
+                onChange={(e) => setFilterWealthSolutions(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">BOP Status</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterBopStatus}
+                onChange={(e) => setFilterBopStatus(e.target.value)}
+                placeholder="e.g., scheduled"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Follow-Up Status</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterFollowUpStatus}
+                onChange={(e) => setFilterFollowUpStatus(e.target.value)}
+                placeholder="e.g., pending"
+              />
+            </div>
+          </div>
+
+          <div className="mt-2 text-xs text-slate-600">
+            Tip: Enter filters and click <b>Go</b> to apply. Page size is {ALL_PAGE_SIZE}.
+          </div>
+        </Card>
+
+        {/* All Records */}
+        <Card title="All Records (Editable)">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
+            <div className="text-sm text-slate-600">
+              Page <b>{page + 1}</b> of <b>{totalPages}</b>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {sortHelp}
+              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
+                <span className="text-xs font-semibold text-slate-600">Go to page</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  className="w-20 border border-slate-300 px-2 py-1 text-sm"
+                  value={pageJump}
+                  onChange={(e) => setPageJump(e.target.value)}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    const n = Number(pageJump);
+                    if (!Number.isFinite(n)) return;
+                    const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
+                    loadPage(p - 1);
+                  }}
+                  disabled={loading || totalPages <= 1}
+                >
+                  Go
+                </Button>
+              </div>
+              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
+                Previous
+              </Button>
+              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
+                Next
+              </Button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="text-slate-600">Loading…</div>
+          ) : (
+            <ExcelTableEditable
+              rows={records}
+              savingId={savingId}
+              onUpdate={updateCell}
+              extraLeftCols={extraClientCol}
+              maxHeightClass="max-h-[560px]"
+              sortState={sortAll}
+              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
+              stickyLeftCount={1}
+            />
+          )}
+        </Card>
+
         {/* Client Progress Summary */}
         <Card title="Client Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
@@ -832,95 +978,7 @@ const [filterClient, setFilterClient] = useState("");
             </div>
           )}
         </Card>
-      
-
-{/* All Records */}
-        <Card title="All Records (Editable)">
-          {/* Filter + Actions */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3">
-            <input
-              className="w-full border border-slate-300 px-3 py-2 text-sm"
-              placeholder="Filter by client name, first name, last name, phone, email"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <div className="flex items-center gap-2 shrink-0">
-              <Button variant="secondary" onClick={() => loadPage(page)} disabled={loading}>
-                Refresh
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setAllResultsVisible((v) => !v)}
-                disabled={loading}
-              >
-                {allResultsVisible ? "Hide Results" : "Show Results"}
-              </Button>
-            </div>
-          </div>
-
-          {allResultsVisible && (
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
-              <div className="text-sm text-slate-600">
-                Page <b>{page + 1}</b> of <b>{totalPages}</b>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {sortHelp}
-                <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
-                  <span className="text-xs font-semibold text-slate-600">Go to page</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={totalPages}
-                    className="w-20 border border-slate-300 px-2 py-1 text-sm"
-                    value={pageJump}
-                    onChange={(e) => setPageJump(e.target.value)}
-                  />
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      const n = Number(pageJump);
-                      if (!Number.isFinite(n)) return;
-                      const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
-                      loadPage(p - 1);
-                    }}
-                    disabled={loading || totalPages <= 1}
-                  >
-                    Go
-                  </Button>
-                </div>
-                <div className="text-xs text-slate-500">showing 20 per page</div>
-                <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
-                  Previous
-                </Button>
-                <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {!allResultsVisible ? (
-            <div className="mt-3 text-sm text-slate-500 border border-slate-200 rounded-md p-4">
-              Results are hidden. Click “Show Results” to display the table.
-            </div>
-          ) : loading ? (
-            <div className="text-slate-600">Loading…</div>
-          ) : (
-            <ExcelTableEditable
-              rows={records}
-              savingId={savingId}
-              onUpdate={updateCell}
-              extraLeftCols={extraClientCol}
-              maxHeightClass="max-h-[560px]"
-              sortState={sortAll}
-              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
-              stickyLeftCount={1}
-            />
-          )}
-</Card>
-
-        </div>
+      </div>
     </div>
   );
 }
@@ -1105,31 +1163,99 @@ function ExcelTableEditable({
   const [openCell, setOpenCell] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
-  const dropdownOptions: Record<string, string[]> = {
-    bop_status: [
-      "Presented",
-      "Business",
-      "Client",
-      "Clarification",
-      "Follow-Up 1",
-      "Follow-Up 2",
-      "Follow-Up 3",
-      "Not Interested",
-      "Closed",
-    ],
-    followup_status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
-    status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
-    client_status: ["New", "Interested", "Not Interested", "Referral", "Purchased", "Re-Open"],
-  };
+  const [cellState, setCellState] = useState<Record<string, "idle" | "saving" | "saved" | "error">>({});
+  const [cellError, setCellError] = useState<Record<string, string>>({});
+  const inFlightRef = useRef<Record<string, Promise<void>>>({});
+  const retryCountRef = useRef<Record<string, number>>({});
+  const commitTimersRef = useRef<Record<string, any>>({});
+  const lastEditRef = useRef<{ cellId: string; id: string; key: string; prevValue: string } | null>(null);
 
-  const normalizeDropdownKey = (k: string) => {
-    const kl = k.toLowerCase();
-    if (kl === "bop_status") return "bop_status";
-    if (kl === "followup_status" || kl === "followup_status" || kl === "followup_status") return "followup_status";
-    if (kl === "status") return "status";
-    if (kl === "client_status") return "client_status";
-    return null;
-  };
+  const commitCell = useCallback(
+    async (id: string, key: string, cellId: string, nextValue: string) => {
+      // Dedupe overlapping commits for the same cell
+      if (inFlightRef.current[cellId]) {
+        await inFlightRef.current[cellId];
+      }
+
+      const run = async () => {
+        setCellState((p) => ({ ...p, [cellId]: "saving" }));
+        setCellError((p) => {
+          if (!p[cellId]) return p;
+          const { [cellId]: _, ...rest } = p;
+          return rest;
+        });
+
+        try {
+          await onUpdate(id, key, nextValue);
+          setCellState((p) => ({ ...p, [cellId]: "saved" }));
+          retryCountRef.current[cellId] = 0;
+          // Clear draft after successful save
+          setDrafts((prev) => {
+            if (!(cellId in prev)) return prev;
+            const { [cellId]: _, ...rest } = prev;
+            return rest;
+          });
+          // Fade back to idle
+          setTimeout(() => {
+            setCellState((p) => {
+              if (p[cellId] !== "saved") return p;
+              const { [cellId]: _, ...rest } = p;
+              return rest;
+            });
+          }, 800);
+        } catch (e: any) {
+          const msg = e?.message || "Save failed";
+          setCellState((p) => ({ ...p, [cellId]: "error" }));
+          setCellError((p) => ({ ...p, [cellId]: msg }));
+
+          // Optional enhancement: retry with backoff (max 3)
+          const c = (retryCountRef.current[cellId] || 0) + 1;
+          retryCountRef.current[cellId] = c;
+          if (c <= 3) {
+            const delay = 700 * c;
+            setTimeout(() => {
+              // Only retry if user hasn't typed a new draft value since this failed save
+              const currentDraft = drafts[cellId];
+              if (typeof currentDraft === "string" && currentDraft !== nextValue) return;
+              commitCell(id, key, cellId, nextValue);
+            }, delay);
+          }
+        }
+      };
+
+      const promise = run().finally(() => {
+        delete inFlightRef.current[cellId];
+      });
+      inFlightRef.current[cellId] = promise;
+      await promise;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onUpdate, drafts]
+  );
+
+  const scheduleCommit = useCallback(
+    (id: string, key: string, cellId: string, nextValue: string) => {
+      if (commitTimersRef.current[cellId]) clearTimeout(commitTimersRef.current[cellId]);
+      commitTimersRef.current[cellId] = setTimeout(() => {
+        commitCell(id, key, cellId, nextValue);
+      }, 250);
+    },
+    [commitCell]
+  );
+
+  const flushCommit = useCallback(
+    (id: string, key: string, cellId: string) => {
+      if (commitTimersRef.current[cellId]) {
+        clearTimeout(commitTimersRef.current[cellId]);
+        delete commitTimersRef.current[cellId];
+      }
+      const next = drafts[cellId];
+      if (typeof next === "string") {
+        commitCell(id, key, cellId, next);
+      }
+    },
+    [commitCell, drafts]
+  );
 
   const sortIcon = (k?: SortKey) => {
     if (!k) return null;
@@ -1213,18 +1339,8 @@ function ExcelTableEditable({
     if (isDateTime) return toLocalInput(val);
     return val ?? "";
   };
-  const saveTimersRef = useRef<Record<string, any>>({});
 
-  const handleImmediate = (rowId: string, key: string, cellId: string) => {
-    const t = saveTimersRef.current[cellId];
-    if (t) clearTimeout(t);
-    saveTimersRef.current[cellId] = setTimeout(() => {
-      handleBlur(rowId, key, cellId);
-    }, 400);
-  };
-
-
-  const handleBlur = async (rowId: string, key: string, cellId: string) => {
+  const /*handleBlur*/ = async (rowId: string, key: string, cellId: string) => {
     const v = drafts[cellId] ?? "";
     try {
       await onUpdate(String(rowId), key, v);
@@ -1377,52 +1493,104 @@ function ExcelTableEditable({
                   );
                 }
 
-                // EDITABLE CELLS (Controlled inputs so selected dates always stay visible)
+                // EDITABLE CELLS (Excel-style, live save + dropdowns + retry/undo)
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
 
-                const value =
-                  drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
+                const dropdownOptions = (() => {
+                  const lk = String(k).toLowerCase();
+                  if (lk === 'bop_status' || lk === 'bop status') {
+                    return [
+                      '',
+                      'Presented',
+                      'Business',
+                      'Client',
+                      'Clarification',
+                      'Follow-Up 1',
+                      'Follow-Up 2',
+                      'Follow-Up 3',
+                      'Not Interested',
+                      'Closed',
+                    ];
+                  }
+                  if (lk === 'followup_status' || lk === 'follow-up status' || lk === 'followup status') {
+                    return ['', 'Open', 'In-Progress', 'On Hold', 'Closed', 'Completed'];
+                  }
+                  if (lk === 'status') {
+                    return ['', 'New', 'Initiated', 'In-Progress', 'On-Hold', 'Not Interested', 'Completed'];
+                  }
+                  if (lk === 'client_status') {
+                    return ['', 'New', 'Interested', 'Not Interested', 'Referral', 'Purchased', 'Re-Open'];
+                  }
+                  return null;
+                })();
+
+                const base = String(getCellValueForInput(r, k));
+                const value = drafts[cellId] !== undefined ? String(drafts[cellId]) : base;
+                const st = cellStatus[cellId] ?? 'idle';
+
+                const onValueChange = (next: string) => {
+                  // keep last edit for undo (Ctrl+Z)
+                  lastEditRef.current = { cellId, id: String(r.id), key: k, prev: base };
+                  setDrafts((prev) => ({ ...prev, [cellId]: next }));
+                  scheduleCommit(String(r.id), k, cellId, next);
+                };
+
+                const onKeyDown = (e: React.KeyboardEvent) => {
+                  // Undo last edit
+                  if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+                    const last = lastEditRef.current;
+                    if (last && last.cellId === cellId) {
+                      e.preventDefault();
+                      setDrafts((prev) => ({ ...prev, [cellId]: last.prev }));
+                      void commitCell(last.id, last.key, last.cellId, last.prev, true);
+                    }
+                    return;
+                  }
+                };
 
                 return (
                   <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
-                    {(() => {
-                      const ddKey = normalizeDropdownKey(k);
-                      if (ddKey) {
-                        return (
-                          <select
-                            value={value}
-                            onChange={(e) => {
-                              setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }));
-                              handleBlur(String(r.id), k, cellId); // save immediately
-                            }}
-                            disabled={savingId != null && String(savingId) === String(r.id)}
-                            className="w-full bg-transparent border border-slate-300 rounded px-2 py-1 text-sm"
-                          >
-                            <option value="" />
-                            {dropdownOptions[ddKey].map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
-                        );
-                      }
-
-                      return (
-                        <input
-                          type={isDateTime ? "datetime-local" : "text"}
-                          className="w-full bg-transparent border border-slate-300 rounded px-2 py-1 text-sm"
+                    <div className="flex items-center gap-2">
+                      {dropdownOptions ? (
+                        <select
+                          className="w-full bg-transparent border border-slate-200 rounded px-2 py-1 text-sm"
                           value={value}
-                          onChange={(e) => {
-                            setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }));
-                            handleImmediate(String(r.id), k, cellId);
-                          }}
-                          onBlur={() => handleBlur(String(r.id), k, cellId)}
+                          onChange={(e) => onValueChange(e.target.value)}
+                          onBlur={() => flushCommit(String(r.id), k, cellId)}
+                          onKeyDown={onKeyDown}
+                          disabled={savingId != null && String(savingId) === String(r.id)}
+                        >
+                          {dropdownOptions.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt === '' ? '—' : opt}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={isDateTime ? 'datetime-local' : 'text'}
+                          className="w-full bg-transparent border border-slate-200 rounded px-2 py-1 text-sm"
+                          value={value}
+                          onChange={(e) => onValueChange(e.target.value)}
+                          onBlur={() => flushCommit(String(r.id), k, cellId)}
+                          onKeyDown={onKeyDown}
                           disabled={savingId != null && String(savingId) === String(r.id)}
                         />
-                      );
-                    })()}
+                      )}
+
+                      {st === 'saving' && (
+                        <span className="text-[11px] text-slate-500 whitespace-nowrap">Saving…</span>
+                      )}
+                      {st === 'error' && (
+                        <span
+                          className="text-[11px] text-red-600 whitespace-nowrap"
+                          title={cellError[cellId] ?? 'Save failed'}
+                        >
+                          Retry…
+                        </span>
+                      )}
+                    </div>
                   </td>
                 );
               })}
