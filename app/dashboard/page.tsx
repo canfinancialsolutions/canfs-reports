@@ -1,8 +1,6 @@
 "use client";
 
-export cons
-                      )}
-t dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
