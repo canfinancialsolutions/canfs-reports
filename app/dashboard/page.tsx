@@ -1340,7 +1340,8 @@ function ExcelTableEditable({
     return val ?? "";
   };
 
-  const /*handleBlur*/ = async (rowId: string, key: string, cellId: string) => {
+  // Optional: keep a blur-save helper available (not currently wired).
+  const handleBlur = async (rowId: string, key: string, cellId: string) => {
     const v = drafts[cellId] ?? "";
     try {
       await onUpdate(String(rowId), key, v);
