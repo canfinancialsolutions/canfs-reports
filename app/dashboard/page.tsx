@@ -1165,7 +1165,8 @@ function ExcelTableEditable({
 
   const [cellState, setCellState] = useState<Record<string, "idle" | "saving" | "saved" | "error">>({});
   const [cellError, setCellError] = useState<Record<string, string>>({});
-  const inFlightRef = useRef<Record<string, Promise<void>>>({});
+  // Track in-flight commits per cell. Use `undefined` when no commit is in-flight.
+  const inFlightRef = useRef<Record<string, Promise<void> | undefined>>({});
   const retryCountRef = useRef<Record<string, number>>({});
   const commitTimersRef = useRef<Record<string, any>>({});
   const lastEditRef = useRef<{ cellId: string; id: string; key: string; prevValue: string } | null>(null);
