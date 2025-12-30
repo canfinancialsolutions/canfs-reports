@@ -1528,7 +1528,7 @@ function ExcelTableEditable({
 
                 const base = String(getCellValueForInput(r, k));
                 const value = drafts[cellId] !== undefined ? String(drafts[cellId]) : base;
-                const st = cellStatus[cellId] ?? 'idle';
+                const st = cellState[cellId] ?? 'idle';
 
                 const onValueChange = (next: string) => {
                   // keep last edit for undo (Ctrl+Z)
