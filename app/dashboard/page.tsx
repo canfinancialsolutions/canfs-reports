@@ -793,6 +793,9 @@ export default function Dashboard() {
                 setProgressPage(0);
               }}
             />
+     
+            </div>
+          </div>
 
           <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
 
