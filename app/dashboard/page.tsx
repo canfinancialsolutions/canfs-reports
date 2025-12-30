@@ -537,7 +537,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (allRecordsFilterTimerRef.current) clearTimeout(allRecordsFilterTimerRef.current);
     allRecordsFilterTimerRef.current = setTimeout(() => {
-      loadAllRecords(0);
+      loadPage(0);
     }, 250);
     return () => {
       if (allRecordsFilterTimerRef.current) clearTimeout(allRecordsFilterTimerRef.current);
