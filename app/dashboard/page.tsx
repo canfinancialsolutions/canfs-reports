@@ -1,6 +1,8 @@
 "use client";
 
-export const dynamic = "force-dynamic";
+export cons
+                      )}
+t dynamic = "force-dynamic";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
@@ -89,37 +91,6 @@ const LABEL_OVERRIDES: Record<string, string> = {
   Followup_Date: "Follow-Up Date",
   FollowUp_Status: "Follow-Up Status",
 };
-
-
-
-const SELECT_OPTIONS: Record<string, string[]> = {
-  BOP_Status: [
-    "Presented",
-    "Business",
-    "Client",
-    "Clarification",
-    "Follow-Up 1",
-    "Follow-Up 2",
-    "Follow-Up 3",
-    "Not Interested",
-    "Closed",
-  ],
-  FollowUp_Status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
-  Followup_Status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
-  status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
-  Status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
-  client_status: ["New", "Interested", "Not Interested", "Referral", "Purchased", "Re-Open"],
-};
-
-const READONLY_COLS = new Set([
-  "interest_type",
-  "business_opportunities",
-  "wealth_solutions",
-  "profession",
-  "preferred_days",
-  "preferred_time",
-  "referred_by",
-]);
 
 function labelFor(key: string) {
   if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];
@@ -248,7 +219,9 @@ export default function Dashboard() {
 
   // Search + All Records
   const [q, setQ] = useState("");
-  const [filterClient, setFilterClient] = useState("");
+  
+  const [allResultsVisible, setAllResultsVisible] = useState(true);
+const [filterClient, setFilterClient] = useState("");
   const [filterInterestType, setFilterInterestType] = useState("");
   const [filterBusinessOpp, setFilterBusinessOpp] = useState("");
   const [filterWealthSolutions, setFilterWealthSolutions] = useState("");
@@ -259,8 +232,6 @@ export default function Dashboard() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [pageJump, setPageJump] = useState("1");
-  const [allQuickFilter, setAllQuickFilter] = useState("");
-  const [showAllTable, setShowAllTable] = useState(true);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({
@@ -565,6 +536,15 @@ export default function Dashboard() {
     }
   }
 
+  // Debounced live filtering for All Records
+  useEffect(() => {
+    const t = setTimeout(() => {
+      loadPage(0);
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+
   async function updateCell(id: string, key: string, rawValue: string) {
     setSavingId(id);
     setError(null);
@@ -595,26 +575,6 @@ export default function Dashboard() {
   const totalPages = Math.max(1, Math.ceil((total || 0) / ALL_PAGE_SIZE));
   const canPrev = page > 0;
   const canNext = (page + 1) * ALL_PAGE_SIZE < total;
-
-  const recordsFiltered = useMemo(() => {
-    const q = allQuickFilter.trim().toLowerCase();
-    if (!q) return records;
-
-    return records.filter((r: any) => {
-      const hay = [
-        r.client_name,
-        r.ClientName,
-        r.first_name,
-        r.last_name,
-        r.phone,
-        r.email,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [records, allQuickFilter]);
 
   const exportUpcomingXlsx = () => {
     const ws = XLSX.utils.json_to_sheet(upcoming);
@@ -711,7 +671,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weekly} margin={{ top: 28, right: 20, left: 0, bottom: 0 }}>
+                  <LineChart data={weekly}>
                     <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -744,7 +704,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthly} margin={{ top: 28, right: 20, left: 0, bottom: 0 }}>
+                  <BarChart data={monthly}>
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -827,7 +787,6 @@ export default function Dashboard() {
               maxHeightClass="max-h-[420px]"
               sortState={sortUpcoming}
               onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
-              includeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
               stickyLeftCount={1}
             />
           </Card>
@@ -886,37 +845,13 @@ export default function Dashboard() {
             </div>
           )}
         </Card>
+      
 
 {/* All Records */}
         <Card title="All Records (Editable)">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
             <div className="text-sm text-slate-600">
               Page <b>{page + 1}</b> of <b>{totalPages}</b>
-            </div>
-
-            <div className="mt-3 flex items-center gap-3">
-              <input
-                value={allQuickFilter}
-                onChange={(e) => setAllQuickFilter(e.target.value)}
-                placeholder="Filter by client name, first name, last name, phone, or email..."
-                className="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm"
-              />
-              <button
-                onClick={() => loadPage(page)}
-                className="px-4 py-2 rounded-md border border-slate-300 bg-white text-sm hover:bg-slate-50"
-              >
-                Refresh
-              </button>
-              <button
-                onClick={() => setShowAllTable((v) => !v)}
-                className="px-4 py-2 rounded-md border border-slate-300 bg-white text-sm hover:bg-slate-50"
-              >
-                {showAllTable ? "Hide Results" : "Show Results"}
-              </button>
-
-              <div className="ml-auto text-sm text-slate-600">
-                {total} records • showing {ALL_PAGE_SIZE} per page
-              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -955,25 +890,25 @@ export default function Dashboard() {
 
           {loading ? (
             <div className="text-slate-600">Loading…</div>
-          ) : !showAllTable ? (
-            <div className="text-slate-600">Results hidden.</div>
           ) : (
             <ExcelTableEditable
-              rows={recordsFiltered}
+              rows={records}
               savingId={savingId}
               onUpdate={updateCell}
               extraLeftCols={extraClientCol}
               maxHeightClass="max-h-[560px]"
               sortState={sortAll}
               onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
-              includeKeys={["interest_type","business_opportunities","wealth_solutions","profession","preferred_days","preferred_time","referred_by"]}
               stickyLeftCount={1}
             />
           )}
-        </Card>
-
         
-      </div>
+        {!allResultsVisible && (
+          <div className="mt-3 text-sm text-slate-500 border border-slate-200 rounded-md p-4">Results are hidden. Click “Show Results” to display the table.</div>
+        )}
+</Card>
+
+        </div>
     </div>
   );
 }
@@ -1142,7 +1077,6 @@ function ExcelTableEditable({
   sortState,
   onSortChange,
   preferredOrder,
-  includeKeys = [],
   stickyLeftCount = 1,
 }: {
   rows: Row[];
@@ -1153,12 +1087,37 @@ function ExcelTableEditable({
   sortState: { key: SortKey; dir: SortDir };
   onSortChange: (key: SortKey) => void;
   preferredOrder?: string[];
-  includeKeys?: string[];
   stickyLeftCount?: number;
 }) {
   const { widths, startResize } = useColumnResizer();
   const [openCell, setOpenCell] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  const dropdownOptions: Record<string, string[]> = {
+    bop_status: [
+      "Presented",
+      "Business",
+      "Client",
+      "Clarification",
+      "Follow-Up 1",
+      "Follow-Up 2",
+      "Follow-Up 3",
+      "Not Interested",
+      "Closed",
+    ],
+    followup_status: ["Open", "In-Progress", "On Hold", "Closed", "Completed"],
+    status: ["New", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
+    client_status: ["New", "Interested", "Not Interested", "Referral", "Purchased", "Re-Open"],
+  };
+
+  const normalizeDropdownKey = (k: string) => {
+    const kl = k.toLowerCase();
+    if (kl === "bop_status") return "bop_status";
+    if (kl === "followup_status" || kl === "followup_status" || kl === "followup_status") return "followup_status";
+    if (kl === "status") return "status";
+    if (kl === "client_status") return "client_status";
+    return null;
+  };
 
   const sortIcon = (k?: SortKey) => {
     if (!k) return null;
@@ -1167,31 +1126,15 @@ function ExcelTableEditable({
   };
 
   const keys = useMemo(() => {
-    // Build a union of keys across all rows so we don't accidentally drop columns
-    // just because the first row is missing a field.
-    const keySet = new Set<string>();
-    for (const r of rows) {
-      Object.keys(r ?? {}).forEach((k) => keySet.add(k));
-    }
-    includeKeys.forEach((k) => keySet.add(k));
-
-    const merged = Array.from(keySet);
-
-    // preferredOrder comes first; remaining keys follow
+    if (!rows.length) return [] as string[];
+    const baseKeys = Object.keys(rows[0]).filter((k) => k !== "id");
+    if (!preferredOrder || !preferredOrder.length) return baseKeys;
+    const set = new Set(baseKeys);
     const ordered: string[] = [];
-    const seen = new Set<string>();
-    for (const k of preferredOrder) {
-      if (keySet.has(k)) {
-        ordered.push(k);
-        seen.add(k);
-      }
-    }
-    for (const k of merged) {
-      if (!seen.has(k)) ordered.push(k);
-    }
-
-    return ordered.filter((k) => !ignoreKeys.includes(k));
-  }, [rows, preferredOrder, includeKeys]);
+    for (const k of preferredOrder) if (set.has(k)) ordered.push(k);
+    for (const k of baseKeys) if (!ordered.includes(k)) ordered.push(k);
+    return ordered;
+  }, [rows, preferredOrder]);
 
   // Column models (extra cols + keys)
   const columns = useMemo(() => {
@@ -1258,6 +1201,16 @@ function ExcelTableEditable({
     if (isDateTime) return toLocalInput(val);
     return val ?? "";
   };
+  const saveTimersRef = useRef<Record<string, any>>({});
+
+  const handleImmediate = (rowId: string, key: string, cellId: string) => {
+    const t = saveTimersRef.current[cellId];
+    if (t) clearTimeout(t);
+    saveTimersRef.current[cellId] = setTimeout(() => {
+      handleBlur(rowId, key, cellId);
+    }, 400);
+  };
+
 
   const handleBlur = async (rowId: string, key: string, cellId: string) => {
     const v = drafts[cellId] ?? "";
@@ -1415,79 +1368,52 @@ function ExcelTableEditable({
                 // EDITABLE CELLS (Controlled inputs so selected dates always stay visible)
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
-                const options = SELECT_OPTIONS[k];
-                const isReadOnly = READONLY_COLS.has(k);
 
                 const value =
                   drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
 
-                if (isReadOnly) {
-                  const raw = (r as any)[k];
-                  const display =
-                    raw == null ? "" : Array.isArray(raw) ? raw.join(", ") : String(raw);
-
-                  return (
-                    <td
-                      key={k}
-                      className="border border-slate-300 bg-white align-top"
-                      style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
-                    >
-                      <div className="px-2 py-2 text-sm whitespace-pre-wrap break-words">
-                        {display}
-                      </div>
-                    </td>
-                  );
-                }
-
-                if (options) {
-                  return (
-                    <td
-                      key={k}
-                      className="border border-slate-300 bg-white align-top"
-                      style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
-                    >
-                      <select
-                        className="w-full bg-transparent px-2 py-2 text-sm outline-none"
-                        value={value}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setDrafts((prev) => ({ ...prev, [cellId]: v }));
-                        }}
-                        onBlur={() => handleBlur(r.id as string, k, cellId)}
-                      >
-                        <option value="" />
-                        {options.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  );
-                }
-
                 return (
-                  <td
-                    key={k}
-                    className="border border-slate-300 bg-white align-top"
-                    style={{ minWidth: widths[k] ?? 140, width: widths[k] ?? 140 }}
-                  >
-                    <input
-                      type={isDateTime ? "datetime-local" : "text"}
-                      className="w-full bg-transparent px-2 py-2 text-sm outline-none"
-                      value={value}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setDrafts((prev) => ({ ...prev, [cellId]: v }));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                      }}
-                      onBlur={() => handleBlur(r.id as string, k, cellId)}
-                    />
+                  <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
+                    {(() => {
+                      const ddKey = normalizeDropdownKey(k);
+                      if (ddKey) {
+                        return (
+                          <select
+                            value={value}
+                            onChange={(e) => {
+                              setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }));
+                              handleBlur(String(r.id), k, cellId); // save immediately
+                            }}
+                            disabled={savingId != null && String(savingId) === String(r.id)}
+                            className="w-full bg-transparent border border-slate-300 rounded px-2 py-1 text-sm"
+                          >
+                            <option value="" />
+                            {dropdownOptions[ddKey].map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      }
+
+                      return (
+                        <input
+                          type={isDateTime ? "datetime-local" : "text"}
+                          className="w-full bg-transparent border border-slate-300 rounded px-2 py-1 text-sm"
+                          value={value}
+                          onChange={(e) => {
+                            setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }));
+                            handleImmediate(String(r.id), k, cellId);
+                          }}
+                          onBlur={() => handleBlur(String(r.id), k, cellId)}
+                          disabled={savingId != null && String(savingId) === String(r.id)}
+                        />
+                      );
+                    })()}
                   </td>
                 );
-})}
+              })}
             </tr>
           ))}
         </tbody>
