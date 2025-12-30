@@ -797,6 +797,14 @@ export default function Dashboard() {
           <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
 
           {progressVisible && (
+            <ProgressSummaryTable
+              rows={progressSlice}
+              sortState={progressSort}
+              onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
+            />
+          )}
+
+          {progressVisible && (
             <div className="mt-2 text-xs text-slate-600">
               Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page
             </div>
