@@ -1543,8 +1543,8 @@ function ExcelTableEditable({
                     const last = lastEditRef.current;
                     if (last && last.cellId === cellId) {
                       e.preventDefault();
-                      setDrafts((prev) => ({ ...prev, [cellId]: last.prev }));
-                      void commitCell(last.id, last.key, last.cellId, last.prev, true);
+                      setDrafts((prev) => ({ ...prev, [cellId]: last.prevValue }));
+                      void commitCell(last.id, last.key, last.cellId, last.prevValue, true);
                     }
                     return;
                   }
