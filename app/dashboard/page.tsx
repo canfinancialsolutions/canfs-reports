@@ -1532,7 +1532,7 @@ function ExcelTableEditable({
 
                 const onValueChange = (next: string) => {
                   // keep last edit for undo (Ctrl+Z)
-                  lastEditRef.current = { cellId, id: String(r.id), key: k, prev: base };
+                  lastEditRef.current = { cellId, id: String(r.id), key: k, prevValue: base };
                   setDrafts((prev) => ({ ...prev, [cellId]: next }));
                   scheduleCommit(String(r.id), k, cellId, next);
                 };
