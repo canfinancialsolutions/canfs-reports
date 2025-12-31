@@ -475,7 +475,7 @@ export default function Dashboard() {
 
       if (search)
         countQuery = countQuery.or(
-          `client_name.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%,email.ilike.%${search}%`
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
         );
       if (fc) countQuery = countQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
       if (fi) countQuery = countQuery.eq("interest_type", fi);
@@ -492,7 +492,7 @@ export default function Dashboard() {
 
       if (search)
         dataQuery = dataQuery.or(
-          `client_name.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%,email.ilike.%${search}%`
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
         );
       if (fc) dataQuery = dataQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
       if (fi) dataQuery = dataQuery.eq("interest_type", fi);
@@ -859,6 +859,9 @@ export default function Dashboard() {
             />
             <Button variant="secondary" onClick={() => setAllRecordsVisible((v) => !v)}>
               {allRecordsVisible ? "Hide Results" : "Show Results"}
+            </Button>
+            <Button variant="secondary" onClick={() => loadPage(pageSafe)}>
+              Refresh
             </Button>
             <div className="md:ml-auto text-sm text-slate-600">
               {total.toLocaleString()} records
