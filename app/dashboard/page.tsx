@@ -635,10 +635,7 @@ export default function Dashboard() {
 
   const progressTotalPages = Math.max(1, Math.ceil(progressFilteredSorted.length / PROGRESS_PAGE_SIZE));
   const progressPageSafe = Math.min(progressTotalPages - 1, Math.max(0, progressPage));
-  const progressSlice = progressFilteredSorted.slice(
-    progressPageSafe * PROGRESS_PAGE_SIZE,
-    progressPageSafe * PROGRESS_PAGE_SIZE + PROGRESS_PAGE_SIZE
-  );
+  const progressSlice = progressFilteredSorted.slice(progressPageSafe * PROGRESS_PAGE_SIZE, progressPageSafe * PROGRESS_PAGE_SIZE + PROGRESS_PAGE_SIZE);
 
   return (
     <div className="min-h-screen">
