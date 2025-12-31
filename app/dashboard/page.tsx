@@ -213,10 +213,11 @@ export default function Dashboard() {
     dir: "asc",
   });
   const [progressPage, setProgressPage] = useState(0);
-  const [progressVisible, setProgressVisible] = useState(true);
+  const [progressVisible, setProgressVisible] = useState(false);
 
   // Search + All Records
   const [q, setQ] = useState("");
+  const [allRecordsVisible, setAllRecordsVisible] = useState(false);
   const [filterClient, setFilterClient] = useState("");
   const [filterInterestType, setFilterInterestType] = useState("");
   const [filterBusinessOpp, setFilterBusinessOpp] = useState("");
@@ -474,7 +475,7 @@ export default function Dashboard() {
 
       if (search)
         countQuery = countQuery.or(
-          `client_name.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
+          `client_name.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%,email.ilike.%${search}%`
         );
       if (fc) countQuery = countQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
       if (fi) countQuery = countQuery.eq("interest_type", fi);
@@ -491,7 +492,7 @@ export default function Dashboard() {
 
       if (search)
         dataQuery = dataQuery.or(
-          `client_name.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
+          `client_name.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%,email.ilike.%${search}%`
         );
       if (fc) dataQuery = dataQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
       if (fi) dataQuery = dataQuery.eq("interest_type", fi);
@@ -791,86 +792,84 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* Search */}
-        <Card title="Search">
-          <div className="flex flex-col md:flex-row gap-2 md:items-center">
+        
+
+        {/* Client Progress Summary */}
+        <Card title="Client Progress Summary">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
             <input
               className="w-full border border-slate-300 px-4 py-3"
-              placeholder="Search by first name, last name, or phone"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
+              placeholder="Filter by client name..."
+              value={progressFilter}
+              onChange={(e) => {
+                setProgressFilter(e.target.value);
+                setProgressPage(0);
+              }}
             />
-            <Button onClick={() => loadPage(0)}>Go</Button>
-            <div className="text-sm text-slate-600 md:ml-auto">
-              {total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page
+            <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
+              {progressLoading ? "Loading…" : "Refresh"}
+            </Button>
+            <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
+              {progressVisible ? "Hide Table" : "Show Table"}
+            </Button>
+
+            <div className="md:ml-auto flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setProgressPage((p) => Math.max(0, p - 1))}
+                disabled={!progressVisible || progressPageSafe <= 0}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))}
+                disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}
+              >
+                Next
+              </Button>
             </div>
           </div>
 
-          <div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Client Name</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterClient}
-                onChange={(e) => setFilterClient(e.target.value)}
-                placeholder="Contains…"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Interest Type</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterInterestType}
-                onChange={(e) => setFilterInterestType(e.target.value)}
-                placeholder="e.g., client"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Business Opportunities</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterBusinessOpp}
-                onChange={(e) => setFilterBusinessOpp(e.target.value)}
-                placeholder="Contains…"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Wealth Solutions</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterWealthSolutions}
-                onChange={(e) => setFilterWealthSolutions(e.target.value)}
-                placeholder="Contains…"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">BOP Status</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterBopStatus}
-                onChange={(e) => setFilterBopStatus(e.target.value)}
-                placeholder="e.g., scheduled"
-              />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 mb-1">Follow-Up Status</div>
-              <input
-                className="w-full border border-slate-300 px-3 py-2 text-sm"
-                value={filterFollowUpStatus}
-                onChange={(e) => setFilterFollowUpStatus(e.target.value)}
-                placeholder="e.g., pending"
-              />
-            </div>
-          </div>
+          <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
 
-          <div className="mt-2 text-xs text-slate-600">
-            Tip: Enter filters and click <b>Go</b> to apply. Page size is {ALL_PAGE_SIZE}.
-          </div>
+          {progressVisible && (
+            <ProgressSummaryTable
+              rows={progressSlice}
+              sortState={progressSort}
+              onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
+            />
+          )}
+
+          {progressVisible && (
+            <div className="mt-2 text-xs text-slate-600">
+              Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page
+            </div>
+          )}
         </Card>
 
         {/* All Records */}
         <Card title="All Records (Editable)">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-3">
+            <input
+              className="w-full border border-slate-300 px-4 py-3"
+              placeholder="Filter by client name, first name, last name, phone, or email…"
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(0);
+              }}
+            />
+            <Button variant="secondary" onClick={() => setAllRecordsVisible((v) => !v)}>
+              {allRecordsVisible ? "Hide Results" : "Show Results"}
+            </Button>
+            <div className="md:ml-auto text-sm text-slate-600">
+              {total.toLocaleString()} records
+            </div>
+          </div>
+
+                    {allRecordsVisible ? (
+<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
             <div className="text-sm text-slate-600">
               Page <b>{page + 1}</b> of <b>{totalPages}</b>
             </div>
@@ -923,7 +922,11 @@ export default function Dashboard() {
               stickyLeftCount={1}
             />
           )}
-        </Card>
+        
+          ) : (
+            <div className="text-slate-500 italic py-6 text-center">Results are hidden. Click <b>Show Results</b> to display the table.</div>
+          )}
+</Card>
 
         {/* Client Progress Summary */}
         <Card title="Client Progress Summary">
