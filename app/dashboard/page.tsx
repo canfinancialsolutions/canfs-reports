@@ -865,50 +865,51 @@ export default function Dashboard() {
             </div>
           </div>
 
-                    {allRecordsVisible ? (
-<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
-            <div className="text-sm text-slate-600">
+          {allRecordsVisible ? (
+            <>
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
+              <div className="text-sm text-slate-600">
               Page <b>{page + 1}</b> of <b>{totalPages}</b>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-2">
               {sortHelp}
               <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
-                <span className="text-xs font-semibold text-slate-600">Go to page</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={totalPages}
-                  className="w-20 border border-slate-300 px-2 py-1 text-sm"
-                  value={pageJump}
-                  onChange={(e) => setPageJump(e.target.value)}
-                />
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    const n = Number(pageJump);
-                    if (!Number.isFinite(n)) return;
-                    const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
-                    loadPage(p - 1);
-                  }}
-                  disabled={loading || totalPages <= 1}
-                >
-                  Go
-                </Button>
+              <span className="text-xs font-semibold text-slate-600">Go to page</span>
+              <input
+              type="number"
+              min={1}
+              max={totalPages}
+              className="w-20 border border-slate-300 px-2 py-1 text-sm"
+              value={pageJump}
+              onChange={(e) => setPageJump(e.target.value)}
+              />
+              <Button
+              variant="secondary"
+              onClick={() => {
+              const n = Number(pageJump);
+              if (!Number.isFinite(n)) return;
+              const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
+              loadPage(p - 1);
+              }}
+              disabled={loading || totalPages <= 1}
+              >
+              Go
+              </Button>
               </div>
               <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
-                Previous
+              Previous
               </Button>
               <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
-                Next
+              Next
               </Button>
-            </div>
-          </div>
+              </div>
+              </div>
 
-          {loading ? (
-            <div className="text-slate-600">Loading…</div>
-          ) : (
-            <ExcelTableEditable
+              {loading ? (
+              <div className="text-slate-600">Loading…</div>
+              ) : (
+              <ExcelTableEditable
               rows={records}
               savingId={savingId}
               onUpdate={updateCell}
@@ -917,67 +918,15 @@ export default function Dashboard() {
               sortState={sortAll}
               onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
               stickyLeftCount={1}
-            />
-          )}
-        
+              />
+              )}
+            </>
           ) : (
-            <div className="text-slate-500 italic py-6 text-center">Results are hidden. Click <b>Show Results</b> to display the table.</div>
+            <div className="text-slate-500 italic py-6 text-center">
+              Results are hidden. Click <b>Show Results</b> to display the table.
+            </div>
           )}
 </Card>
-
-        {/* Client Progress Summary */}
-        <Card title="Client Progress Summary">
-          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
-            <input
-              className="w-full border border-slate-300 px-4 py-3"
-              placeholder="Filter by client name..."
-              value={progressFilter}
-              onChange={(e) => {
-                setProgressFilter(e.target.value);
-                setProgressPage(0);
-              }}
-            />
-            <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
-              {progressLoading ? "Loading…" : "Refresh"}
-            </Button>
-            <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
-              {progressVisible ? "Hide Table" : "Show Table"}
-            </Button>
-
-            <div className="md:ml-auto flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setProgressPage((p) => Math.max(0, p - 1))}
-                disabled={!progressVisible || progressPageSafe <= 0}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))}
-                disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-
-          <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div>
-
-          {progressVisible && (
-            <ProgressSummaryTable
-              rows={progressSlice}
-              sortState={progressSort}
-              onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
-            />
-          )}
-
-          {progressVisible && (
-            <div className="mt-2 text-xs text-slate-600">
-              Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page
-            </div>
-          )}
-        </Card>
       </div>
     </div>
   );
