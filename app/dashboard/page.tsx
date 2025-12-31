@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import {
   addDays,
@@ -186,6 +186,8 @@ function useColumnResizer() {
 }
 
 export default function Dashboard() {
+  const BTN_PRIMARY = "bg-emerald-600 text-white hover:bg-emerald-700";
+  const BTN_OUTLINE = "border border-slate-300 bg-white hover:bg-slate-50";
   const [error, setError] = useState<string | null>(null);
 
   // Trends
@@ -213,11 +215,10 @@ export default function Dashboard() {
     dir: "asc",
   });
   const [progressPage, setProgressPage] = useState(0);
-  const [progressVisible, setProgressVisible] = useState(false);
+  const [progressVisible, setProgressVisible] = useState(true);
 
   // Search + All Records
   const [q, setQ] = useState("");
-  const [allRecordsVisible, setAllRecordsVisible] = useState(false);
   const [filterClient, setFilterClient] = useState("");
   const [filterInterestType, setFilterInterestType] = useState("");
   const [filterBusinessOpp, setFilterBusinessOpp] = useState("");
@@ -475,7 +476,7 @@ export default function Dashboard() {
 
       if (search)
         countQuery = countQuery.or(
-          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
         );
       if (fc) countQuery = countQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
       if (fi) countQuery = countQuery.eq("interest_type", fi);
@@ -492,7 +493,7 @@ export default function Dashboard() {
 
       if (search)
         dataQuery = dataQuery.or(
-          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
+          `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
         );
       if (fc) dataQuery = dataQuery.or(`first_name.ilike.%${fc}%,last_name.ilike.%${fc}%`);
       if (fi) dataQuery = dataQuery.eq("interest_type", fi);
@@ -532,18 +533,6 @@ export default function Dashboard() {
       setLoading(false);
     }
   }
-
-  // Auto-load All Records when filter changes (live filtering)
-  const allRecordsFilterTimerRef = useRef<any>(null);
-  useEffect(() => {
-    if (allRecordsFilterTimerRef.current) clearTimeout(allRecordsFilterTimerRef.current);
-    allRecordsFilterTimerRef.current = setTimeout(() => {
-      loadPage(0);
-    }, 250);
-    return () => {
-      if (allRecordsFilterTimerRef.current) clearTimeout(allRecordsFilterTimerRef.current);
-    };
-  }, [q]);
 
   async function updateCell(id: string, key: string, rawValue: string) {
     setSavingId(id);
@@ -635,17 +624,20 @@ export default function Dashboard() {
 
   const progressTotalPages = Math.max(1, Math.ceil(progressFilteredSorted.length / PROGRESS_PAGE_SIZE));
   const progressPageSafe = Math.min(progressTotalPages - 1, Math.max(0, progressPage));
-  const progressSlice = progressFilteredSorted.slice(progressPageSafe * PROGRESS_PAGE_SIZE, progressPageSafe * PROGRESS_PAGE_SIZE + PROGRESS_PAGE_SIZE);
+  const progressSlice = progressFilteredSorted.slice(
+    progressPageSafe * PROGRESS_PAGE_SIZE,
+    progressPageSafe * PROGRESS_PAGE_SIZE + PROGRESS_PAGE_SIZE
+  );
 
   return (
     <div className="min-h-screen">
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <img src="/CANLogo.jpeg" className="h-12 w-auto" alt="CAN Financial Solutions" />
+            <img src="/can-logo.png" className="h-10 w-auto" alt="CAN Financial Solutions" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
-              <div className="text-sm text-slate-500"><b>Protecting Your Tomorrow</b></div>
+              <div className="text-sm text-slate-500">Excel-style tables, editable follow-ups, and trends</div>
             </div>
           </div>
           <Button variant="secondary" onClick={logout}>
@@ -657,18 +649,20 @@ export default function Dashboard() {
 
         {/* Trends */}
         <Card title="Trends">
-          <div className="flex items-center justify-end mb-3">
-            <Button variant="secondary" onClick={fetchTrends}>
-              Refresh
+          <div className="flex items-center justify-end gap-2 mb-3">
+            <Button className={!trendsVisible ? BTN_PRIMARY : BTN_OUTLINE} onClick={() => setTrendsVisible((v) => !v)}>
+              {trendsVisible ? "Hide Results" : "Show Results"}
             </Button>
+            <Button className={BTN_PRIMARY} onClick={fetchTrends}>Refresh</Button>
           </div>
 
+          {trendsVisible ? (
           <div className="grid lg:grid-cols-2 gap-6">
             <div>
               <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weekly} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
+                  <LineChart data={weekly}>
                     <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -701,7 +695,7 @@ export default function Dashboard() {
               <div className="text-xs font-semibold text-slate-600 mb-2">Monthly (Current Year)</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthly} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
+                  <BarChart data={monthly}>
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
@@ -718,11 +712,15 @@ export default function Dashboard() {
           </div>
 
           {trendLoading && <div className="mt-2 text-xs text-slate-500">Loading…</div>}
-        </Card>
+        
+        ) : (
+          <div className="text-sm text-slate-600">Results are hidden.</div>
+        )}
+</Card>
 
         {/* Upcoming Range */}
-        <Card title="Upcoming BOP Date Range">
-          <div className="grid md:grid-cols-5 gap-3 items-end">
+        <Card title="Upcoming BOP Meetings (Editable)">
+<div className="grid md:grid-cols-5 gap-3 items-end">
             <label className="block md:col-span-2">
               <div className="text-xs font-semibold text-slate-600 mb-1">Start</div>
               <input
@@ -742,8 +740,8 @@ export default function Dashboard() {
               />
             </label>
             <div className="flex gap-2 md:col-span-1">
-              <Button onClick={fetchUpcoming} disabled={upcomingLoading}>
-                {upcomingLoading ? "Loading…" : "Load"}
+              <Button className={BTN_PRIMARY} onClick={fetchUpcoming} disabled={upcomingLoading}>
+                {upcomingLoading ? "Refreshing…" : "Refresh"}
               </Button>
               <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>
                 Export XLSX
@@ -757,17 +755,13 @@ export default function Dashboard() {
               onClick={() => setUpcomingVisible((v) => !v)}
               disabled={!upcoming.length && !upcomingVisible}
             >
-              {upcomingVisible ? "Hide Upcoming BOP" : "Show Upcoming BOP"}
+              {upcomingVisible ? "Hide Upcoming Table" : "Show Upcoming Table"}
             </Button>
             <span className="ml-3 text-xs text-slate-500">
-              After you press Load, you can show/hide the Upcoming table.
+              After you press Refresh, you can show/hide the Upcoming table.
             </span>
           </div>
-        </Card>
 
-        {/* Upcoming Table */}
-        {upcomingVisible && upcoming.length > 0 && (
-          <Card title="Upcoming BOP Meetings (Editable)">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-slate-600">Table supports vertical + horizontal scrolling.</div>
               {sortHelp}
@@ -789,10 +783,142 @@ export default function Dashboard() {
           </Card>
         )}
 
-        
+        {/* Search */}
+        <Card title="Search">
+          <div className="flex flex-col md:flex-row gap-2 md:items-center">
+            <input
+              className="w-full border border-slate-300 px-4 py-3"
+              placeholder="Search by first name, last name, or phone"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <Button onClick={() => loadPage(0)}>Go</Button>
+            <div className="text-sm text-slate-600 md:ml-auto">
+              {total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page
+            </div>
+          </div>
+
+          <div className="mt-3 grid md:grid-cols-3 lg:grid-cols-6 gap-2">
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Client Name</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterClient}
+                onChange={(e) => setFilterClient(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Interest Type</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterInterestType}
+                onChange={(e) => setFilterInterestType(e.target.value)}
+                placeholder="e.g., client"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Business Opportunities</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterBusinessOpp}
+                onChange={(e) => setFilterBusinessOpp(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Wealth Solutions</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterWealthSolutions}
+                onChange={(e) => setFilterWealthSolutions(e.target.value)}
+                placeholder="Contains…"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">BOP Status</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterBopStatus}
+                onChange={(e) => setFilterBopStatus(e.target.value)}
+                placeholder="e.g., scheduled"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-600 mb-1">Follow-Up Status</div>
+              <input
+                className="w-full border border-slate-300 px-3 py-2 text-sm"
+                value={filterFollowUpStatus}
+                onChange={(e) => setFilterFollowUpStatus(e.target.value)}
+                placeholder="e.g., pending"
+              />
+            </div>
+          </div>
+
+          <div className="mt-2 text-xs text-slate-600">
+            Tip: Enter filters and click <b>Go</b> to apply. Page size is {ALL_PAGE_SIZE}.
+          </div>
+        </Card>
+
+        {/* All Records */}
+        <Card title="All Records (Editable)">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
+            <div className="text-sm text-slate-600">
+              Page <b>{page + 1}</b> of <b>{totalPages}</b>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {sortHelp}
+              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
+                <span className="text-xs font-semibold text-slate-600">Go to page</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  className="w-20 border border-slate-300 px-2 py-1 text-sm"
+                  value={pageJump}
+                  onChange={(e) => setPageJump(e.target.value)}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    const n = Number(pageJump);
+                    if (!Number.isFinite(n)) return;
+                    const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
+                    loadPage(p - 1);
+                  }}
+                  disabled={loading || totalPages <= 1}
+                >
+                  Go
+                </Button>
+              </div>
+              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
+                Previous
+              </Button>
+              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
+                Next
+              </Button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="text-slate-600">Loading…</div>
+          ) : (
+            <ExcelTableEditable
+              rows={records}
+              savingId={savingId}
+              onUpdate={updateCell}
+              extraLeftCols={extraClientCol}
+              maxHeightClass="max-h-[560px]"
+              sortState={sortAll}
+              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
+              stickyLeftCount={1}
+            />
+          )}
+        </Card>
 
         {/* Client Progress Summary */}
-        <Card title="Clients Progress Summary">
+        <Card title="Client Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
             <input
               className="w-full border border-slate-300 px-4 py-3"
@@ -807,7 +933,7 @@ export default function Dashboard() {
               {progressLoading ? "Loading…" : "Refresh"}
             </Button>
             <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
-              {progressVisible ? "Hide Results" : "Show Results"}
+              {progressVisible ? "Hide Table" : "Show Table"}
             </Button>
 
             <div className="md:ml-auto flex items-center gap-2">
@@ -844,93 +970,6 @@ export default function Dashboard() {
             </div>
           )}
         </Card>
-
-        {/* All Records */}
-        <Card title="All Clients Details (Editable)">
-          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-3">
-            <input
-              className="w-full border border-slate-300 px-4 py-3"
-              placeholder="Filter by client name, first name, last name, phone, or email…"
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(0);
-              }}
-            />
-            <Button variant="secondary" onClick={() => setAllRecordsVisible((v) => !v)}>
-              {allRecordsVisible ? "Hide Results" : "Show Results"}
-            </Button>
-            <Button variant="secondary" onClick={() => loadPage(page)}>
-              Refresh
-            </Button>
-            <div className="md:ml-auto text-sm text-slate-600">
-              {total.toLocaleString()} records
-            </div>
-          </div>
-
-          {allRecordsVisible ? (
-            <>
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
-              <div className="text-sm text-slate-600">
-              Page <b>{page + 1}</b> of <b>{totalPages}</b>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-2">
-              {sortHelp}
-              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
-              <span className="text-xs font-semibold text-slate-600">Go to page</span>
-              <input
-              type="number"
-              min={1}
-              max={totalPages}
-              className="w-20 border border-slate-300 px-2 py-1 text-sm"
-              value={pageJump}
-              onChange={(e) => setPageJump(e.target.value)}
-              />
-              <Button
-              variant="secondary"
-              onClick={() => {
-              const n = Number(pageJump);
-              if (!Number.isFinite(n)) return;
-              const p = Math.min(totalPages, Math.max(1, Math.floor(n)));
-              loadPage(p - 1);
-              }}
-              disabled={loading || totalPages <= 1}
-              >
-              Go
-              </Button>
-              </div>
-              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>
-              Previous
-              </Button>
-              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>
-              Next
-              </Button>
-              </div>
-              </div>
-
-              {loading ? (
-              <div className="text-slate-600">Loading…</div>
-              ) : (
-              <ExcelTableEditable
-              rows={records}
-              savingId={savingId}
-              onUpdate={updateCell}
-              extraLeftCols={extraClientCol}
-              maxHeightClass="max-h-[560px]"
-              sortState={sortAll}
-              onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
-              stickyLeftCount={1}
-              />
-              )}
-            </>
-          ) : (
-            <div className="text-slate-500 italic py-6 text-center">
-              Results are hidden. Click <b>Show Results</b> to display the table.
-               <p className="sub2">© 2025 CAN Financial Solutions</p>
-            </div>
-          )}
-</Card>
       </div>
     </div>
   );
@@ -1115,101 +1154,6 @@ function ExcelTableEditable({
   const { widths, startResize } = useColumnResizer();
   const [openCell, setOpenCell] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-
-  const [cellState, setCellState] = useState<Record<string, "idle" | "saving" | "saved" | "error">>({});
-  const [cellError, setCellError] = useState<Record<string, string>>({});
-  // Track in-flight commits per cell. Use `undefined` when no commit is in-flight.
-  const inFlightRef = useRef<Record<string, Promise<void> | undefined>>({});
-  const retryCountRef = useRef<Record<string, number>>({});
-  const commitTimersRef = useRef<Record<string, any>>({});
-  const lastEditRef = useRef<{ cellId: string; id: string; key: string; prevValue: string } | null>(null);
-
-  const commitCell = useCallback(
-    async (id: string, key: string, cellId: string, nextValue: string) => {
-      // Dedupe overlapping commits for the same cell
-      if (inFlightRef.current[cellId]) {
-        await inFlightRef.current[cellId];
-      }
-
-      const run = async () => {
-        setCellState((p) => ({ ...p, [cellId]: "saving" }));
-        setCellError((p) => {
-          if (!p[cellId]) return p;
-          const { [cellId]: _, ...rest } = p;
-          return rest;
-        });
-
-        try {
-          await onUpdate(id, key, nextValue);
-          setCellState((p) => ({ ...p, [cellId]: "saved" }));
-          retryCountRef.current[cellId] = 0;
-          // Clear draft after successful save
-          setDrafts((prev) => {
-            if (!(cellId in prev)) return prev;
-            const { [cellId]: _, ...rest } = prev;
-            return rest;
-          });
-          // Fade back to idle
-          setTimeout(() => {
-            setCellState((p) => {
-              if (p[cellId] !== "saved") return p;
-              const { [cellId]: _, ...rest } = p;
-              return rest;
-            });
-          }, 800);
-        } catch (e: any) {
-          const msg = e?.message || "Save failed";
-          setCellState((p) => ({ ...p, [cellId]: "error" }));
-          setCellError((p) => ({ ...p, [cellId]: msg }));
-
-          // Optional enhancement: retry with backoff (max 3)
-          const c = (retryCountRef.current[cellId] || 0) + 1;
-          retryCountRef.current[cellId] = c;
-          if (c <= 3) {
-            const delay = 700 * c;
-            setTimeout(() => {
-              // Only retry if user hasn't typed a new draft value since this failed save
-              const currentDraft = drafts[cellId];
-              if (typeof currentDraft === "string" && currentDraft !== nextValue) return;
-              commitCell(id, key, cellId, nextValue);
-            }, delay);
-          }
-        }
-      };
-
-      const promise = run().finally(() => {
-        delete inFlightRef.current[cellId];
-      });
-      inFlightRef.current[cellId] = promise;
-      await promise;
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onUpdate, drafts]
-  );
-
-  const scheduleCommit = useCallback(
-    (id: string, key: string, cellId: string, nextValue: string) => {
-      if (commitTimersRef.current[cellId]) clearTimeout(commitTimersRef.current[cellId]);
-      commitTimersRef.current[cellId] = setTimeout(() => {
-        commitCell(id, key, cellId, nextValue);
-      }, 250);
-    },
-    [commitCell]
-  );
-
-  const flushCommit = useCallback(
-    (id: string, key: string, cellId: string) => {
-      if (commitTimersRef.current[cellId]) {
-        clearTimeout(commitTimersRef.current[cellId]);
-        delete commitTimersRef.current[cellId];
-      }
-      const next = drafts[cellId];
-      if (typeof next === "string") {
-        commitCell(id, key, cellId, next);
-      }
-    },
-    [commitCell, drafts]
-  );
 
   const sortIcon = (k?: SortKey) => {
     if (!k) return null;
@@ -1447,104 +1391,23 @@ function ExcelTableEditable({
                   );
                 }
 
-                // EDITABLE CELLS (Excel-style, live save + dropdowns + retry/undo)
+                // EDITABLE CELLS (Controlled inputs so selected dates always stay visible)
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
 
-                const dropdownOptions = (() => {
-                  const lk = String(k).toLowerCase();
-                  if (lk === 'bop_status' || lk === 'bop status') {
-                    return [
-                      '',
-                      'Presented',
-                      'Business',
-                      'Client',
-                      'In-Progress',
-                      'On-Hold',
-                      'Clarification',
-                      'Not Interested',
-                      'Completed',
-                      'Closed',
-                    ];
-                  }
-                  if (lk === 'followup_status' || lk === 'follow-up status' || lk === 'followup status') {
-                    return ['', 'Open', 'In-Progress', 'Follow-Up', 'Follow-Up 2', 'On Hold', 'Closed', 'Completed'];
-                  }
-                  if (lk === 'status') {
-                    return ['', 'New Client', 'Initiated', 'In-Progress', 'On-Hold', 'Not Interested', 'Completed'];
-                  }
-                  if (lk === 'client_status') {
-                    return ['', 'New Client', 'Interested', 'In-Progress', 'Not Interested', 'On Hold', 'Referral', 'Purchased', 'Re-Opened', 'Completed'];
-                  }
-                  return null;
-                })();
-
-                const base = String(getCellValueForInput(r, k));
-                const value = drafts[cellId] !== undefined ? String(drafts[cellId]) : base;
-                const st = cellState[cellId] ?? 'idle';
-
-                const onValueChange = (next: string) => {
-                  // keep last edit for undo (Ctrl+Z)
-                  lastEditRef.current = { cellId, id: String(r.id), key: k, prevValue: base };
-                  setDrafts((prev) => ({ ...prev, [cellId]: next }));
-                  scheduleCommit(String(r.id), k, cellId, next);
-                };
-
-                const onKeyDown = (e: React.KeyboardEvent) => {
-                  // Undo last edit
-                  if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
-                    const last = lastEditRef.current;
-                    if (last && last.cellId === cellId) {
-                      e.preventDefault();
-                      setDrafts((prev) => ({ ...prev, [cellId]: last.prevValue }));
-                      void commitCell(last.id, last.key, last.cellId, last.prevValue);
-                    }
-                    return;
-                  }
-                };
+                const value =
+                  drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
 
                 return (
                   <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
-                    <div className="flex items-center gap-2">
-                      {dropdownOptions ? (
-                        <select
-                          className="w-full bg-transparent border border-slate-200 rounded px-2 py-1 text-sm"
-                          value={value}
-                          onChange={(e) => onValueChange(e.target.value)}
-                          onBlur={() => flushCommit(String(r.id), k, cellId)}
-                          onKeyDown={onKeyDown}
-                          disabled={savingId != null && String(savingId) === String(r.id)}
-                        >
-                          {dropdownOptions.map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt === '' ? '—' : opt}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type={isDateTime ? 'datetime-local' : 'text'}
-                          className="w-full bg-transparent border border-slate-200 rounded px-2 py-1 text-sm"
-                          value={value}
-                          onChange={(e) => onValueChange(e.target.value)}
-                          onBlur={() => flushCommit(String(r.id), k, cellId)}
-                          onKeyDown={onKeyDown}
-                          disabled={savingId != null && String(savingId) === String(r.id)}
-                        />
-                      )}
-
-                      {st === 'saving' && (
-                        <span className="text-[11px] text-slate-500 whitespace-nowrap">Saving…</span>
-                      )}
-                      {st === 'error' && (
-                        <span
-                          className="text-[11px] text-red-600 whitespace-nowrap"
-                          title={cellError[cellId] ?? 'Save failed'}
-                        >
-                          Retry…
-                        </span>
-                      )}
-                    </div>
+                    <input
+                      type={isDateTime ? "datetime-local" : "text"}
+                      className="w-full bg-transparent border-0 outline-none text-sm"
+                      value={value}
+                      onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
+                      onBlur={() => handleBlur(String(r.id), k, cellId)}
+                      disabled={savingId != null && String(savingId) === String(r.id)}
+                    />
                   </td>
                 );
               })}
