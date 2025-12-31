@@ -924,6 +924,7 @@ export default function Dashboard() {
           ) : (
             <div className="text-slate-500 italic py-6 text-center">
               Results are hidden. Click <b>Show Results</b> to display the table.
+               <p className="sub2">© 2025 CAN Financial Solutions</p>
             </div>
           )}
 </Card>
