@@ -645,7 +645,7 @@ export default function Dashboard() {
             <img src="/can-logo.png" className="h-10 w-auto" alt="CAN Financial Solutions" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
-              <div className="text-sm text-slate-500">Excel-style tables, editable follow-ups, and trends</div>
+              <div className="text-sm text-slate-500">Protecting Your Tomorrow</div>
             </div>
           </div>
           <Button variant="secondary" onClick={logout}>
@@ -757,7 +757,7 @@ export default function Dashboard() {
               onClick={() => setUpcomingVisible((v) => !v)}
               disabled={!upcoming.length && !upcomingVisible}
             >
-              {upcomingVisible ? "Hide Upcoming Table" : "Show Upcoming Table"}
+              {upcomingVisible ? "Hide Upcoming Table" : "Show Upcoming BOP"}
             </Button>
             <span className="ml-3 text-xs text-slate-500">
               After you press Load, you can show/hide the Upcoming table.
@@ -792,7 +792,7 @@ export default function Dashboard() {
         
 
         {/* Client Progress Summary */}
-        <Card title="Client Progress Summary">
+        <Card title="Clients Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
             <input
               className="w-full border border-slate-300 px-4 py-3"
@@ -846,7 +846,7 @@ export default function Dashboard() {
         </Card>
 
         {/* All Records */}
-        <Card title="All Records (Editable)">
+        <Card title="All Clients Details (Editable)">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-3">
             <input
               className="w-full border border-slate-300 px-4 py-3"
