@@ -1456,22 +1456,22 @@ function ExcelTableEditable({
                       'Presented',
                       'Business',
                       'Client',
+                      'In-Progress',
+                      'On-Hold',
                       'Clarification',
-                      'Follow-Up 1',
-                      'Follow-Up 2',
-                      'Follow-Up 3',
                       'Not Interested',
+                      'Completed',
                       'Closed',
                     ];
                   }
                   if (lk === 'followup_status' || lk === 'follow-up status' || lk === 'followup status') {
-                    return ['', 'Open', 'In-Progress', 'On Hold', 'Closed', 'Completed'];
+                    return ['', 'Open', 'In-Progress', 'Follow-Up', 'Follow-Up 2', 'On Hold', 'Closed', 'Completed'];
                   }
                   if (lk === 'status') {
-                    return ['', 'New', 'Initiated', 'In-Progress', 'On-Hold', 'Not Interested', 'Completed'];
+                    return ['', 'New Client', 'Initiated', 'In-Progress', 'On-Hold', 'Not Interested', 'Completed'];
                   }
                   if (lk === 'client_status') {
-                    return ['', 'New', 'Interested', 'Not Interested', 'Referral', 'Purchased', 'Re-Open'];
+                    return ['', 'New Client', 'Interested', 'In-Progress', 'Not Interested', 'On Hold', 'Referral', 'Purchased', 'Re-Opened', 'Completed'];
                   }
                   return null;
                 })();
