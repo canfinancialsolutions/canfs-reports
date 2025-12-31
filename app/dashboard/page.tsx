@@ -860,7 +860,7 @@ export default function Dashboard() {
             <Button variant="secondary" onClick={() => setAllRecordsVisible((v) => !v)}>
               {allRecordsVisible ? "Hide Results" : "Show Results"}
             </Button>
-            <Button variant="secondary" onClick={() => loadPage(pageSafe)}>
+            <Button variant="secondary" onClick={() => loadPage(page)}>
               Refresh
             </Button>
             <div className="md:ml-auto text-sm text-slate-600">
