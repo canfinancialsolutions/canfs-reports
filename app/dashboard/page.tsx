@@ -757,7 +757,7 @@ export default function Dashboard() {
               onClick={() => setUpcomingVisible((v) => !v)}
               disabled={!upcoming.length && !upcomingVisible}
             >
-              {upcomingVisible ? "Hide Upcoming Table" : "Show Upcoming BOP"}
+              {upcomingVisible ? "Hide Upcoming BOP" : "Show Upcoming BOP"}
             </Button>
             <span className="ml-3 text-xs text-slate-500">
               After you press Load, you can show/hide the Upcoming table.
@@ -807,7 +807,7 @@ export default function Dashboard() {
               {progressLoading ? "Loading…" : "Refresh"}
             </Button>
             <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
-              {progressVisible ? "Hide Table" : "Show Table"}
+              {progressVisible ? "Hide Results" : "Show Results"}
             </Button>
 
             <div className="md:ml-auto flex items-center gap-2">
