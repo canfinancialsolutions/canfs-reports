@@ -645,7 +645,7 @@ export default function Dashboard() {
             <img src="/can-logo.png" className="h-10 w-auto" alt="CAN Financial Solutions" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
-              <div className="text-sm text-slate-500">Protecting Your Tomorrow</div>
+              <div className="text-sm text-slate-500"><b>Protecting Your Tomorrow</b></div>
             </div>
           </div>
           <Button variant="secondary" onClick={logout}>
