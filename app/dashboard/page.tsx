@@ -650,10 +650,10 @@ export default function Dashboard() {
         {/* Trends */}
         <Card title="Trends">
           <div className="flex items-center justify-end gap-2 mb-3">
-            <Button className={!trendsVisible ? BTN_PRIMARY : BTN_OUTLINE} onClick={() => setTrendsVisible((v) => !v)}>
+            <Button variant={trendsVisible ? "secondary" : undefined} onClick={() => setTrendsVisible((v) => !v)}>
               {trendsVisible ? "Hide Results" : "Show Results"}
             </Button>
-            <Button className={BTN_PRIMARY} onClick={fetchTrends}>Refresh</Button>
+            <Button onClick={fetchTrends}>Refresh</Button>
           </div>
 
           {trendsVisible ? (
@@ -742,7 +742,7 @@ export default function Dashboard() {
               />
             </label>
             <div className="flex gap-2 md:col-span-1">
-              <Button className={BTN_PRIMARY} onClick={fetchUpcoming} disabled={upcomingLoading}>
+              <Button onClick={fetchUpcoming} disabled={upcomingLoading}>
                 {upcomingLoading ? "Refreshing…" : "Refresh"}
               </Button>
               <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>
