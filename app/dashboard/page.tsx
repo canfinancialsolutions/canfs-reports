@@ -1535,104 +1535,14 @@ function ExcelTableEditable({
                     </td>
                   );
                 }
-
-          
- 
-              
-                // EDITABLE CELLS (Controlled inputs)
+       
+               // EDITABLE CELLS (Controlled inputs)
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
                 const value =
                   drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
---
-
-   // EDITABLE CELLS (Excel-style, live save + dropdowns + retry/undo)
-                const cellId = `${r.id}:${k}`;
-                const isDateTime = DATE_TIME_KEYS.has(k);
-
-                const dropdownOptions = (() => {
-                  const lk = String(k).toLowerCase();
-                  if (lk === 'bop_status' || lk === 'bop status') {
-                    return [
-                      '',
-                      'Presented',
-                      'Business',
-                      'Client',
-                      'In-Progress',
-                      'On-Hold',
-                      'Clarification',
-                      'Not Interested',
-                      'Completed',
-                      'Closed',
-                    ];
-                  }
-                  if (lk === 'followup_status' || lk === 'follow-up status' || lk === 'followup status') {
-                    return ['', 'Open', 'In-Progress', 'Follow-Up', 'Follow-Up 2', 'On Hold', 'Closed', 'Completed'];
-                  }
-                  if (lk === 'status') {
-                    return ['', 'New Client', 'Initiated', 'In-Progress', 'On-Hold', 'Not Interested', 'Completed'];
-                  }
-                  if (lk === 'client_status') {
-                    return ['', 'New Client', 'Interested', 'In-Progress', 'Not Interested', 'On Hold', 'Referral', 'Purchased', 'Re-Opened', 'Completed'];
-                  }
-                  return null;
-                })();
-
-                const base = String(getCellValueForInput(r, k));
-                const value = drafts[cellId] !== undefined ? String(drafts[cellId]) : base;
-                const st = cellState[cellId] ?? 'idle';
-
-                const onValueChange = (next: string) => {
-                  // keep last edit for undo (Ctrl+Z)
-                  lastEditRef.current = { cellId, id: String(r.id), key: k, prevValue: base };
-                  setDrafts((prev) => ({ ...prev, [cellId]: next }));
-                  scheduleCommit(String(r.id), k, cellId, next);
-                };
-
-                const onKeyDown = (e: React.KeyboardEvent) => {
-                  // Undo last edit
-                  if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
-                    const last = lastEditRef.current;
-                    if (last && last.cellId === cellId) {
-                      e.preventDefault();
-                      setDrafts((prev) => ({ ...prev, [cellId]: last.prevValue }));
-                      void commitCell(last.id, last.key, last.cellId, last.prevValue);
-                    }
-                    return;
-                  }
-                };
- return (
-                  <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
-                    <div className="flex items-center gap-2">
-                      {dropdownOptions ? (
-                        <select
-                          className="w-full bg-transparent border border-slate-200 rounded px-2 py-1 text-sm"
-                          value={value}
-                          onChange={(e) => onValueChange(e.target.value)}
-                          onBlur={() => flushCommit(String(r.id), k, cellId)}
-                          onKeyDown={onKeyDown}
-                          disabled={savingId != null && String(savingId) === String(r.id)}
-                        >
-                          {dropdownOptions.map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt === '' ? '—' : opt}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type={isDateTime ? 'datetime-local' : 'text'}
-                          className="w-full bg-transparent border border-slate-200 rounded px-2 py-1 text-sm"
-                          value={value}
-                          onChange={(e) => onValueChange(e.target.value)}
-                          onBlur={() => flushCommit(String(r.id), k, cellId)}
-                          onKeyDown={onKeyDown}
-                          disabled={savingId != null && String(savingId) === String(r.id)}
-                        />
-                      )}
-
---  
-        /*        return (
+ 
+                 return (
                   <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
                     <input
                       type={isDateTime ? "datetime-local" : "text"}
@@ -1646,7 +1556,7 @@ function ExcelTableEditable({
                     />
                   </td>
                 );
- */
+ 
             })}
             </tr>
           ))}
