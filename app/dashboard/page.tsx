@@ -1,16 +1,14 @@
 
 /**
- * CAN Financial Solutions — Dashboard (page.tsx)
+ * CAN Financial Solutions — Dashboard (page_2.tsx)
  *
- * Minimal, scoped UI-layer fixes:
- * - Buttons: clear/white background, black text (variant="secondary"); add Go on each card; Refresh clears text & resets dates.
- * - Date ranges: on Refresh set Start=today, End=end of next month (when a date is selected); no save while editing; save on blur.
- * - Trends: daily line graph for last 60 days (Calls, BOP, Follow-ups) + rolling 12-month bar chart (hide zeros).
- * - Upcoming Meetings (Editable): union of BOP_Date + Followup_Date in range; status dropdowns with fixed lists; no blank clearing.
- * - Client Progress Summary: Go and Refresh behavior; smaller input to keep buttons on one line.
- * - All Records (Editable): live search while typing + Go; status dropdowns; no blank clearing.
+ * Minimal, scoped UI-layer changes requested:
+ * - Fix logo rendering (img).
+ * - Remove "Last 60 Days (Daily)" graph; keep monthly bar chart.
+ * - Remove all buttons from the Trends card.
+ * - Change subtitle “Protecting Your Tomorrow” to normal font weight.
  *
- * No database schema / stored procedures / routes / auth / Supabase policy changes.
+ * All other features remain unchanged.
  */
 
 "use client";
@@ -21,22 +19,16 @@ import * as XLSX from "xlsx";
 import {
   addDays,
   addMonths,
-  addYears,
   endOfMonth,
-  endOfWeek,
   format,
   isValid,
   parseISO,
   startOfMonth,
-  startOfWeek,
-  startOfYear,
   subMonths,
   subDays,
 } from "date-fns";
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -279,7 +271,7 @@ export default function Dashboard() {
   const [progressPage, setProgressPage] = useState(0);
   const [progressVisible, setProgressVisible] = useState(true);
 
-  // Search + All Records (merged)
+  // All Records
   const [q, setQ] = useState("");
   const [records, setRecords] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
@@ -322,7 +314,7 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortUpcoming.key, sortUpcoming.dir]);
 
-  // Live search (re-query while typing) for All Records
+  // Live search for All Records
   useEffect(() => {
     const id = setTimeout(() => {
       loadPage(0);
@@ -354,10 +346,11 @@ export default function Dashboard() {
     setError(null);
     try {
       const supabase = getSupabase();
-      // Daily last 60 days (inclusive)
+
+      // Daily last 60 days (we still compute, but only the monthly chart is rendered)
       const today = new Date();
-      const startDaily = subDays(today, 59); // 60 days window
-      const [{ data: callsRows, error: callsErr }, { data: bopsRows, error: bopsErr }, { data: fuRows, error: fuErr }] =
+      const startDaily = subDays(today, 59);
+      const [{ data: callsRows }, { data: bopsRows }, { data: fuRows }] =
         await Promise.all([
           supabase
             .from("client_registrations")
@@ -378,9 +371,6 @@ export default function Dashboard() {
             .order("Followup_Date", { ascending: true })
             .limit(50000),
         ]);
-      if (callsErr) throw callsErr;
-      if (bopsErr) throw bopsErr;
-      if (fuErr) throw fuErr;
 
       const days: string[] = [];
       const callsDay = new Map<string, number>();
@@ -405,7 +395,6 @@ export default function Dashboard() {
       (bopsRows ?? []).forEach((r: any) => bumpDay(r.BOP_Date, bopsDay));
       (fuRows ?? []).forEach((r: any) => bumpDay(r.Followup_Date, fuDay));
       const nz = (n: number | undefined) => (n && n !== 0 ? n : undefined);
-
       setDaily60(
         days.map((day) => ({
           day,
@@ -429,7 +418,7 @@ export default function Dashboard() {
         bopsMonth.set(key, 0);
         fuMonth.set(key, 0);
       }
-      const [{ data: callsY, error: callsYErr }, { data: bopsY, error: bopsYErr }, { data: fuY, error: fuYErr }] =
+      const [{ data: callsY }, { data: bopsY }, { data: fuY }] =
         await Promise.all([
           supabase
             .from("client_registrations")
@@ -453,9 +442,6 @@ export default function Dashboard() {
             .order("Followup_Date", { ascending: true })
             .limit(200000),
         ]);
-      if (callsYErr) throw callsYErr;
-      if (bopsYErr) throw bopsYErr;
-      if (fuYErr) throw fuYErr;
 
       const bumpMonth = (dateVal: any, map: Map<string, number>) => {
         if (!dateVal) return;
@@ -515,7 +501,6 @@ export default function Dashboard() {
       for (const r of fuRows ?? []) map.set(String((r as any).id), r);
       let merged = Array.from(map.values());
 
-      // Client-side sort (keeps selected sort choice)
       const asc = sortUpcoming.dir === "asc";
       const key = sortUpcoming.key;
       const getVal = (r: any) => {
@@ -669,7 +654,7 @@ export default function Dashboard() {
     []
   );
 
-  // -------- Progress Summary (filter/sort/paginate client-side) --------
+  // Progress filtering/sorting/paging
   const progressFilteredSorted = useMemo(() => {
     const needle = progressFilter.trim().toLowerCase();
     const filtered = (progressRows ?? []).filter((r) => {
@@ -707,6 +692,7 @@ export default function Dashboard() {
     progressPageSafe * PROGRESS_PAGE_SIZE + PROGRESS_PAGE_SIZE
   );
 
+  // Header-wide Show All/Hide All toggle
   const allVisible = trendsVisible && upcomingVisible && progressVisible && recordsVisible;
   const toggleAllCards = () => {
     const target = !allVisible;
@@ -728,11 +714,12 @@ export default function Dashboard() {
         {/* Header */}
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            {/* Logo placeholder (replace with actual <img src="/can-logo.png" /> if available) */}
-            /can-logo.png
+            {/* Logo — ensure it shows */}
+            <img src="/can-logo.png" alt="CAN Financial Solutions" className="h-10 w-auto" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
-              <div className="text-sm font-bold text-slate-500">Protecting Your Tomorrow</div>
+              {/* Subtitle in normal weight */}
+              <div className="text-sm text-slate-500">Protecting Your Tomorrow</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -766,73 +753,30 @@ export default function Dashboard() {
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>
         )}
 
-        {/* Trends */}
+        {/* Trends — buttons removed; only monthly bar chart */}
         <Card title="Trends">
-          <div className="flex items-center justify-end gap-2 mb-3">
-            <Button variant="secondary" onClick={() => setTrendsVisible((v) => !v)}>
-              {trendsVisible ? "Hide Results" : "Show Results"}
-            </Button>
-            {/* Go: compute from current selections (none needed here, just show) */}
-            <Button variant="secondary" onClick={() => fetchTrends().then(() => setTrendsVisible(true))}>
-              Go
-            </Button>
-            {/* Refresh: just refetch; auto-show */}
-            <Button
-              variant="secondary"
-              onClick={() => {
-                fetchTrends().then(() => setTrendsVisible(true));
-              }}
-            >
-              Refresh
-            </Button>
-          </div>
-
           {trendsVisible ? (
             <>
-              <div className="grid lg:grid-cols-2 gap-6">
-                {/* Last 60 days line chart */}
-                <div>
-                  <div className="text-xs font-semibold text-slate-600 mb-2">Last 60 Days (Daily)</div>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={daily60}>
-                        <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip />
-                        <Line type="monotone" dataKey="calls" stroke="#1f2937" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }}>
-                          <LabelList dataKey="calls" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
-                        </Line>
-                        <Line type="monotone" dataKey="bops" stroke="#4b5563" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }}>
-                          <LabelList dataKey="bops" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
-                        </Line>
-                        <Line type="monotone" dataKey="followups" stroke="#6b7280" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }}>
-                          <LabelList dataKey="followups" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
-                        </Line>
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-                {/* Rolling 12 months bar chart */}
-                <div>
-                  <div className="text-xs font-semibold text-slate-600 mb-2">Rolling 12 Months</div>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={monthly12}>
-                        <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip />
-                        <Bar dataKey="calls" fill="#111827">
-                          <LabelList dataKey="calls" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
-                        </Bar>
-                        <Bar dataKey="bops" fill="#374151">
-                          <LabelList dataKey="bops" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
-                        </Bar>
-                        <Bar dataKey="followups" fill="#6b7280">
-                          <LabelList dataKey="followups" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+              {/* Rolling 12 months bar chart */}
+              <div>
+                <div className="text-xs font-semibold text-slate-600 mb-2">Rolling 12 Months</div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthly12}>
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Bar dataKey="calls" fill="#111827">
+                        <LabelList dataKey="calls" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
+                      </Bar>
+                      <Bar dataKey="bops" fill="#374151">
+                        <LabelList dataKey="bops" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
+                      </Bar>
+                      <Bar dataKey="followups" fill="#6b7280">
+                        <LabelList dataKey="followups" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
               {trendLoading && <div className="mt-2 text-xs text-slate-500">Loading…</div>}
@@ -842,7 +786,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Upcoming meetings */}
+        {/* Upcoming Meetings (Editable) */}
         <Card title="Upcoming Meetings (Editable)">
           <div className="grid md:grid-cols-5 gap-3 items-end">
             <label className="block md:col-span-1">
@@ -866,11 +810,9 @@ export default function Dashboard() {
             </label>
 
             <div className="flex gap-2 md:col-span-3">
-              {/* Go: fetch using current range */}
               <Button variant="secondary" onClick={() => fetchUpcoming()}>
                 Go
               </Button>
-              {/* Refresh: clear selection & reset date range (Start=today, End=end of next month), auto-show */}
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -885,17 +827,10 @@ export default function Dashboard() {
               >
                 {upcomingLoading ? "Refreshing…" : "Refresh"}
               </Button>
-              <Button
-                variant="secondary"
-                onClick={exportUpcomingXlsx}
-                disabled={upcoming.length === 0}
-              >
+              <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>
                 Export XLSX
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setUpcomingVisible((v) => !v)}
-              >
+              <Button variant="secondary" onClick={() => setUpcomingVisible((v) => !v)}>
                 {upcomingVisible ? "Hide Results" : "Show Results"}
               </Button>
             </div>
@@ -954,11 +889,9 @@ export default function Dashboard() {
                 setProgressPage(0);
               }}
             />
-            {/* Go: just ensure table visible with current filter */}
             <Button variant="secondary" onClick={() => setProgressVisible(true)}>
               Go
             </Button>
-            {/* Refresh: clear filter & show results */}
             <Button
               variant="secondary"
               onClick={() => {
@@ -1017,11 +950,9 @@ export default function Dashboard() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
-              {/* Go: fetch with current search */}
               <Button variant="secondary" onClick={() => loadPage(0)}>
                 Go
               </Button>
-              {/* Refresh: clear search & show results */}
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -1032,10 +963,7 @@ export default function Dashboard() {
               >
                 Refresh
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setRecordsVisible((v) => !v)}
-              >
+              <Button variant="secondary" onClick={() => setRecordsVisible((v) => !v)}>
                 {recordsVisible ? "Hide Results" : "Show Results"}
               </Button>
             </div>
@@ -1236,7 +1164,6 @@ function ProgressSummaryTable({
                 else if (c.id === "bop_attempts") v = fmtCount(r.bop_attempts);
                 else if (c.id === "last_followup_date") v = fmtDate(r.last_followup_date);
                 else if (c.id === "followup_attempts") v = fmtCount(r.followup_attempts);
-
                 return (
                   <td
                     key={c.id}
@@ -1388,7 +1315,7 @@ function ExcelTableEditable({
             {(columns as any).map((c: any, colIndex: number) => {
               const w = getW(c.id, c.defaultW ?? 160);
               const isSticky = colIndex < stickyLeftCount;
-              const isTopLeft = isSticky;
+              const isTopLeft = isSticky; // header row is always top sticky
               const style: React.CSSProperties = {
                 width: w,
                 minWidth: w,
@@ -1418,6 +1345,7 @@ function ExcelTableEditable({
                   ) : (
                     headerLabel
                   )}
+                  {/* Resize handle */}
                   <div
                     className="absolute top-0 right-0 h-full w-2 cursor-col-resize select-none"
                     onMouseDown={(e) => startResize(e, c.id, w)}
@@ -1520,8 +1448,8 @@ function ExcelTableEditable({
                 const value =
                   drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
 
+                // Status dropdowns
                 const statusOptions = optionsForKey(k);
-
                 if (statusOptions) {
                   return (
                     <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
