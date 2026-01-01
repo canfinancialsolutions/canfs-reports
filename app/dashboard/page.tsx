@@ -1568,7 +1568,7 @@ function ExcelTableEditable({
                   return null;
                 })();
 
-/*
+ 
               
                 // EDITABLE CELLS (Controlled inputs)
                 const cellId = `${r.id}:${k}`;
@@ -1590,7 +1590,7 @@ function ExcelTableEditable({
                     />
                   </td>
                 );
-*/
+ 
             })}
             </tr>
           ))}
