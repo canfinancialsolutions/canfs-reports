@@ -657,7 +657,8 @@ export default function Dashboard() {
           </div>
 
           {trendsVisible ? (
-          <div className="grid lg:grid-cols-2 gap-6">
+          <>
+            <div className="grid lg:grid-cols-2 gap-6">
             <div>
               <div className="text-xs font-semibold text-slate-600 mb-2">Weekly (Last 5 Weeks)</div>
               <div className="h-64">
