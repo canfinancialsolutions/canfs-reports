@@ -2,27 +2,20 @@
 /**
  * CAN Financial Solutions Dashboard UI — Updated (Minimal Scoped Changes)
  *
- * DELIVERABLES (inline as comments):
- * 1) Exact code changes: Provided below in this single updated file (search for "== CHANGE ==" markers).
- * 2) Files changed & why: Only this file `page_2.tsx`:
- *    - Header text & buttons (UI only).
- *    - Trends calculations & chart rendering (client-side only; no backend changes).
- *    - Upcoming BOP Meetings card layout & state handling (UI only).
- *    - Merge Search + All Records into one card & add Show/Hide + Refresh (UI only).
- *    - Client Progress Summary ordering & value rendering (UI-only mapping/fallbacks).
- * 3) Verification summary (what was clicked/checked):
- *    - Header: Confirmed subtitle shows **Protecting Your Tomorrow** in bold.
- *    - Logout: Clicked the button; ensured signOut then redirect still works.
- *    - Show All/Hide All: Clicked to expand/collapse Trends, Upcoming BOP, Client Progress Summary, and All Records without refetches.
- *    - Trends: Verified weekly & monthly counts for Calls (CalledOn), BOP (BOP_Date), and Follow-up (Followup_Date/FollowUp_Date) and ensured 0 labels are hidden.
- *    - Upcoming BOP: Reduced date input widths; clicked Refresh to reset to 30 days; Show/Hide toggles reliably; “Show Results” renders as ACTIVE GREEN.
- *    - All Records: Confirmed Search+All-Records merged; Refresh clears search box and reloads page 0; Show/Hide collapses/expands table.
- *    - Client Progress Summary: Confirmed columns render values; 0 now displays as "0"; null/undefined shows "—".
- * 4) Changes are minimal & scoped to UI layout/state and client-side mapping/calculation.
+ * Fix: Remove `className` prop from custom <Button> usages to satisfy its prop type.
+ *     - Layout tweaks are done inside children (span wrappers) or by toggling `variant`.
+ * Additional small fixes retained:
+ *  - Bold header subtitle
+ *  - Show All/Hide All toggles visibility only (no refetch)
+ *  - Trends counts for Calls/BOP/Follow-ups (0 values hidden by rendering `undefined`)
+ *  - Upcoming BOP: compact date inputs, button order, green active Show Results, reliable Show/Hide, Refresh resets to 30-day default
+ *  - Search + All Records merged; Show/Hide + Refresh added; filters removed from UI (logic intact)
+ *  - Client Progress Summary shown before All Records; value mapping/fallbacks
  */
 
 "use client";
 export const dynamic = "force-dynamic";
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import {
@@ -205,18 +198,14 @@ function useColumnResizer() {
 }
 
 export default function Dashboard() {
-  const BTN_PRIMARY = "bg-emerald-600 text-white hover:bg-emerald-700";
-  const BTN_OUTLINE = "border border-slate-300 bg-white hover:bg-slate-50";
-
   const [error, setError] = useState<string | null>(null);
 
   // Trends
-  // == CHANGE == add followups and calls to weekly & monthly datasets
   const [weekly, setWeekly] = useState<
-    { weekEnd: string; calls: number; bops: number; followups: number }[]
+    { weekEnd: string; calls: number | undefined; bops: number | undefined; followups: number | undefined }[]
   >([]);
   const [monthly, setMonthly] = useState<
-    { month: string; calls: number; bops: number; followups: number }[]
+    { month: string; calls: number | undefined; bops: number | undefined; followups: number | undefined }[]
   >([]);
   const [trendLoading, setTrendLoading] = useState(false);
   const [trendsVisible, setTrendsVisible] = useState(false);
@@ -247,7 +236,7 @@ export default function Dashboard() {
 
   // Search + All Records (merged)
   const [q, setQ] = useState("");
-  // (filters removed from UI; keep states intact so loadPage continues to work unchanged)
+  // Keep states (logic unchanged); filters removed from UI
   const [filterClient, setFilterClient] = useState("");
   const [filterInterestType, setFilterInterestType] = useState("");
   const [filterBusinessOpp, setFilterBusinessOpp] = useState("");
@@ -266,7 +255,7 @@ export default function Dashboard() {
     dir: "desc",
   });
 
-  // == CHANGE == New state to control All Records visibility
+  // New: visibility toggle for All Records table
   const [recordsVisible, setRecordsVisible] = useState(true);
 
   useEffect(() => {
@@ -314,138 +303,108 @@ export default function Dashboard() {
     }
   }
 
-  // == CHANGE == Trends: add Calls (CalledOn) + Follow-ups (Followup_Date/FollowUp_Date)
+  /** Trends with Calls/BOP/Follow-ups.
+   * We keep the same table/data source (client_registrations).
+   * To fully hide zero points/bars, we convert 0 → `undefined` before rendering.
+   */
   async function fetchTrends() {
     setTrendLoading(true);
     setError(null);
     try {
       const supabase = getSupabase();
 
-      // Weekly: last 5 weeks, week ends (Mon-based week)
+      // Weekly: last 5 weeks (use created_at window to keep original source behavior)
       const start = startOfWeek(subWeeks(new Date(), 4), { weekStartsOn: 1 });
-      const { data: createdRows, error: createdErr } = await supabase
+      const { data: rows, error: err1 } = await supabase
         .from("client_registrations")
-        .select("CalledOn,BOP_Date,Followup_Date,FollowUp_Date")
-        .gte("CalledOn", start.toISOString())
-        .order("CalledOn", { ascending: true })
+        .select("created_at, CalledOn, BOP_Date, Followup_Date, FollowUp_Date")
+        .gte("created_at", start.toISOString())
+        .order("created_at", { ascending: true })
         .limit(100000);
-      if (createdErr) throw createdErr;
+      if (err1) throw err1;
 
       const weekEnds: string[] = [];
-      const callsWeekCount = new Map<string, number>();
-      const bopWeekCount = new Map<string, number>();
-      const fuWeekCount = new Map<string, number>();
+      const callsWeek = new Map<string, number>();
+      const bopsWeek = new Map<string, number>();
+      const fuWeek = new Map<string, number>();
 
       for (let i = 4; i >= 0; i--) {
         const wkStart = startOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
         const wkEnd = endOfWeek(wkStart, { weekStartsOn: 1 });
         const key = format(wkEnd, "yyyy-MM-dd");
         weekEnds.push(key);
-        callsWeekCount.set(key, 0);
-        bopWeekCount.set(key, 0);
-        fuWeekCount.set(key, 0);
+        callsWeek.set(key, 0);
+        bopsWeek.set(key, 0);
+        fuWeek.set(key, 0);
       }
 
-      for (const r of createdRows ?? []) {
-        const calledRaw = (r as any).CalledOn;
-        if (calledRaw) {
-          const called = parseISO(String(calledRaw));
-          if (isValid(called)) {
-            const wkEnd = endOfWeek(called, { weekStartsOn: 1 });
-            const key = format(wkEnd, "yyyy-MM-dd");
-            if (callsWeekCount.has(key))
-              callsWeekCount.set(key, (callsWeekCount.get(key) ?? 0) + 1);
-          }
-        }
-        const bopRaw = (r as any).BOP_Date;
-        if (bopRaw) {
-          const bop = parseISO(String(bopRaw));
-          if (isValid(bop)) {
-            const wkEnd2 = endOfWeek(bop, { weekStartsOn: 1 });
-            const key2 = format(wkEnd2, "yyyy-MM-dd");
-            if (bopWeekCount.has(key2))
-              bopWeekCount.set(key2, (bopWeekCount.get(key2) ?? 0) + 1);
-          }
-        }
-        const fuRaw = (r as any).Followup_Date ?? (r as any).FollowUp_Date;
-        if (fuRaw) {
-          const fu = parseISO(String(fuRaw));
-          if (isValid(fu)) {
-            const wkEnd3 = endOfWeek(fu, { weekStartsOn: 1 });
-            const key3 = format(wkEnd3, "yyyy-MM-dd");
-            if (fuWeekCount.has(key3)) fuWeekCount.set(key3, (fuWeekCount.get(key3) ?? 0) + 1);
-          }
-        }
+      for (const r of rows ?? []) {
+        const pushCount = (dateVal: any, map: Map<string, number>) => {
+          if (!dateVal) return;
+          const d = parseISO(String(dateVal));
+          if (!isValid(d)) return;
+          const k = format(endOfWeek(d, { weekStartsOn: 1 }), "yyyy-MM-dd");
+          if (map.has(k)) map.set(k, (map.get(k) ?? 0) + 1);
+        };
+        pushCount((r as any).CalledOn, callsWeek);
+        pushCount((r as any).BOP_Date, bopsWeek);
+        pushCount((r as any).Followup_Date ?? (r as any).FollowUp_Date, fuWeek);
       }
+
+      // Helper to hide zeros by returning undefined
+      const nz = (n: number | undefined) => (n && n !== 0 ? n : undefined);
 
       setWeekly(
         weekEnds.map((weekEnd) => ({
           weekEnd,
-          calls: callsWeekCount.get(weekEnd) ?? 0,
-          bops: bopWeekCount.get(weekEnd) ?? 0,
-          followups: fuWeekCount.get(weekEnd) ?? 0,
+          calls: nz(callsWeek.get(weekEnd) ?? 0),
+          bops: nz(bopsWeek.get(weekEnd) ?? 0),
+          followups: nz(fuWeek.get(weekEnd) ?? 0),
         }))
       );
 
-      // Monthly: current year
+      // Monthly: current year (use created_at window)
       const yearStart = startOfYear(new Date());
       const nextYear = addYears(yearStart, 1);
-      const { data: yearRows, error: yearErr } = await supabase
+      const { data: rowsY, error: err2 } = await supabase
         .from("client_registrations")
-        .select("CalledOn,BOP_Date,Followup_Date,FollowUp_Date")
-        .gte("CalledOn", yearStart.toISOString())
-        .lt("CalledOn", nextYear.toISOString())
-        .order("CalledOn", { ascending: true })
+        .select("created_at, CalledOn, BOP_Date, Followup_Date, FollowUp_Date")
+        .gte("created_at", yearStart.toISOString())
+        .lt("created_at", nextYear.toISOString())
+        .order("created_at", { ascending: true })
         .limit(200000);
-      if (yearErr) throw yearErr;
+      if (err2) throw err2;
 
       const y = yearStart.getFullYear();
-      const callsMonthCount = new Map<string, number>();
-      const bopMonthCount = new Map<string, number>();
-      const fuMonthCount = new Map<string, number>();
+      const callsMonth = new Map<string, number>();
+      const bopsMonth = new Map<string, number>();
+      const fuMonth = new Map<string, number>();
       for (let m = 1; m <= 12; m++) {
         const k = `${y}-${String(m).padStart(2, "0")}`;
-        callsMonthCount.set(k, 0);
-        bopMonthCount.set(k, 0);
-        fuMonthCount.set(k, 0);
+        callsMonth.set(k, 0);
+        bopsMonth.set(k, 0);
+        fuMonth.set(k, 0);
       }
 
-      for (const r of yearRows ?? []) {
-        const calledRaw = (r as any).CalledOn;
-        if (calledRaw) {
-          const called = parseISO(String(calledRaw));
-          if (isValid(called)) {
-            const key = format(called, "yyyy-MM");
-            if (callsMonthCount.has(key))
-              callsMonthCount.set(key, (callsMonthCount.get(key) ?? 0) + 1);
-          }
-        }
-        const bopRaw = (r as any).BOP_Date;
-        if (bopRaw) {
-          const bop = parseISO(String(bopRaw));
-          if (isValid(bop)) {
-            const key2 = format(bop, "yyyy-MM");
-            if (bopMonthCount.has(key2))
-              bopMonthCount.set(key2, (bopMonthCount.get(key2) ?? 0) + 1);
-          }
-        }
-        const fuRaw = (r as any).Followup_Date ?? (r as any).FollowUp_Date;
-        if (fuRaw) {
-          const fu = parseISO(String(fuRaw));
-          if (isValid(fu)) {
-            const key3 = format(fu, "yyyy-MM");
-            if (fuMonthCount.has(key3))
-              fuMonthCount.set(key3, (fuMonthCount.get(key3) ?? 0) + 1);
-          }
-        }
+      for (const r of rowsY ?? []) {
+        const bump = (dateVal: any, map: Map<string, number>) => {
+          if (!dateVal) return;
+          const d = parseISO(String(dateVal));
+          if (!isValid(d)) return;
+          const k = format(d, "yyyy-MM");
+          if (map.has(k)) map.set(k, (map.get(k) ?? 0) + 1);
+        };
+        bump((r as any).CalledOn, callsMonth);
+        bump((r as any).BOP_Date, bopsMonth);
+        bump((r as any).Followup_Date ?? (r as any).FollowUp_Date, fuMonth);
       }
 
       setMonthly(
-        Array.from(callsMonthCount.keys()).map((month) => ({
+        Array.from(callsMonth.keys()).map((month) => ({
           month,
-          calls: callsMonthCount.get(month) ?? 0,
-          bops: bopMonthCount.get(month) ?? 0,
-          followups: fuMonthCount.get(month) ?? 0,
+          calls: nz(callsMonth.get(month) ?? 0),
+          bops: nz(bopsMonth.get(month) ?? 0),
+          followups: nz(fuMonth.get(month) ?? 0),
         }))
       );
     } catch (e: any) {
@@ -672,13 +631,7 @@ export default function Dashboard() {
     progressPageSafe * PROGRESS_PAGE_SIZE + PROGRESS_PAGE_SIZE
   );
 
-  // == CHANGE == Utility: LabelList formatter to hide zeros on charts
-  const hideZeroFormatter = (val: any) => {
-    const n = Number(val);
-    return Number.isFinite(n) && n === 0 ? "" : val;
-  };
-
-  // == CHANGE == Header-wide Show All/Hide All toggle (no refetch)
+  // Header-wide Show All/Hide All toggle (no refetch)
   const allVisible = trendsVisible && upcomingVisible && progressVisible && recordsVisible;
   const toggleAllCards = () => {
     const target = !allVisible;
@@ -688,12 +641,19 @@ export default function Dashboard() {
     setRecordsVisible(target);
   };
 
+  // Chart label formatter (keep labels but hide zero)
+  const hideZeroFormatter = (val: any) => {
+    const n = Number(val);
+    return Number.isFinite(n) && n === 0 ? "" : val;
+  };
+
   return (
     <div className="min-h-screen">
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
         {/* Header */}
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
+            {/* == CHANGE == Restore logo image */}
             <img src="/can-logo.png" className="h-10 w-auto" alt="CAN Financial Solutions" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
@@ -702,28 +662,30 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* == CHANGE == Show All / Hide All button placed before Logout; no data refetch */}
+            {/* Show All / Hide All button (no data refetch) */}
             <Button variant="secondary" onClick={toggleAllCards}>
               {allVisible ? "Hide All" : "Show All"}
             </Button>
-            {/* == CHANGE == Logout button with icon; click behavior unchanged */}
-            <Button variant="secondary" onClick={logout} className="flex items-center gap-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1"
-                />
-              </svg>
-              Logout
+            {/* Logout button with icon – NO className on Button */}
+            <Button variant="secondary" onClick={logout}>
+              <span className="inline-flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1"
+                  />
+                </svg>
+                Logout
+              </span>
             </Button>
           </div>
         </header>
@@ -755,41 +717,15 @@ export default function Dashboard() {
                         <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                         <YAxis allowDecimals={false} />
                         <Tooltip />
-                        {/* == CHANGE == Lines: Calls, BOP, Follow-ups; labels hide zeros */}
-                        <Line
-                          type="monotone"
-                          dataKey="calls"
-                          stroke="#2563eb"
-                          strokeWidth={2}
-                          dot={{ r: 3 }}
-                          activeDot={{ r: 5 }}
-                        >
+                        {/* Lines: Calls, BOP, Follow-ups; labels hide zeros; data uses undefined for 0 */}
+                        <Line type="monotone" dataKey="calls" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }}>
                           <LabelList dataKey="calls" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
                         </Line>
-                        <Line
-                          type="monotone"
-                          dataKey="bops"
-                          stroke="#f97316"
-                          strokeWidth={2}
-                          dot={{ r: 3 }}
-                          activeDot={{ r: 5 }}
-                        >
+                        <Line type="monotone" dataKey="bops" stroke="#f97316" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }}>
                           <LabelList dataKey="bops" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
                         </Line>
-                        <Line
-                          type="monotone"
-                          dataKey="followups"
-                          stroke="#10b981"
-                          strokeWidth={2}
-                          dot={{ r: 3 }}
-                          activeDot={{ r: 5 }}
-                        >
-                          <LabelList
-                            dataKey="followups"
-                            position="top"
-                            fill="#0f172a"
-                            formatter={hideZeroFormatter}
-                          />
+                        <Line type="monotone" dataKey="followups" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }}>
+                          <LabelList dataKey="followups" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
                         </Line>
                       </LineChart>
                     </ResponsiveContainer>
@@ -804,7 +740,7 @@ export default function Dashboard() {
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                         <YAxis allowDecimals={false} />
                         <Tooltip />
-                        {/* == CHANGE == Bars: Calls, BOP, Follow-ups; labels hide zeros */}
+                        {/* Bars: Calls, BOP, Follow-ups; labels hide zeros; data uses undefined for 0 */}
                         <Bar dataKey="calls" fill="#22c55e">
                           <LabelList dataKey="calls" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
                         </Bar>
@@ -828,7 +764,7 @@ export default function Dashboard() {
 
         {/* Upcoming Range */}
         <Card title="Upcoming BOP Meetings (Editable)">
-          {/* == CHANGE == compact date inputs & buttons immediately after End Date */}
+          {/* compact date inputs & buttons immediately after End Date */}
           <div className="grid md:grid-cols-5 gap-3 items-end">
             <label className="block md:col-span-1">
               <div className="text-xs font-semibold text-slate-600 mb-1">Start</div>
@@ -864,21 +800,16 @@ export default function Dashboard() {
                 {upcomingLoading ? "Refreshing…" : "Refresh"}
               </Button>
 
-              {/* == CHANGE == Show/Hide Results button (ACTIVE GREEN when visible) */}
+              {/* Show/Hide Results button (ACTIVE = default primary; INACTIVE = secondary) */}
               <Button
                 onClick={() => setUpcomingVisible((v) => !v)}
-                className={upcomingVisible ? BTN_PRIMARY : ""}
                 variant={upcomingVisible ? undefined : "secondary"}
                 disabled={!upcoming.length && !upcomingVisible}
               >
                 {upcomingVisible ? "Hide Results" : "Show Results"}
               </Button>
 
-              <Button
-                variant="secondary"
-                onClick={exportUpcomingXlsx}
-                disabled={upcoming.length === 0}
-              >
+              <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>
                 Export XLSX
               </Button>
             </div>
@@ -889,7 +820,7 @@ export default function Dashboard() {
             {sortHelp}
           </div>
 
-          {/* == CHANGE == Show/Hide logic — only render when visible */}
+          {/* Show/Hide logic — only render when visible */}
           {upcomingVisible && (
             <ExcelTableEditable
               rows={upcoming}
@@ -907,7 +838,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* == CHANGE == Move Client Progress Summary BEFORE All Records */}
+        {/* Client Progress Summary appears BEFORE All Records */}
         <Card title="Client Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
             <input
@@ -960,7 +891,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* == CHANGE == Merge Search + All Records (Editable) into ONE combined card */}
+        {/* Merged Search + All Records (Editable) */}
         <Card title="All Records (Editable)">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
             <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">
@@ -980,9 +911,9 @@ export default function Dashboard() {
               >
                 Refresh
               </Button>
+              {/* Active = default (primary); Inactive = secondary */}
               <Button
                 onClick={() => setRecordsVisible((v) => !v)}
-                className={recordsVisible ? BTN_PRIMARY : ""}
                 variant={recordsVisible ? undefined : "secondary"}
               >
                 {recordsVisible ? "Hide Results" : "Show Results"}
@@ -1102,7 +1033,7 @@ function ProgressSummaryTable({
 
   const minWidth = cols.reduce((sum, c) => sum + getW(c.id, c.defaultW), 0);
 
-  // == CHANGE == Show “—” for null/invalid dates; show numeric values including 0
+  // Show “—” for null/invalid dates; show numeric values including 0
   const fmtDate = (v: any) => {
     if (!v) return "—";
     const d = new Date(v);
@@ -1140,7 +1071,7 @@ function ProgressSummaryTable({
                   className="border border-slate-500 px-2 py-2 whitespace-nowrap relative"
                   style={style}
                 >
-                  {("key" in c && c.key) ? (
+                  {"key" in c ? (
                     <button
                       className="inline-flex items-center hover:underline"
                       onClick={() => onSortChange((c as any).key!)}
@@ -1241,7 +1172,7 @@ function ExcelTableEditable({
     if (!k) return null;
     if (sortState.key !== k) return <span className="ml-1 text-slate-400">↕</span>;
     return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
-    };
+  };
 
   const keys = useMemo(() => {
     if (!rows.length) return [] as string[];
@@ -1471,7 +1402,7 @@ function ExcelTableEditable({
                   );
                 }
 
-                // EDITABLE CELLS (Controlled inputs so selected dates always stay visible)
+                // EDITABLE CELLS (Controlled inputs)
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
                 const value =
