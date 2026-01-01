@@ -2,15 +2,15 @@
 /**
  * CAN Financial Solutions Dashboard UI — Updated (Minimal Scoped Changes)
  *
- * Fix: Remove `className` prop from custom <Button> usages to satisfy its prop type.
- *     - Layout tweaks are done inside children (span wrappers) or by toggling `variant`.
- * Additional small fixes retained:
- *  - Bold header subtitle
- *  - Show All/Hide All toggles visibility only (no refetch)
- *  - Trends counts for Calls/BOP/Follow-ups (0 values hidden by rendering `undefined`)
- *  - Upcoming BOP: compact date inputs, button order, green active Show Results, reliable Show/Hide, Refresh resets to 30-day default
- *  - Search + All Records merged; Show/Hide + Refresh added; filters removed from UI (logic intact)
- *  - Client Progress Summary shown before All Records; value mapping/fallbacks
+ * Notes:
+ * - Fixes Supabase error: "column client_registrations.FollowUp_Date does not exist"
+ *   by removing FollowUp_Date from select() calls (UI-layer only; no backend changes).
+ * - Trends: Refresh now populates data and auto-shows results; zeros hidden from charts.
+ * - Upcoming Meetings: renamed card, union of BOP_Date + Followup_Date within range,
+ *   auto-show on Refresh, and requested column order via preferredOrder.
+ * - Client Progress Summary: Refresh clears filter, fetches, and auto-shows (active/green).
+ * - All Records: removed Go button; Refresh clears search and auto-shows results.
+ * - Header: bold subtitle "Protecting Your Tomorrow"; Logout icon; Show All/Hide All keeps visibility only.
  */
 
 "use client";
@@ -77,7 +77,7 @@ const DATE_TIME_KEYS = new Set([
   "BOP_Date",
   "CalledOn",
   "Followup_Date",
-  "FollowUp_Date",
+  "FollowUp_Date", // kept for forward-compat; not selected anymore
   "Issued",
 ]);
 
@@ -101,6 +101,10 @@ const LABEL_OVERRIDES: Record<string, string> = {
   BOP_Status: "BOP Status",
   Followup_Date: "Follow-Up Date",
   FollowUp_Status: "Follow-Up Status",
+  // Optional labels if present in data:
+  Comment: "Comment",
+  Remark: "Remark",
+  client_status: "Client Status",
 };
 
 function labelFor(key: string) {
@@ -255,7 +259,7 @@ export default function Dashboard() {
     dir: "desc",
   });
 
-  // New: visibility toggle for All Records table
+  // Visibility toggle for All Records table
   const [recordsVisible, setRecordsVisible] = useState(true);
 
   useEffect(() => {
@@ -303,21 +307,18 @@ export default function Dashboard() {
     }
   }
 
-  /** Trends with Calls/BOP/Follow-ups.
-   * We keep the same table/data source (client_registrations).
-   * To fully hide zero points/bars, we convert 0 → `undefined` before rendering.
-   */
+  /** Trends with Calls/BOP/Follow-ups. */
   async function fetchTrends() {
     setTrendLoading(true);
     setError(null);
     try {
       const supabase = getSupabase();
 
-      // Weekly: last 5 weeks (use created_at window to keep original source behavior)
+      // == CHANGE == Remove non-existent FollowUp_Date from select; keep Followup_Date only
       const start = startOfWeek(subWeeks(new Date(), 4), { weekStartsOn: 1 });
       const { data: rows, error: err1 } = await supabase
         .from("client_registrations")
-        .select("created_at, CalledOn, BOP_Date, Followup_Date, FollowUp_Date")
+        .select("created_at, CalledOn, BOP_Date, Followup_Date")
         .gte("created_at", start.toISOString())
         .order("created_at", { ascending: true })
         .limit(100000);
@@ -348,6 +349,7 @@ export default function Dashboard() {
         };
         pushCount((r as any).CalledOn, callsWeek);
         pushCount((r as any).BOP_Date, bopsWeek);
+        // read Followup_Date; also gracefully check FollowUp_Date if ever present
         pushCount((r as any).Followup_Date ?? (r as any).FollowUp_Date, fuWeek);
       }
 
@@ -363,12 +365,12 @@ export default function Dashboard() {
         }))
       );
 
-      // Monthly: current year (use created_at window)
+      // == CHANGE == Monthly: remove FollowUp_Date from select
       const yearStart = startOfYear(new Date());
       const nextYear = addYears(yearStart, 1);
       const { data: rowsY, error: err2 } = await supabase
         .from("client_registrations")
-        .select("created_at, CalledOn, BOP_Date, Followup_Date, FollowUp_Date")
+        .select("created_at, CalledOn, BOP_Date, Followup_Date")
         .gte("created_at", yearStart.toISOString())
         .lt("created_at", nextYear.toISOString())
         .order("created_at", { ascending: true })
@@ -414,6 +416,7 @@ export default function Dashboard() {
     }
   }
 
+  // == CHANGE == Upcoming: fetch BOP_Date OR Followup_Date within range, merge client-side, auto-show on refresh
   async function fetchUpcoming() {
     setUpcomingLoading(true);
     setError(null);
@@ -423,17 +426,55 @@ export default function Dashboard() {
       const end = new Date(rangeEnd);
       const startIso = start.toISOString();
       const endIso = new Date(end.getTime() + 24 * 60 * 60 * 1000).toISOString();
-      let query = supabase
+
+      // Fetch BOP range
+      const { data: bopRows, error: bopErr } = await supabase
         .from("client_registrations")
         .select("*")
         .gte("BOP_Date", startIso)
         .lt("BOP_Date", endIso)
         .limit(5000);
-      query = applySort(query, sortUpcoming);
-      const { data, error } = await query;
-      if (error) throw error;
-      setUpcoming(data ?? []);
-      setUpcomingVisible(true);
+      if (bopErr) throw bopErr;
+
+      // Fetch Follow-up range
+      const { data: fuRows, error: fuErr } = await supabase
+        .from("client_registrations")
+        .select("*")
+        .gte("Followup_Date", startIso)
+        .lt("Followup_Date", endIso)
+        .limit(5000);
+      if (fuErr) throw fuErr;
+
+      // Merge & de-duplicate by id
+      const map = new Map<string, any>();
+      for (const r of bopRows ?? []) map.set(String((r as any).id), r);
+      for (const r of fuRows ?? []) map.set(String((r as any).id), r);
+      let merged = Array.from(map.values());
+
+      // Client-side sort to preserve selected sort option (no backend changes)
+      const asc = sortUpcoming.dir === "asc";
+      const key = sortUpcoming.key;
+      const getVal = (r: any) => {
+        if (key === "client") return `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
+        return r[key];
+      };
+      merged.sort((a: any, b: any) => {
+        const av = getVal(a);
+        const bv = getVal(b);
+        // date/time sort
+        if (key === "created_at" || key === "BOP_Date" || key === "Followup_Date" || key === "CalledOn" || key === "Issued") {
+          const at = av ? new Date(av).getTime() : 0;
+          const bt = bv ? new Date(bv).getTime() : 0;
+          return asc ? at - bt : bt - at;
+        }
+        // string sort
+        return asc
+          ? String(av ?? "").localeCompare(String(bv ?? ""))
+          : String(bv ?? "").localeCompare(String(av ?? ""));
+      });
+
+      setUpcoming(merged);
+      setUpcomingVisible(true); // auto-show after refresh
     } catch (e: any) {
       setError(e?.message ?? "Failed to load upcoming meetings");
     } finally {
@@ -653,7 +694,7 @@ export default function Dashboard() {
         {/* Header */}
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            {/* == CHANGE == Restore logo image */}
+            {/* Logo */}
             <img src="/can-logo.png" className="h-10 w-auto" alt="CAN Financial Solutions" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
@@ -666,7 +707,7 @@ export default function Dashboard() {
             <Button variant="secondary" onClick={toggleAllCards}>
               {allVisible ? "Hide All" : "Show All"}
             </Button>
-            {/* Logout button with icon – NO className on Button */}
+            {/* Logout button with icon */}
             <Button variant="secondary" onClick={logout}>
               <span className="inline-flex items-center gap-2">
                 <svg
@@ -703,7 +744,14 @@ export default function Dashboard() {
             >
               {trendsVisible ? "Hide Results" : "Show Results"}
             </Button>
-            <Button onClick={fetchTrends}>Refresh</Button>
+            {/* == CHANGE == Refresh populates values & auto-shows results */}
+            <Button
+              onClick={() => {
+                fetchTrends().then(() => setTrendsVisible(true));
+              }}
+            >
+              Refresh
+            </Button>
           </div>
 
           {trendsVisible ? (
@@ -762,8 +810,8 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Upcoming Range */}
-        <Card title="Upcoming BOP Meetings (Editable)">
+        {/* == CHANGE == Renamed card */}
+        <Card title="Upcoming Meetings (Editable)">
           {/* compact date inputs & buttons immediately after End Date */}
           <div className="grid md:grid-cols-5 gap-3 items-end">
             <label className="block md:col-span-1">
@@ -787,20 +835,20 @@ export default function Dashboard() {
             </label>
 
             <div className="flex gap-2 md:col-span-3">
-              {/* Refresh: reset to 30 days from today & refetch */}
+              {/* Refresh: reset to 30 days from today & refetch; auto-show results */}
               <Button
                 onClick={() => {
                   const today = new Date();
                   setRangeStart(format(today, "yyyy-MM-dd"));
                   setRangeEnd(format(addDays(today, 30), "yyyy-MM-dd"));
-                  fetchUpcoming();
+                  fetchUpcoming(); // sets upcomingVisible(true) on success
                 }}
                 disabled={upcomingLoading}
               >
                 {upcomingLoading ? "Refreshing…" : "Refresh"}
               </Button>
 
-              {/* Show/Hide Results button (ACTIVE = default primary; INACTIVE = secondary) */}
+              {/* Show/Hide Results button (ACTIVE = primary; INACTIVE = secondary) */}
               <Button
                 onClick={() => setUpcomingVisible((v) => !v)}
                 variant={upcomingVisible ? undefined : "secondary"}
@@ -826,7 +874,28 @@ export default function Dashboard() {
               rows={upcoming}
               savingId={savingId}
               onUpdate={updateCell}
-              preferredOrder={["BOP_Date", "created_at", "BOP_Status", "Followup_Date", "status"]}
+              // == CHANGE == Requested column order; any missing keys will be ignored
+              preferredOrder={[
+                // Client Name is an extraLeftCol (sticky), so start with data columns order:
+                "status",
+                "created_at",
+                "first_name",
+                "last_name",
+                "phone",
+                "email",
+                "CalledOn",
+                "BOP_Date",
+                "BOP_Status",
+                "Followup_Date",
+                "FollowUp_Status",
+                "interest_type",
+                "business_opportunities",
+                "wealth_solutions",
+                "referred_by",
+                "Comment",
+                "Remark",
+                "client_status",
+              ]}
               extraLeftCols={[
                 { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
               ]}
@@ -850,10 +919,22 @@ export default function Dashboard() {
                 setProgressPage(0);
               }}
             />
-            <Button variant="secondary" onClick={fetchProgressSummary} disabled={progressLoading}>
+            {/* == CHANGE == Refresh clears filter & auto-shows results */}
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setProgressFilter("");
+                fetchProgressSummary().then(() => setProgressVisible(true));
+              }}
+              disabled={progressLoading}
+            >
               {progressLoading ? "Loading…" : "Refresh"}
             </Button>
-            <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
+            {/* == CHANGE == Active/Green when visible (primary), secondary when hidden */}
+            <Button
+              variant={progressVisible ? undefined : "secondary"}
+              onClick={() => setProgressVisible((v) => !v)}
+            >
               {progressVisible ? "Hide Table" : "Show Table"}
             </Button>
             <div className="md:ml-auto flex items-center gap-2">
@@ -901,17 +982,21 @@ export default function Dashboard() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
-              <Button onClick={() => loadPage(0)}>Go</Button>
+              {/* == CHANGE == Remove Go button */}
+
+              {/* == CHANGE == Refresh clears search & auto-shows results */}
               <Button
                 variant="secondary"
                 onClick={() => {
                   setQ("");
                   loadPage(0);
+                  setRecordsVisible(true);
                 }}
               >
                 Refresh
               </Button>
-              {/* Active = default (primary); Inactive = secondary */}
+
+              {/* Active = primary; Inactive = secondary */}
               <Button
                 onClick={() => setRecordsVisible((v) => !v)}
                 variant={recordsVisible ? undefined : "secondary"}
