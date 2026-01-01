@@ -1,12 +1,9 @@
-
 /**
  * CAN Financial Solutions — Dashboard (page_2.tsx)
  *
  * Minimal, scoped UI-layer changes requested:
- * - Fix logo rendering (img).
- * - Remove "Last 60 Days (Daily)" graph; keep monthly bar chart.
- * - Remove all buttons from the Trends card.
- * - Change subtitle “Protecting Your Tomorrow” to normal font weight.
+ * - Monthly bar chart uses three distinct colors and shows count numbers:
+ *   Calls (blue), BOP (orange), Follow-ups (green).
  *
  * All other features remain unchanged.
  */
@@ -347,7 +344,7 @@ export default function Dashboard() {
     try {
       const supabase = getSupabase();
 
-      // Daily last 60 days (we still compute, but only the monthly chart is rendered)
+      // Daily last 60 days (still computed, even if only monthly chart is displayed)
       const today = new Date();
       const startDaily = subDays(today, 59);
       const [{ data: callsRows }, { data: bopsRows }, { data: fuRows }] =
@@ -618,7 +615,6 @@ export default function Dashboard() {
         .update(payload)
         .eq("id", id);
       if (error) throw error;
-      // Patch local state immediately
       const patch = (prev: Row[]) =>
         prev.map((r) => (String(r.id) === String(id) ? { ...r, [key]: payload[key] } : r));
       setRecords(patch);
@@ -654,7 +650,6 @@ export default function Dashboard() {
     []
   );
 
-  // Progress filtering/sorting/paging
   const progressFilteredSorted = useMemo(() => {
     const needle = progressFilter.trim().toLowerCase();
     const filtered = (progressRows ?? []).filter((r) => {
@@ -692,7 +687,6 @@ export default function Dashboard() {
     progressPageSafe * PROGRESS_PAGE_SIZE + PROGRESS_PAGE_SIZE
   );
 
-  // Header-wide Show All/Hide All toggle
   const allVisible = trendsVisible && upcomingVisible && progressVisible && recordsVisible;
   const toggleAllCards = () => {
     const target = !allVisible;
@@ -715,7 +709,7 @@ export default function Dashboard() {
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {/* Logo — ensure it shows */}
-            <img src="/can-logo.png" alt="CAN Financial Solutions" className="h-10 w-auto" />
+            /can-logo.png
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
               {/* Subtitle in normal weight */}
@@ -753,31 +747,32 @@ export default function Dashboard() {
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>
         )}
 
-        {/* Trends — buttons removed; only monthly bar chart */}
+        {/* Trends — monthly bar chart (Calls, BOP, Follow-ups) */}
         <Card title="Trends">
           {trendsVisible ? (
             <>
-              {/* Rolling 12 months bar chart */}
-              <div>
-                <div className="text-xs font-semibold text-slate-600 mb-2">Rolling 12 Months</div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthly12}>
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Bar dataKey="calls" fill="#111827">
-                        <LabelList dataKey="calls" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
-                      </Bar>
-                      <Bar dataKey="bops" fill="#374151">
-                        <LabelList dataKey="bops" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
-                      </Bar>
-                      <Bar dataKey="followups" fill="#6b7280">
-                        <LabelList dataKey="followups" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+              {/* Rolling 12 Months */}
+              <div className="text-xs font-semibold text-slate-600 mb-2">Rolling 12 Months</div>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthly12}>
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    {/* Calls = Blue */}
+                    <Bar dataKey="calls" fill="#2563eb">
+                      <LabelList dataKey="calls" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
+                    </Bar>
+                    {/* BOP = Orange */}
+                    <Bar dataKey="bops" fill="#f97316">
+                      <LabelList dataKey="bops" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
+                    </Bar>
+                    {/* Follow-ups = Green */}
+                    <Bar dataKey="followups" fill="#10b981">
+                      <LabelList dataKey="followups" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
               {trendLoading && <div className="mt-2 text-xs text-slate-500">Loading…</div>}
             </>
@@ -838,7 +833,10 @@ export default function Dashboard() {
 
           <div className="flex items-center justify-between mb-2 mt-3">
             <div className="text-sm text-slate-600">Table supports vertical + horizontal scrolling.</div>
-            {sortHelp}
+            <div className="text-xs text-slate-600">
+              Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>,{" "}
+              <b>BOP Status</b>, <b>Follow-Up Date</b>, <b>Status</b>.
+            </div>
           </div>
 
           {upcomingVisible && (
@@ -969,7 +967,10 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-2">
-              {sortHelp}
+              <div className="text-xs text-slate-600">
+                Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>,{" "}
+                <b>BOP Status</b>, <b>Follow-Up Date</b>, <b>Status</b>.
+              </div>
               <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
                 <span className="text-xs font-semibold text-slate-600">Go to page</span>
                 <input
@@ -1023,7 +1024,7 @@ export default function Dashboard() {
                   rows={records}
                   savingId={savingId}
                   onUpdate={updateCell}
-                  extraLeftCols={extraClientCol}
+                  extraLeftCols={[{ label: "Client Name", sortable: "client", render: (r) => clientName(r) }]}
                   maxHeightClass="max-h-[560px]"
                   sortState={sortAll}
                   onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
@@ -1305,6 +1306,41 @@ function ExcelTableEditable({
         return next;
       });
     }
+  };
+
+  const READONLY_LIST_COLS = new Set(["interest_type", "business_opportunities", "wealth_solutions", "preferred_days"]);
+  const STATUS_OPTIONS: Record<string, string[]> = {
+    status: ["", "New Client", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
+    followup_status: ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Closed", "Completed"],
+    "follow-up_status": ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Closed", "Completed"],
+    client_status: [
+      "",
+      "New Client",
+      "Interested",
+      "In-Progress",
+      "Not Interested",
+      "On Hold",
+      "Referral",
+      "Purchased",
+      "Re-Opened",
+      "Completed",
+    ],
+    bop_status: [
+      "",
+      "Presented",
+      "Business",
+      "Client",
+      "In-Progress",
+      "On-Hold",
+      "Clarification",
+      "Not Interested",
+      "Completed",
+      "Closed",
+    ],
+  };
+  const optionsForKey = (k: string): string[] | null => {
+    const lk = k.toLowerCase().replace(/\s+/g, "_");
+    return STATUS_OPTIONS[lk] ?? null;
   };
 
   return (
