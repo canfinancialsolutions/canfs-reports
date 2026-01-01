@@ -714,6 +714,7 @@ export default function Dashboard() {
 
           {trendLoading && <div className="mt-2 text-xs text-slate-500">Loading…</div>}
         
+          </>
         ) : (
           <div className="text-sm text-slate-600">Results are hidden.</div>
         )}
@@ -782,7 +783,6 @@ export default function Dashboard() {
               stickyLeftCount={1}
             />
           </Card>
-        )}
 
         {/* Search */}
         <Card title="Search">
