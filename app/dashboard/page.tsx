@@ -1536,6 +1536,40 @@ function ExcelTableEditable({
                   );
                 }
 
+                // EDITABLE CELLS (Excel-style, live save + dropdowns + retry/undo)
+                const cellId = `${r.id}:${k}`;
+                const isDateTime = DATE_TIME_KEYS.has(k);
+
+                const dropdownOptions = (() => {
+                  const lk = String(k).toLowerCase();
+                  if (lk === 'bop_status' || lk === 'bop status') {
+                    return [
+                      '',
+                      'Presented',
+                      'Business',
+                      'Client',
+                      'In-Progress',
+                      'On-Hold',
+                      'Clarification',
+                      'Not Interested',
+                      'Completed',
+                      'Closed',
+                    ];
+                  }
+                  if (lk === 'followup_status' || lk === 'follow-up status' || lk === 'followup status') {
+                    return ['', 'Open', 'In-Progress', 'Follow-Up', 'Follow-Up 2', 'On Hold', 'Closed', 'Completed'];
+                  }
+                  if (lk === 'status') {
+                    return ['', 'New Client', 'Initiated', 'In-Progress', 'On-Hold', 'Not Interested', 'Completed'];
+                  }
+                  if (lk === 'client_status') {
+                    return ['', 'New Client', 'Interested', 'In-Progress', 'Not Interested', 'On Hold', 'Referral', 'Purchased', 'Re-Opened', 'Completed'];
+                  }
+                  return null;
+                })();
+
+/*
+              
                 // EDITABLE CELLS (Controlled inputs)
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
@@ -1556,7 +1590,8 @@ function ExcelTableEditable({
                     />
                   </td>
                 );
-              })}
+*/
+            })}
             </tr>
           ))}
         </tbody>
