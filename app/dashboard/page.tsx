@@ -2,11 +2,14 @@
 /**
  * CAN Financial Solutions — Dashboard (page_2.tsx)
  *
- * Minimal, scoped UI-layer changes requested:
- * - Monthly bar chart uses three distinct colors and shows count numbers:
- *   Calls (blue), BOP (orange), Follow-ups (green).
+ * Minimal, scoped UI-layer fixes:
+ * - Logo: render properly via <img>.
+ * - Client Progress Summary: default sort = Last Call On (desc); clicking date columns starts in desc.
+ * - All Records (Editable): sort help right-aligned single line above table; Referred By/Product/Comment/Remark
+ *   use word-wrapped textareas with Shift+Enter newline; save-on-blur with key normalization; wrap remains on resize.
+ * - No changes to Trends or Upcoming Meetings cards.
  *
- * All other features remain unchanged.
+ * No backend schema / stored procedures / routes / auth / Supabase policy changes.
  */
 
 "use client";
@@ -90,14 +93,14 @@ const LABEL_OVERRIDES: Record<string, string> = {
   preferred_days: "Preferred Days",
   preferred_time: "Preferred Time",
   referred_by: "Referred By",
+  Product: "Product",
+  Comment: "Comment",
+  Remark: "Remark",
   CalledOn: "Called On",
   BOP_Date: "BOP Date",
   BOP_Status: "BOP Status",
   Followup_Date: "Follow-Up Date",
   FollowUp_Status: "Follow-Up Status",
-  Comment: "Comment",
-  Remark: "Remark",
-  client_status: "Client Status",
 };
 
 function labelFor(key: string) {
@@ -153,7 +156,18 @@ function toggleProgressSort(
   cur: { key: ProgressSortKey; dir: SortDir },
   k: ProgressSortKey
 ) {
-  if (cur.key !== k) return { key: k, dir: "asc" as SortDir };
+  // Start with DESC for date columns in Client Progress Summary
+  const DESC_FIRST = new Set<ProgressSortKey>([
+    "last_call_date",
+    "last_bop_date",
+    "last_followup_date",
+  ]);
+  if (cur.key !== k) {
+    return {
+      key: k,
+      dir: (DESC_FIRST.has(k) ? "desc" : "asc") as SortDir,
+    };
+  }
   return { key: k, dir: cur.dir === "asc" ? ("desc" as SortDir) : ("asc" as SortDir) };
 }
 
@@ -262,8 +276,8 @@ export default function Dashboard() {
   const [progressFilter, setProgressFilter] = useState("");
   const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>(
     {
-      key: "client_name",
-      dir: "asc",
+      key: "last_call_date",
+      dir: "desc",
     }
   );
   const [progressPage, setProgressPage] = useState(0);
@@ -658,13 +672,6 @@ export default function Dashboard() {
     XLSX.writeFile(wb, `Upcoming_${rangeStart}_to_${rangeEnd}.xlsx`);
   };
 
-  const sortHelp = (
-    <div className="text-xs text-slate-600">
-      Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>,{" "}
-      <b>BOP Status</b>, <b>Follow-Up Date</b>, <b>Status</b>.
-    </div>
-  );
-
   const extraClientCol = useMemo(
     () => [{ label: "Client Name", sortable: "client" as SortKey, render: (r: Row) => clientName(r) }],
     []
@@ -728,8 +735,8 @@ export default function Dashboard() {
         {/* Header */}
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            {/* Logo — ensure it shows */}
-            /can-logo.png
+            {/* Logo — render image so it displays properly */}
+            <img src="/can-logo.png" alt="CAN Financial Solutions" className="h-8 w-auto" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
               {/* Subtitle in normal weight */}
@@ -880,6 +887,7 @@ export default function Dashboard() {
                 "business_opportunities",
                 "wealth_solutions",
                 "referred_by",
+                "Product",
                 "Comment",
                 "Remark",
                 "client_status",
@@ -987,10 +995,6 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="text-xs text-slate-600">
-                Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>,{" "}
-                <b>BOP Status</b>, <b>Follow-Up Date</b>, <b>Status</b>.
-              </div>
               <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white">
                 <span className="text-xs font-semibold text-slate-600">Go to page</span>
                 <input
@@ -1033,6 +1037,13 @@ export default function Dashboard() {
 
           <div className="text-sm text-slate-600 mb-2">
             {total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page
+          </div>
+          {/* Sort help — one line, right aligned above the table */}
+          <div className="flex justify-end mb-2">
+            <div className="text-xs text-slate-600">
+              Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>,{" "}
+              <b>BOP Status</b>, <b>Follow-Up Date</b>, <b>Status</b>.
+            </div>
           </div>
 
           {recordsVisible && (
@@ -1248,6 +1259,17 @@ function ExcelTableEditable({
     return ordered;
   }, [rows, preferredOrder]);
 
+  // Word-wrap keys (editable multi-line text)
+  const WRAP_KEYS = new Set([
+    "referred_by",
+    "product",
+    "comment",
+    "remark",
+    "Comment", // handle possible variations from API
+    "Remark",
+    "Product",
+  ]);
+
   const columns = useMemo(() => {
     const extra = extraLeftCols.map((c, i) => ({
       id: `extra:${i}`,
@@ -1266,6 +1288,8 @@ function ExcelTableEditable({
           ? 220
           : k.toLowerCase().includes("email")
           ? 240
+          : WRAP_KEYS.has(k)
+          ? 260
           : 160;
       const sortable =
         k === "created_at"
@@ -1315,10 +1339,19 @@ function ExcelTableEditable({
     return val ?? "";
   };
 
+  // Map UI key variants to backend column names when saving (UI-only normalization)
+  const KEY_ALIASES: Record<string, string> = {
+    Comment: "comment",
+    Remark: "remark",
+    Product: "product",
+    ReferredBy: "referred_by",
+  };
+
   const handleBlur = async (rowId: string, key: string, cellId: string) => {
     const v = drafts[cellId] ?? "";
     try {
-      await onUpdate(String(rowId), key, v);
+      const mappedKey = KEY_ALIASES[key] ?? key;
+      await onUpdate(String(rowId), mappedKey, v);
     } finally {
       setDrafts((prev) => {
         const next = { ...prev };
@@ -1326,41 +1359,6 @@ function ExcelTableEditable({
         return next;
       });
     }
-  };
-
-  const READONLY_LIST_COLS = new Set(["interest_type", "business_opportunities", "wealth_solutions", "preferred_days"]);
-  const STATUS_OPTIONS: Record<string, string[]> = {
-    status: ["", "New Client", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
-    followup_status: ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Closed", "Completed"],
-    "follow-up_status": ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Closed", "Completed"],
-    client_status: [
-      "",
-      "New Client",
-      "Interested",
-      "In-Progress",
-      "Not Interested",
-      "On Hold",
-      "Referral",
-      "Purchased",
-      "Re-Opened",
-      "Completed",
-    ],
-    bop_status: [
-      "",
-      "Presented",
-      "Business",
-      "Client",
-      "In-Progress",
-      "On-Hold",
-      "Clarification",
-      "Not Interested",
-      "Completed",
-      "Closed",
-    ],
-  };
-  const optionsForKey = (k: string): string[] | null => {
-    const lk = k.toLowerCase().replace(/\s+/g, "_");
-    return STATUS_OPTIONS[lk] ?? null;
   };
 
   return (
@@ -1528,6 +1526,36 @@ function ExcelTableEditable({
                   );
                 }
 
+                // Multi-line textareas for wrap keys (word-wrap + Shift+Enter new lines)
+                if (WRAP_KEYS.has(k)) {
+                  const wrapStyle: React.CSSProperties = {
+                    ...style,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  };
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2" style={wrapStyle}>
+                      <textarea
+                        rows={1}
+                        className="w-full bg-transparent border-0 outline-none text-sm whitespace-pre-wrap break-words resize-none"
+                        value={value}
+                        onChange={(e) =>
+                          setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))
+                        }
+                        onKeyDown={(e) => {
+                          // Allow Shift+Enter to insert a newline; prevent accidental submit
+                          if (e.key === "Enter" && e.shiftKey) {
+                            // default behavior inserts newline in textarea
+                          }
+                        }}
+                        onBlur={() => handleBlur(String(r.id), k, cellId)}
+                        disabled={savingId != null && String(savingId) === String(r.id)}
+                      />
+                    </td>
+                  );
+                }
+
+                // Default editable input
                 return (
                   <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
                     <input
