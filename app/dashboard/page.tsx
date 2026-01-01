@@ -1,3 +1,4 @@
+
 /**
  * CAN Financial Solutions — Dashboard (page_2.tsx)
  *
@@ -540,6 +541,7 @@ export default function Dashboard() {
         .order("clientid", { ascending: false })
         .limit(10000);
       if (error) throw error;
+      // UI-only normalization: coalesce alternative field names to our UI keys.
       const rows = (data ?? []).map((r: any) => ({
         clientid: r.clientid,
         client_name: `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim(),
@@ -547,12 +549,29 @@ export default function Dashboard() {
         last_name: r.last_name,
         phone: r.phone,
         email: r.email,
-        last_call_date: r.last_call_date,
-        call_attempts: r.call_attempts,
-        last_bop_date: r.last_bop_date,
-        bop_attempts: r.bop_attempts,
-        last_followup_date: r.last_followup_date,
-        followup_attempts: r.followup_attempts,
+        // Calls
+        last_call_date:
+          r.last_call_date ?? r.last_call_on ?? r.call_last_date ?? r.last_calls_date ?? null,
+        call_attempts:
+          r.call_attempts ?? r.no_of_calls ?? r.calls ?? r.call_count ?? null,
+        // BOP
+        last_bop_date:
+          r.last_bop_date ?? r.last_bop_call_on ?? r.bop_last_date ?? r.last_bop_on ?? null,
+        bop_attempts:
+          r.bop_attempts ?? r.no_of_bop_calls ?? r.bop_calls ?? r.bop_count ?? null,
+        // Follow-up
+        last_followup_date:
+          r.last_followup_date ??
+          r.last_follow_up_on ??
+          r.followup_last_date ??
+          r.last_followup_on ??
+          null,
+        followup_attempts:
+          r.followup_attempts ??
+          r.no_of_followup_calls ??
+          r.follow_up_calls ??
+          r.followup_count ??
+          null,
       }));
       setProgressRows(rows);
       setProgressPage(0);
@@ -615,6 +634,7 @@ export default function Dashboard() {
         .update(payload)
         .eq("id", id);
       if (error) throw error;
+      // Patch local state immediately
       const patch = (prev: Row[]) =>
         prev.map((r) => (String(r.id) === String(id) ? { ...r, [key]: payload[key] } : r));
       setRecords(patch);
