@@ -1,16 +1,18 @@
 
 /**
- * CAN Financial Solutions Dashboard UI — Updated (Minimal Scoped Changes)
+ * CAN Financial Solutions — Dashboard (page.tsx)
  *
- * Notes:
- * - Fixes Supabase error: "column client_registrations.FollowUp_Date does not exist"
- *   by removing FollowUp_Date from select() calls (UI-layer only; no backend changes).
- * - Trends: Refresh now populates data and auto-shows results; zeros hidden from charts.
- * - Upcoming Meetings: renamed card, union of BOP_Date + Followup_Date within range,
- *   auto-show on Refresh, and requested column order via preferredOrder.
- * - Client Progress Summary: Refresh clears filter, fetches, and auto-shows (active/green).
- * - All Records: removed Go button; Refresh clears search and auto-shows results.
- * - Header: bold subtitle "Protecting Your Tomorrow"; Logout icon; Show All/Hide All keeps visibility only.
+ * Minimal, scoped UI-layer fixes:
+ * - Header: bold subtitle “Protecting Your Tomorrow”; Logout button with icon; Show All/Hide All toggle.
+ * - Trends: correct weekly/monthly counts for Calls (CalledOn), BOP (BOP_Date), Follow-up (Followup_Date);
+ *           hide 0 values (render undefined), Refresh auto-shows results.
+ * - Upcoming Meetings (Editable): renamed card; union of BOP_Date + Followup_Date in range; compact date inputs;
+ *           Refresh auto-shows results; requested column order; reliable Show/Hide (green when visible, no-wrap).
+ * - Client Progress Summary: Refresh clears text and auto-shows; Show/Hide (green, no-wrap); smaller search input;
+ *           correct value mapping with clean fallback.
+ * - All Records (Editable): live search while typing (debounced); Show/Hide (green, no-wrap); smaller search input.
+ *
+ * No database schema / stored procedures / routes / auth / Supabase policy changes.
  */
 
 "use client";
@@ -77,7 +79,7 @@ const DATE_TIME_KEYS = new Set([
   "BOP_Date",
   "CalledOn",
   "Followup_Date",
-  "FollowUp_Date", // kept for forward-compat; not selected anymore
+  "FollowUp_Date", // kept for forward-compat in UI only; not selected from DB
   "Issued",
 ]);
 
@@ -291,6 +293,16 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortUpcoming.key, sortUpcoming.dir]);
 
+  // Live search for All Records: re-query as the user types (debounced)
+  useEffect(() => {
+    const id = setTimeout(() => {
+      loadPage(0);
+      setRecordsVisible(true); // auto-show results when typing
+    }, 300);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+
   function applySort(query: any, sort: { key: SortKey; dir: SortDir }) {
     const ascending = sort.dir === "asc";
     if (sort.key === "client")
@@ -314,21 +326,40 @@ export default function Dashboard() {
     try {
       const supabase = getSupabase();
 
-      // == CHANGE == Remove non-existent FollowUp_Date from select; keep Followup_Date only
+      // Weekly (last 5 weeks): per-field queries (avoid non-existent FollowUp_Date)
       const start = startOfWeek(subWeeks(new Date(), 4), { weekStartsOn: 1 });
-      const { data: rows, error: err1 } = await supabase
-        .from("client_registrations")
-        .select("created_at, CalledOn, BOP_Date, Followup_Date")
-        .gte("created_at", start.toISOString())
-        .order("created_at", { ascending: true })
-        .limit(100000);
-      if (err1) throw err1;
+      const [
+        { data: callsRows, error: callsErr },
+        { data: bopRows, error: bopErr },
+        { data: fuRows, error: fuErr },
+      ] = await Promise.all([
+        supabase
+          .from("client_registrations")
+          .select("CalledOn")
+          .gte("CalledOn", start.toISOString())
+          .order("CalledOn", { ascending: true })
+          .limit(50000),
+        supabase
+          .from("client_registrations")
+          .select("BOP_Date")
+          .gte("BOP_Date", start.toISOString())
+          .order("BOP_Date", { ascending: true })
+          .limit(50000),
+        supabase
+          .from("client_registrations")
+          .select("Followup_Date")
+          .gte("Followup_Date", start.toISOString())
+          .order("Followup_Date", { ascending: true })
+          .limit(50000),
+      ]);
+      if (callsErr) throw callsErr;
+      if (bopErr) throw bopErr;
+      if (fuErr) throw fuErr;
 
       const weekEnds: string[] = [];
       const callsWeek = new Map<string, number>();
       const bopsWeek = new Map<string, number>();
       const fuWeek = new Map<string, number>();
-
       for (let i = 4; i >= 0; i--) {
         const wkStart = startOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
         const wkEnd = endOfWeek(wkStart, { weekStartsOn: 1 });
@@ -338,24 +369,18 @@ export default function Dashboard() {
         bopsWeek.set(key, 0);
         fuWeek.set(key, 0);
       }
+      const bumpWeek = (dateVal: any, map: Map<string, number>) => {
+        if (!dateVal) return;
+        const d = parseISO(String(dateVal));
+        if (!isValid(d)) return;
+        const k = format(endOfWeek(d, { weekStartsOn: 1 }), "yyyy-MM-dd");
+        if (map.has(k)) map.set(k, (map.get(k) ?? 0) + 1);
+      };
+      (callsRows ?? []).forEach((r: any) => bumpWeek(r.CalledOn, callsWeek));
+      (bopRows ?? []).forEach((r: any) => bumpWeek(r.BOP_Date, bopsWeek));
+      (fuRows ?? []).forEach((r: any) => bumpWeek(r.Followup_Date, fuWeek));
 
-      for (const r of rows ?? []) {
-        const pushCount = (dateVal: any, map: Map<string, number>) => {
-          if (!dateVal) return;
-          const d = parseISO(String(dateVal));
-          if (!isValid(d)) return;
-          const k = format(endOfWeek(d, { weekStartsOn: 1 }), "yyyy-MM-dd");
-          if (map.has(k)) map.set(k, (map.get(k) ?? 0) + 1);
-        };
-        pushCount((r as any).CalledOn, callsWeek);
-        pushCount((r as any).BOP_Date, bopsWeek);
-        // read Followup_Date; also gracefully check FollowUp_Date if ever present
-        pushCount((r as any).Followup_Date ?? (r as any).FollowUp_Date, fuWeek);
-      }
-
-      // Helper to hide zeros by returning undefined
       const nz = (n: number | undefined) => (n && n !== 0 ? n : undefined);
-
       setWeekly(
         weekEnds.map((weekEnd) => ({
           weekEnd,
@@ -365,17 +390,39 @@ export default function Dashboard() {
         }))
       );
 
-      // == CHANGE == Monthly: remove FollowUp_Date from select
+      // Monthly (current year): per-field queries bounded to the year
       const yearStart = startOfYear(new Date());
       const nextYear = addYears(yearStart, 1);
-      const { data: rowsY, error: err2 } = await supabase
-        .from("client_registrations")
-        .select("created_at, CalledOn, BOP_Date, Followup_Date")
-        .gte("created_at", yearStart.toISOString())
-        .lt("created_at", nextYear.toISOString())
-        .order("created_at", { ascending: true })
-        .limit(200000);
-      if (err2) throw err2;
+      const [
+        { data: callsY, error: callsYErr },
+        { data: bopsY, error: bopsYErr },
+        { data: fuY, error: fuYErr },
+      ] = await Promise.all([
+        supabase
+          .from("client_registrations")
+          .select("CalledOn")
+          .gte("CalledOn", yearStart.toISOString())
+          .lt("CalledOn", nextYear.toISOString())
+          .order("CalledOn", { ascending: true })
+          .limit(200000),
+        supabase
+          .from("client_registrations")
+          .select("BOP_Date")
+          .gte("BOP_Date", yearStart.toISOString())
+          .lt("BOP_Date", nextYear.toISOString())
+          .order("BOP_Date", { ascending: true })
+          .limit(200000),
+        supabase
+          .from("client_registrations")
+          .select("Followup_Date")
+          .gte("Followup_Date", yearStart.toISOString())
+          .lt("Followup_Date", nextYear.toISOString())
+          .order("Followup_Date", { ascending: true })
+          .limit(200000),
+      ]);
+      if (callsYErr) throw callsYErr;
+      if (bopsYErr) throw bopsYErr;
+      if (fuYErr) throw fuYErr;
 
       const y = yearStart.getFullYear();
       const callsMonth = new Map<string, number>();
@@ -387,19 +434,16 @@ export default function Dashboard() {
         bopsMonth.set(k, 0);
         fuMonth.set(k, 0);
       }
-
-      for (const r of rowsY ?? []) {
-        const bump = (dateVal: any, map: Map<string, number>) => {
-          if (!dateVal) return;
-          const d = parseISO(String(dateVal));
-          if (!isValid(d)) return;
-          const k = format(d, "yyyy-MM");
-          if (map.has(k)) map.set(k, (map.get(k) ?? 0) + 1);
-        };
-        bump((r as any).CalledOn, callsMonth);
-        bump((r as any).BOP_Date, bopsMonth);
-        bump((r as any).Followup_Date ?? (r as any).FollowUp_Date, fuMonth);
-      }
+      const bumpMonth = (dateVal: any, map: Map<string, number>) => {
+        if (!dateVal) return;
+        const d = parseISO(String(dateVal));
+        if (!isValid(d)) return;
+        const k = format(d, "yyyy-MM");
+        if (map.has(k)) map.set(k, (map.get(k) ?? 0) + 1);
+      };
+      (callsY ?? []).forEach((r: any) => bumpMonth(r.CalledOn, callsMonth));
+      (bopsY ?? []).forEach((r: any) => bumpMonth(r.BOP_Date, bopsMonth));
+      (fuY ?? []).forEach((r: any) => bumpMonth(r.Followup_Date, fuMonth));
 
       setMonthly(
         Array.from(callsMonth.keys()).map((month) => ({
@@ -416,7 +460,7 @@ export default function Dashboard() {
     }
   }
 
-  // == CHANGE == Upcoming: fetch BOP_Date OR Followup_Date within range, merge client-side, auto-show on refresh
+  // Upcoming: fetch BOP_Date OR Followup_Date within range, merge client-side, auto-show on refresh
   async function fetchUpcoming() {
     setUpcomingLoading(true);
     setError(null);
@@ -698,7 +742,7 @@ export default function Dashboard() {
             <img src="/can-logo.png" className="h-10 w-auto" alt="CAN Financial Solutions" />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
-              {/* == CHANGE == subtitle replaced & bold */}
+              {/* Subtitle (bold) */}
               <div className="text-sm font-bold text-slate-500">Protecting Your Tomorrow</div>
             </div>
           </div>
@@ -707,7 +751,7 @@ export default function Dashboard() {
             <Button variant="secondary" onClick={toggleAllCards}>
               {allVisible ? "Hide All" : "Show All"}
             </Button>
-            {/* Logout button with icon */}
+            {/* Logout button with icon (no className on Button) */}
             <Button variant="secondary" onClick={logout}>
               <span className="inline-flex items-center gap-2">
                 <svg
@@ -744,7 +788,7 @@ export default function Dashboard() {
             >
               {trendsVisible ? "Hide Results" : "Show Results"}
             </Button>
-            {/* == CHANGE == Refresh populates values & auto-shows results */}
+            {/* Refresh populates values & auto-shows results */}
             <Button
               onClick={() => {
                 fetchTrends().then(() => setTrendsVisible(true));
@@ -765,7 +809,7 @@ export default function Dashboard() {
                         <XAxis dataKey="weekEnd" tick={{ fontSize: 11 }} />
                         <YAxis allowDecimals={false} />
                         <Tooltip />
-                        {/* Lines: Calls, BOP, Follow-ups; labels hide zeros; data uses undefined for 0 */}
+                        {/* Lines: Calls, BOP, Follow-ups (hide zeros) */}
                         <Line type="monotone" dataKey="calls" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }}>
                           <LabelList dataKey="calls" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
                         </Line>
@@ -788,7 +832,7 @@ export default function Dashboard() {
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                         <YAxis allowDecimals={false} />
                         <Tooltip />
-                        {/* Bars: Calls, BOP, Follow-ups; labels hide zeros; data uses undefined for 0 */}
+                        {/* Bars: Calls, BOP, Follow-ups (hide zeros) */}
                         <Bar dataKey="calls" fill="#22c55e">
                           <LabelList dataKey="calls" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
                         </Bar>
@@ -810,7 +854,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* == CHANGE == Renamed card */}
+        {/* Renamed card */}
         <Card title="Upcoming Meetings (Editable)">
           {/* compact date inputs & buttons immediately after End Date */}
           <div className="grid md:grid-cols-5 gap-3 items-end">
@@ -848,13 +892,15 @@ export default function Dashboard() {
                 {upcomingLoading ? "Refreshing…" : "Refresh"}
               </Button>
 
-              {/* Show/Hide Results button (ACTIVE = primary; INACTIVE = secondary) */}
+              {/* Show/Hide Results button (ACTIVE = primary; INACTIVE = secondary; no-wrap) */}
               <Button
                 onClick={() => setUpcomingVisible((v) => !v)}
                 variant={upcomingVisible ? undefined : "secondary"}
                 disabled={!upcoming.length && !upcomingVisible}
               >
-                {upcomingVisible ? "Hide Results" : "Show Results"}
+                <span className="whitespace-nowrap">
+                  {upcomingVisible ? "Hide Results" : "Show Results"}
+                </span>
               </Button>
 
               <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>
@@ -874,9 +920,9 @@ export default function Dashboard() {
               rows={upcoming}
               savingId={savingId}
               onUpdate={updateCell}
-              // == CHANGE == Requested column order; any missing keys will be ignored
+              // Requested column order; any missing keys will be ignored
               preferredOrder={[
-                // Client Name is an extraLeftCol (sticky), so start with data columns order:
+                // Client Name is extraLeftCol (sticky); order below covers data columns:
                 "status",
                 "created_at",
                 "first_name",
@@ -910,8 +956,9 @@ export default function Dashboard() {
         {/* Client Progress Summary appears BEFORE All Records */}
         <Card title="Client Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
+            {/* Smaller input to fit buttons in one line */}
             <input
-              className="w-full border border-slate-300 px-4 py-3"
+              className="w-72 border border-slate-300 px-3 py-2"
               placeholder="Filter by client name..."
               value={progressFilter}
               onChange={(e) => {
@@ -919,7 +966,7 @@ export default function Dashboard() {
                 setProgressPage(0);
               }}
             />
-            {/* == CHANGE == Refresh clears filter & auto-shows results */}
+            {/* Refresh clears filter & auto-shows results */}
             <Button
               variant="secondary"
               onClick={() => {
@@ -930,12 +977,14 @@ export default function Dashboard() {
             >
               {progressLoading ? "Loading…" : "Refresh"}
             </Button>
-            {/* == CHANGE == Active/Green when visible (primary), secondary when hidden */}
+            {/* Show/Hide Results active (green) when visible; no-wrap */}
             <Button
               variant={progressVisible ? undefined : "secondary"}
               onClick={() => setProgressVisible((v) => !v)}
             >
-              {progressVisible ? "Hide Table" : "Show Table"}
+              <span className="whitespace-nowrap">
+                {progressVisible ? "Hide Results" : "Show Results"}
+              </span>
             </Button>
             <div className="md:ml-auto flex items-center gap-2">
               <Button
@@ -976,15 +1025,14 @@ export default function Dashboard() {
         <Card title="All Records (Editable)">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
             <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">
+              {/* Smaller input + live search onChange */}
               <input
-                className="w-full border border-slate-300 px-4 py-3"
+                className="w-80 border border-slate-300 px-3 py-2"
                 placeholder="Search by first name, last name, or phone"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
-              {/* == CHANGE == Remove Go button */}
-
-              {/* == CHANGE == Refresh clears search & auto-shows results */}
+              {/* Refresh clears search & auto-shows results */}
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -995,13 +1043,14 @@ export default function Dashboard() {
               >
                 Refresh
               </Button>
-
-              {/* Active = primary; Inactive = secondary */}
+              {/* Show/Hide Results with no-wrap, green when visible */}
               <Button
                 onClick={() => setRecordsVisible((v) => !v)}
                 variant={recordsVisible ? undefined : "secondary"}
               >
-                {recordsVisible ? "Hide Results" : "Show Results"}
+                <span className="whitespace-nowrap">
+                  {recordsVisible ? "Hide Results" : "Show Results"}
+                </span>
               </Button>
             </div>
 
