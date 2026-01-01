@@ -1536,7 +1536,17 @@ function ExcelTableEditable({
                   );
                 }
 
-                // EDITABLE CELLS (Excel-style, live save + dropdowns + retry/undo)
+          
+ 
+              
+                // EDITABLE CELLS (Controlled inputs)
+                const cellId = `${r.id}:${k}`;
+                const isDateTime = DATE_TIME_KEYS.has(k);
+                const value =
+                  drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
+--
+
+   // EDITABLE CELLS (Excel-style, live save + dropdowns + retry/undo)
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
 
@@ -1568,14 +1578,31 @@ function ExcelTableEditable({
                   return null;
                 })();
 
- 
-              
-                // EDITABLE CELLS (Controlled inputs)
-                const cellId = `${r.id}:${k}`;
-                const isDateTime = DATE_TIME_KEYS.has(k);
-                const value =
-                  drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
+                const base = String(getCellValueForInput(r, k));
+                const value = drafts[cellId] !== undefined ? String(drafts[cellId]) : base;
+                const st = cellState[cellId] ?? 'idle';
 
+                const onValueChange = (next: string) => {
+                  // keep last edit for undo (Ctrl+Z)
+                  lastEditRef.current = { cellId, id: String(r.id), key: k, prevValue: base };
+                  setDrafts((prev) => ({ ...prev, [cellId]: next }));
+                  scheduleCommit(String(r.id), k, cellId, next);
+                };
+
+                const onKeyDown = (e: React.KeyboardEvent) => {
+                  // Undo last edit
+                  if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+                    const last = lastEditRef.current;
+                    if (last && last.cellId === cellId) {
+                      e.preventDefault();
+                      setDrafts((prev) => ({ ...prev, [cellId]: last.prevValue }));
+                      void commitCell(last.id, last.key, last.cellId, last.prevValue);
+                    }
+                    return;
+                  }
+                };
+
+--  
                 return (
                   <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
                     <input
