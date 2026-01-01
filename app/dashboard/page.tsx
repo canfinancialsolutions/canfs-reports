@@ -194,6 +194,8 @@ export default function Dashboard() {
   const [weekly, setWeekly] = useState<{ weekEnd: string; prospects: number; bops: number }[]>([]);
   const [monthly, setMonthly] = useState<{ month: string; prospects: number; bops: number }[]>([]);
   const [trendLoading, setTrendLoading] = useState(false);
+  // Toggle for Trends card results (Show/Hide)
+  const [trendsVisible, setTrendsVisible] = useState(false);
 
   // Upcoming
   const [rangeStart, setRangeStart] = useState(format(new Date(), "yyyy-MM-dd"));
