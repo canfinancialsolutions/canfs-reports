@@ -1601,9 +1601,38 @@ function ExcelTableEditable({
                     return;
                   }
                 };
+ return (
+                  <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
+                    <div className="flex items-center gap-2">
+                      {dropdownOptions ? (
+                        <select
+                          className="w-full bg-transparent border border-slate-200 rounded px-2 py-1 text-sm"
+                          value={value}
+                          onChange={(e) => onValueChange(e.target.value)}
+                          onBlur={() => flushCommit(String(r.id), k, cellId)}
+                          onKeyDown={onKeyDown}
+                          disabled={savingId != null && String(savingId) === String(r.id)}
+                        >
+                          {dropdownOptions.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt === '' ? '—' : opt}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={isDateTime ? 'datetime-local' : 'text'}
+                          className="w-full bg-transparent border border-slate-200 rounded px-2 py-1 text-sm"
+                          value={value}
+                          onChange={(e) => onValueChange(e.target.value)}
+                          onBlur={() => flushCommit(String(r.id), k, cellId)}
+                          onKeyDown={onKeyDown}
+                          disabled={savingId != null && String(savingId) === String(r.id)}
+                        />
+                      )}
 
 --  
-                return (
+        /*        return (
                   <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
                     <input
                       type={isDateTime ? "datetime-local" : "text"}
@@ -1617,7 +1646,7 @@ function ExcelTableEditable({
                     />
                   </td>
                 );
- 
+ */
             })}
             </tr>
           ))}
