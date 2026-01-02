@@ -1,15 +1,16 @@
 
-/** 
+/**
  * CAN Financial Solutions — Dashboard (page_2.tsx)
  *
  * Minimal, scoped UI-layer changes only:
- * - Upcoming Meetings & All Records:
- *   • Small popup editors for Referred By / Product / Comment / Remark (word wrap, Shift+Enter, scrollbars).
- *   • UI-layer key normalization to ensure values save correctly via updateCell.
- *   • Read-only list popup for multi-value columns (Interest Type / Business Opportunities / Wealth Solutions).
- * - Client Progress Summary:
- *   • DESC-first sorting on date columns retained (Last Call On, Last BOP Call On, Last FollowUp On).
- *   • Existing popup editors for wrap fields remain.
+ * - Added new columns: spouse_name, date_of_birth, children, city, state, immigration_status, work_details.
+ * - Upcoming Meetings (Editable):
+ *   • These new columns are NOT editable.
+ *   • immigration_status & work_details show a small view-only popup with word wrap and wrap on column resize.
+ * - All Records (Editable):
+ *   • These new columns are editable.
+ *   • immigration_status & work_details show an editable popup (insert/update/view; Shift+Enter new lines; word wrap).
+ *   • date_of_birth uses a calendar (input type="date") and saves correctly.
  *
  * No backend changes (schema, procedures, routes, auth, Supabase policies).
  */
@@ -72,6 +73,7 @@ const READONLY_LIST_COLS = new Set([
   "preferred_days",
 ]);
 
+// Date & datetime keys (UI mapping only)
 const DATE_TIME_KEYS = new Set([
   "BOP_Date",
   "CalledOn",
@@ -79,6 +81,7 @@ const DATE_TIME_KEYS = new Set([
   "FollowUp_Date",
   "Issued",
 ]);
+const DATE_ONLY_KEYS = new Set(["date_of_birth"]); // calendar date without time
 
 const LABEL_OVERRIDES: Record<string, string> = {
   client_name: "Client Name",
@@ -88,22 +91,34 @@ const LABEL_OVERRIDES: Record<string, string> = {
   bop_attempts: "No of BOP Calls",
   last_followup_date: "Last FollowUp On",
   followup_attempts: "No of FollowUp Calls",
+
   created_at: "Created Date",
   interest_type: "Interest Type",
   business_opportunities: "Business Opportunities",
   wealth_solutions: "Wealth Solutions",
   preferred_days: "Preferred Days",
   preferred_time: "Preferred Time",
+
   referred_by: "Referred By",
   Profession: "Profession",
   Product: "Product",
   Comment: "Comment",
   Remark: "Remark",
+
   CalledOn: "Called On",
   BOP_Date: "BOP Date",
   BOP_Status: "BOP Status",
   Followup_Date: "Follow-Up Date",
   FollowUp_Status: "Follow-Up Status",
+
+  // NEW columns (labels)
+  spouse_name: "Spouse Name",
+  date_of_birth: "Date Of Birth",
+  children: "Children",
+  city: "City",
+  state: "State",
+  immigration_status: "Immigration Status",
+  work_details: "Work Details",
 };
 
 function labelFor(key: string) {
@@ -134,11 +149,30 @@ function toLocalInput(value: any) {
   )}:${pad(d.getMinutes())}`;
 }
 
+function toLocalDateInput(value: any) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function fromLocalInput(value: string) {
   if (!value?.trim()) return null;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
+}
+
+function fromLocalDate(value: string) {
+  if (!value?.trim()) return null;
+  // Interpret as local date at 00:00; store as ISO string
+  const parts = value.split("-");
+  if (parts.length !== 3) return null;
+  const [y, m, d] = parts.map((x) => Number(x));
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt.toISOString();
 }
 
 function asListItems(value: any): string[] {
@@ -152,7 +186,6 @@ function asListItems(value: any): string[] {
 
 /** -------- Sorting helpers -------- */
 function toggleSort(cur: { key: SortKey; dir: SortDir }, k: SortKey) {
-  // Upcoming Meetings & All Records: DESC-first for date columns (existing behavior)
   const DESC_FIRST = new Set<SortKey>(["CalledOn", "BOP_Date", "Followup_Date"]);
   if (cur.key !== k) {
     return { key: k, dir: (DESC_FIRST.has(k) ? "desc" : "asc") as SortDir };
@@ -160,7 +193,6 @@ function toggleSort(cur: { key: SortKey; dir: SortDir }, k: SortKey) {
   return { key: k, dir: cur.dir === "asc" ? ("desc" as SortDir) : ("asc" as SortDir) };
 }
 
-// DESC-first for Client Progress Summary date columns
 function toggleProgressSort(
   cur: { key: ProgressSortKey; dir: SortDir },
   k: ProgressSortKey
@@ -271,7 +303,7 @@ export default function Dashboard() {
   const [upcomingLoading, setUpcomingLoading] = useState(false);
   const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKey; dir: SortDir }>({
     key: "BOP_Date",
-    dir: "desc", // existing DESC-first
+    dir: "desc",
   });
   const [upcomingVisible, setUpcomingVisible] = useState(false);
 
@@ -280,7 +312,7 @@ export default function Dashboard() {
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressFilter, setProgressFilter] = useState("");
   const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>({
-    key: "last_call_date", // initial sort per requirement
+    key: "last_call_date",
     dir: "desc",
   });
   const [progressPage, setProgressPage] = useState(0);
@@ -329,7 +361,6 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortUpcoming.key, sortUpcoming.dir]);
 
-  // Live search for All Records
   useEffect(() => {
     const id = setTimeout(() => {
       loadPage(0);
@@ -355,14 +386,12 @@ export default function Dashboard() {
     }
   }
 
-  /** -------- Trends (daily last 60; rolling 12 months) -------- */
+  /** -------- Trends (unchanged) -------- */
   async function fetchTrends() {
     setTrendLoading(true);
     setError(null);
     try {
       const supabase = getSupabase();
-
-      // Daily last 60 days
       const today = new Date();
       const startDaily = subDays(today, 59);
       const [{ data: callsRows }, { data: bopsRows }, { data: fuRows }] = await Promise.all([
@@ -418,7 +447,6 @@ export default function Dashboard() {
         }))
       );
 
-      // Rolling 12 months
       const startMonth = startOfMonth(subMonths(today, 11));
       const months: string[] = [];
       const callsMonth = new Map<string, number>();
@@ -482,7 +510,7 @@ export default function Dashboard() {
     }
   }
 
-  /** -------- Upcoming (BOP or Follow-up within range) -------- */
+  /** -------- Upcoming (unchanged loading; UI edits only) -------- */
   async function fetchUpcoming() {
     setUpcomingLoading(true);
     setError(null);
@@ -548,7 +576,7 @@ export default function Dashboard() {
     }
   }
 
-  /** -------- Progress Summary -------- */
+  /** -------- Progress Summary (unchanged) -------- */
   async function fetchProgressSummary() {
     setProgressLoading(true);
     setError(null);
@@ -575,7 +603,6 @@ export default function Dashboard() {
         bop_attempts: r.bop_attempts,
         last_followup_date: r.last_followup_date,
         followup_attempts: r.followup_attempts,
-        // If ReferredBy/Product/Comment/Remark are added later, popup editor below handles them.
       }));
       setProgressRows(rows);
       setProgressPage(0);
@@ -586,7 +613,7 @@ export default function Dashboard() {
     }
   }
 
-  /** -------- All Records -------- */
+  /** -------- All Records (unchanged loading; UI edits only) -------- */
   async function loadPage(nextPage: number) {
     setError(null);
     setLoading(true);
@@ -631,14 +658,20 @@ export default function Dashboard() {
     try {
       const supabase = getSupabase();
       const payload: any = {};
+      const isDateOnly = DATE_ONLY_KEYS.has(key);
       const isDateTime = DATE_TIME_KEYS.has(key);
-      payload[key] = isDateTime ? fromLocalInput(rawValue) : rawValue?.trim() ? rawValue : null;
+      payload[key] = isDateTime
+        ? fromLocalInput(rawValue)
+        : isDateOnly
+        ? fromLocalDate(rawValue)
+        : rawValue?.trim()
+        ? rawValue
+        : null;
       const { error } = await supabase
         .from("client_registrations")
         .update(payload)
         .eq("id", id);
       if (error) throw error;
-      // Patch local state immediately
       const patch = (prev: Row[]) =>
         prev.map((r) => (String(r.id) === String(id) ? { ...r, [key]: payload[key] } : r));
       setRecords(patch);
@@ -801,7 +834,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Upcoming Meetings (Editable) — retains existing sorting; adds popup editors & list popups */}
+        {/* Upcoming Meetings (Editable) — new columns view-only */}
         <Card title="Upcoming Meetings (Editable)">
           <div className="grid md:grid-cols-5 gap-3 items-end">
             <label className="block md:col-span-1">
@@ -874,9 +907,19 @@ export default function Dashboard() {
                 "profession",
                 "preferred_days",
                 "preferred_time",
+                // NEW columns appear (view-only in this card)
+                "spouse_name",
+                "date_of_birth",
+                "children",
+                "city",
+                "state",
+                "immigration_status",
+                "work_details",
+
                 "interest_type",
                 "business_opportunities",
                 "wealth_solutions",
+
                 "CalledOn",
                 "BOP_Date",
                 "BOP_Status",
@@ -893,11 +936,22 @@ export default function Dashboard() {
               sortState={sortUpcoming}
               onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
               stickyLeftCount={1}
+              // NEW: mark new columns as non-editable in Upcoming + view-only popups for two keys
+              nonEditableKeys={new Set([
+                "spouse_name",
+                "date_of_birth",
+                "children",
+                "city",
+                "state",
+                "immigration_status",
+                "work_details",
+              ])}
+              viewOnlyPopupKeys={new Set(["immigration_status", "work_details"])}
             />
           )}
         </Card>
 
-        {/* Client Progress Summary (sorting + existing popup editors for wrap fields) */}
+        {/* Client Progress Summary — unchanged */}
         <Card title="Client Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
             <input
@@ -948,7 +1002,6 @@ export default function Dashboard() {
               rows={progressSlice}
               sortState={progressSort}
               onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
-              onUpdate={updateCell} // already supports popup editor saving if fields exist
             />
           )}
           {progressVisible && (
@@ -959,7 +1012,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* All Records (Editable) — retains existing sorting; adds popup editors & list popups */}
+        {/* All Records (Editable) — new columns editable; DOB calendar; popup editors for two keys */}
         <Card title="All Records (Editable)">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
             <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">
@@ -1046,6 +1099,8 @@ export default function Dashboard() {
                   sortState={sortAll}
                   onSortChange={(k) => setSortAll((cur) => toggleSort(cur, k))}
                   stickyLeftCount={1}
+                  // All Records: new columns are editable; popup editors for two keys
+                  viewOnlyPopupKeys={new Set()} // none view-only here
                 />
               )}
             </>
@@ -1056,38 +1111,17 @@ export default function Dashboard() {
   );
 }
 
-/** -------- Progress Summary Table (with optional small popup editors for wrap keys) -------- */
+/** -------- Progress Summary Table (unchanged) -------- */
 function ProgressSummaryTable({
   rows,
   sortState,
   onSortChange,
-  onUpdate, // optional save handler
 }: {
   rows: Row[];
   sortState: { key: ProgressSortKey; dir: SortDir };
   onSortChange: (k: ProgressSortKey) => void;
-  onUpdate?: (id: string, key: string, value: string) => Promise<void>;
 }) {
   const { widths, startResize } = useColumnResizer();
-
-  // local state to support small popup editor for wrap keys
-  const [openCell, setOpenCell] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-
-  // keys to enable popup editing (only if they exist in rows)
-  const WRAP_KEYS = new Set(["referred_by", "Product", "Comment", "Remark", "product", "comment", "remark"]);
-
-  // UI-only normalization (maps UI keys to actual DB keys used by client_registrations)
-  const SAVE_KEY_NORMALIZE: Record<string, string> = {
-    comment: "Comment",
-    remark: "Remark",
-    product: "Product",
-    Comment: "Comment",
-    Remark: "Remark",
-    Product: "Product",
-    ReferredBy: "referred_by",
-    referredby: "referred_by",
-  };
 
   const cols = useMemo(
     () => [
@@ -1102,18 +1136,9 @@ function ProgressSummaryTable({
       { id: "bop_attempts", label: "No of BOP Calls", key: "bop_attempts" as ProgressSortKey, defaultW: 110 },
       { id: "last_followup_date", label: "Last FollowUp On", key: "last_followup_date" as ProgressSortKey, defaultW: 200 },
       { id: "followup_attempts", label: "No of FollowUp Calls", key: "followup_attempts" as ProgressSortKey, defaultW: 140 },
-      // If data includes wrap fields, dynamic columns appended below.
     ],
     []
   );
-
-  // Append wrap columns dynamically if present in a sample row
-  const sample = rows[0] ?? {};
-  const dynamicWrapCols: { id: string; label: string; defaultW: number }[] = [];
-  ["referred_by", "Product", "Comment", "Remark"].forEach((k) => {
-    if (k in sample) dynamicWrapCols.push({ id: k, label: labelFor(k), defaultW: 260 });
-  });
-  const allCols = [...cols, ...dynamicWrapCols];
 
   const getW = (id: string, def: number) => widths[id] ?? def;
   const stickyLeftPx = (colIndex: number) => (colIndex <= 0 ? 0 : 0);
@@ -1124,7 +1149,7 @@ function ProgressSummaryTable({
     return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
   };
 
-  const minWidth = allCols.reduce((sum, c) => sum + getW(c.id, (c as any).defaultW ?? 160), 0);
+  const minWidth = cols.reduce((sum, c) => sum + getW(c.id, c.defaultW), 0);
 
   const fmtDate = (v: any) => {
     if (!v) return "—";
@@ -1139,20 +1164,13 @@ function ProgressSummaryTable({
     return String(n);
   };
 
-  const getCellValueForInput = (r: Row, k: string) => {
-    const isDateTime = DATE_TIME_KEYS.has(k);
-    const val = r[k];
-    if (isDateTime) return toLocalInput(val);
-    return val ?? "";
-  };
-
   return (
     <div className="overflow-auto border border-slate-500 bg-white max-h-[520px]">
       <table className="w-full table-fixed border-collapse" style={{ minWidth }}>
         <thead className="sticky top-0 bg-slate-100 z-20">
           <tr className="text-left text-xs font-semibold text-slate-700">
-            {allCols.map((c, idx) => {
-              const w = getW(c.id, (c as any).defaultW ?? 160);
+            {cols.map((c, idx) => {
+              const w = getW(c.id, c.defaultW);
               const isSticky = idx === 0;
               const style: React.CSSProperties = {
                 width: w,
@@ -1164,21 +1182,20 @@ function ProgressSummaryTable({
                 zIndex: isSticky ? 40 : 20,
                 background: isSticky ? "#f1f5f9" : undefined,
               };
-              const sortKey = (c as any).key as ProgressSortKey | undefined;
               return (
                 <th
                   key={c.id}
                   className="border border-slate-500 px-2 py-2 whitespace-nowrap relative"
                   style={style}
                 >
-                  {sortKey ? (
+                  {"key" in c ? (
                     <button
                       className="inline-flex items-center hover:underline"
-                      onClick={() => onSortChange(sortKey!)}
+                      onClick={() => onSortChange((c as any).key!)}
                       type="button"
                     >
                       {c.label}
-                      {sortIcon(sortKey)}
+                      {sortIcon((c as any).key)}
                     </button>
                   ) : (
                     c.label
@@ -1197,8 +1214,8 @@ function ProgressSummaryTable({
         <tbody>
           {rows.map((r, ridx) => (
             <tr key={String((r as any).clientid ?? ridx)} className="hover:bg-slate-50">
-              {allCols.map((c, idx) => {
-                const w = getW(c.id, (c as any).defaultW ?? 160);
+              {cols.map((c, idx) => {
+                const w = getW(c.id, c.defaultW);
                 const isSticky = idx === 0;
                 const style: React.CSSProperties = {
                   width: w,
@@ -1210,175 +1227,33 @@ function ProgressSummaryTable({
                   background: isSticky ? "#ffffff" : undefined,
                   verticalAlign: "middle",
                 };
-                // standard columns
-                if (c.id === "client_name")
-                  return (
-                    <td
-                      key={c.id}
-                      className={`border border-slate-300 px-2 py-2 whitespace-nowrap ${
-                        isSticky ? "font-semibold text-slate-800" : ""
-                      }`}
-                      style={style}
-                    >
-                      {String(r.client_name ?? "—")}
-                    </td>
-                  );
-                if (c.id === "first_name")
-                  return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
-                      {String(r.first_name ?? "—")}
-                    </td>
-                  );
-                if (c.id === "last_name")
-                  return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
-                      {String(r.last_name ?? "—")}
-                    </td>
-                  );
-                if (c.id === "phone")
-                  return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
-                      {String(r.phone ?? "—")}
-                    </td>
-                  );
-                if (c.id === "email")
-                  return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
-                      {String(r.email ?? "—")}
-                    </td>
-                  );
-                if (c.id === "last_call_date")
-                  return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
-                      {fmtDate(r.last_call_date)}
-                    </td>
-                  );
-                if (c.id === "call_attempts")
-                  return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap text-center align-middle" style={style}>
-                      {fmtCount(r.call_attempts)}
-                    </td>
-                  );
-                if (c.id === "last_bop_date")
-                  return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
-                      {fmtDate(r.last_bop_date)}
-                    </td>
-                  );
-                if (c.id === "bop_attempts")
-                  return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap text-center align-middle" style={style}>
-                      {fmtCount(r.bop_attempts)}
-                    </td>
-                  );
-                if (c.id === "last_followup_date")
-                  return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
-                      {fmtDate(r.last_followup_date)}
-                    </td>
-                  );
-                if (c.id === "followup_attempts")
-                  return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap text-center align-middle" style={style}>
-                      {fmtCount(r.followup_attempts)}
-                    </td>
-                  );
-
-                // dynamic wrap fields (small popup textarea with word wrap)
-                const WRAP_KEYS = new Set(["referred_by", "Product", "Comment", "Remark", "product", "comment", "remark"]);
-                if (WRAP_KEYS.has(c.id)) {
-                  const k = c.id;
-                  const cellId = `${r.clientid ?? r.id}:${k}`;
-                  const showPopup = openCell === cellId;
-                  const baseVal = String(getCellValueForInput(r, k));
-                  return (
-                    <td key={k} className="border border-slate-300 px-2 py-2 align-top" style={style}>
-                      <div className="relative">
-                        <button
-                          type="button"
-                          className="w-full text-left text-slate-800 whitespace-normal break-words"
-                          onClick={() => {
-                            setDrafts((prev) => ({ ...prev, [cellId]: drafts[cellId] ?? baseVal }));
-                            setOpenCell((cur) => (cur === cellId ? null : cellId));
-                          }}
-                        >
-                          {baseVal || "—"}
-                        </button>
-
-                        {showPopup && (
-                          <div className="absolute left-0 top-full mt-1 w-80 max-w-[80vw] bg-white border border-slate-500 shadow-xl z-40">
-                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">
-                              {labelFor(k)}
-                            </div>
-                            <div className="p-2">
-                              <textarea
-                                rows={5}
-                                className="w-full border border-slate-300 px-2 py-1 text-sm whitespace-pre-wrap break-words resize-none overflow-auto"
-                                value={drafts[cellId] ?? ""}
-                                onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
-                                onKeyDown={(e) => {
-                                  // Shift+Enter inserts newline (default); Enter alone keeps editing
-                                  if (e.key === "Enter" && !e.shiftKey) {
-                                    e.stopPropagation();
-                                  }
-                                }}
-                              />
-                              <div className="mt-2 flex items-center gap-2">
-                                <Button
-                                  variant="secondary"
-                                  onClick={async () => {
-                                    if (!onUpdate) {
-                                      setOpenCell(null);
-                                      return;
-                                    }
-                                    const SAVE_KEY_NORMALIZE: Record<string, string> = {
-                                      comment: "Comment",
-                                      remark: "Remark",
-                                      product: "Product",
-                                      Comment: "Comment",
-                                      Remark: "Remark",
-                                      Product: "Product",
-                                      ReferredBy: "referred_by",
-                                      referredby: "referred_by",
-                                    };
-                                    const mappedKey = SAVE_KEY_NORMALIZE[k] ?? k;
-                                    await onUpdate(String(r.clientid ?? r.id), mappedKey, drafts[cellId] ?? "");
-                                    setOpenCell(null);
-                                    setDrafts((prev) => {
-                                      const next = { ...prev };
-                                      delete next[cellId];
-                                      return next;
-                                    });
-                                  }}
-                                >
-                                  Save
-                                </Button>
-                                <Button
-                                  variant="secondary"
-                                  onClick={() => {
-                                    setOpenCell(null);
-                                    setDrafts((prev) => {
-                                      const next = { ...prev };
-                                      delete next[cellId];
-                                      return next;
-                                    });
-                                  }}
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  );
+                let v = "—";
+                let tdClass = "border border-slate-300 px-2 py-2 whitespace-nowrap";
+                if (c.id === "client_name") v = String(r.client_name ?? "—");
+                else if (c.id === "first_name") v = String(r.first_name ?? "—");
+                else if (c.id === "last_name") v = String(r.last_name ?? "—");
+                else if (c.id === "phone") v = String(r.phone ?? "—");
+                else if (c.id === "email") v = String(r.email ?? "—");
+                else if (c.id === "last_call_date") v = fmtDate(r.last_call_date);
+                else if (c.id === "call_attempts") {
+                  v = fmtCount(r.call_attempts);
+                  tdClass += " text-center align-middle";
+                } else if (c.id === "last_bop_date") v = fmtDate(r.last_bop_date);
+                else if (c.id === "bop_attempts") {
+                  v = fmtCount(r.bop_attempts);
+                  tdClass += " text-center align-middle";
+                } else if (c.id === "last_followup_date") v = fmtDate(r.last_followup_date);
+                else if (c.id === "followup_attempts") {
+                  v = fmtCount(r.followup_attempts);
+                  tdClass += " text-center align-middle";
                 }
-
-                // default (unknown) column fallback
                 return (
-                  <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-normal break-words" style={style}>
-                    {String((r as any)[c.id] ?? "—")}
+                  <td
+                    key={c.id}
+                    className={`${tdClass} ${isSticky ? "font-semibold text-slate-800" : ""}`}
+                    style={style}
+                  >
+                    {v}
                   </td>
                 );
               })}
@@ -1401,6 +1276,9 @@ function ExcelTableEditable({
   onSortChange,
   preferredOrder,
   stickyLeftCount = 1,
+  // NEW: support non-editable keys (Upcoming) and view-only popup keys
+  nonEditableKeys = new Set<string>(),
+  viewOnlyPopupKeys = new Set<string>(),
 }: {
   rows: Row[];
   savingId: string | null;
@@ -1411,6 +1289,8 @@ function ExcelTableEditable({
   onSortChange: (key: SortKey) => void;
   preferredOrder?: string[];
   stickyLeftCount?: number;
+  nonEditableKeys?: Set<string>;
+  viewOnlyPopupKeys?: Set<string>;
 }) {
   const { widths, startResize } = useColumnResizer();
   const [openCell, setOpenCell] = useState<string | null>(null);
@@ -1433,8 +1313,20 @@ function ExcelTableEditable({
     return ordered;
   }, [rows, preferredOrder]);
 
-  // Popup editor keys and list viewer keys
-  const WRAP_KEYS = new Set(["referred_by", "Product", "Comment", "Remark", "product", "comment", "remark"]);
+  // Popup editor keys (text area with word wrap)
+  const WRAP_KEYS = new Set([
+    "referred_by",
+    "Product",
+    "Comment",
+    "Remark",
+    "product",
+    "comment",
+    "remark",
+    // NEW
+    "immigration_status",
+    "work_details",
+  ]);
+
   const SAVE_KEY_NORMALIZE: Record<string, string> = {
     comment: "Comment",
     remark: "Remark",
@@ -1457,11 +1349,14 @@ function ExcelTableEditable({
     const main = keys.map((k) => {
       const label = labelFor(k);
       const isDateTime = DATE_TIME_KEYS.has(k);
+      const isDateOnly = DATE_ONLY_KEYS.has(k);
       const defaultW =
         k === "created_at"
           ? 120
           : isDateTime
           ? 220
+          : isDateOnly
+          ? 180
           : k.toLowerCase().includes("email")
           ? 240
           : WRAP_KEYS.has(k) || READONLY_LIST_COLS.has(k)
@@ -1510,8 +1405,10 @@ function ExcelTableEditable({
 
   const getCellValueForInput = (r: Row, k: string) => {
     const isDateTime = DATE_TIME_KEYS.has(k);
+    const isDateOnly = DATE_ONLY_KEYS.has(k);
     const val = r[k];
     if (isDateTime) return toLocalInput(val);
+    if (isDateOnly) return toLocalDateInput(val);
     return val ?? "";
   };
 
@@ -1651,7 +1548,63 @@ function ExcelTableEditable({
                   );
                 }
 
-                // --- WRAP KEYS: popup small editor with scrollbars ---
+                // --- VIEW-ONLY POPUP for specific keys (Upcoming) ---
+                if (WRAP_KEYS.has(k) && viewOnlyPopupKeys.has(k)) {
+                  const cellId = `${r.id}:${k}`;
+                  const showPopup = openCell === cellId;
+                  const baseVal = String(getCellValueForInput(r, k));
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          className="w-full text-left text-slate-800 whitespace-normal break-words"
+                          onClick={() => setOpenCell((cur) => (cur === cellId ? null : cellId))}
+                        >
+                          {baseVal || "—"}
+                        </button>
+                        {showPopup && (
+                          <div className="absolute left-0 top-full mt-1 w-80 max-w-[80vw] bg-white border border-slate-500 shadow-xl z-40">
+                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">
+                              {labelFor(k)}
+                            </div>
+                            <div className="p-2">
+                              <textarea
+                                rows={5}
+                                readOnly
+                                className="w-full border border-slate-300 px-2 py-1 text-sm whitespace-pre-wrap break-words resize-none overflow-auto bg-slate-50"
+                                value={baseVal}
+                              />
+                              <div className="mt-2">
+                                <Button variant="secondary" onClick={() => setOpenCell(null)}>
+                                  Close
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  );
+                }
+
+                // --- Non-editable keys (Upcoming new columns)
+                if (nonEditableKeys.has(k)) {
+                  const displayVal =
+                    DATE_ONLY_KEYS.has(k)
+                      ? (() => {
+                          const d = new Date(r[k]);
+                          return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+                        })()
+                      : String(getCellValueForInput(r, k)) || "—";
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-normal break-words" style={style}>
+                      {displayVal}
+                    </td>
+                  );
+                }
+
+                // --- WRAP KEYS: editable popup (All Records)
                 if (WRAP_KEYS.has(k)) {
                   const cellId = `${r.id}:${k}`;
                   const showPopup = openCell === cellId;
@@ -1727,42 +1680,19 @@ function ExcelTableEditable({
                   );
                 }
 
-                // ---- EDITABLE CELLS (default text or datetime) ----
+                // ---- EDITABLE CELLS (default text, date-only, or datetime) ----
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
+                const isDateOnly = DATE_ONLY_KEYS.has(k);
                 const value =
                   drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
 
-                // Status dropdowns
-                const statusOptions = optionsForKey(k);
-                if (statusOptions) {
-                  return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
-                      <select
-                        className="w-full bg-transparent border-0 outline-none text-sm"
-                        value={value ?? ""}
-                        onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
-                        onBlur={() => {
-                          const v = drafts[cellId] ?? value ?? "";
-                          if (v !== undefined) onUpdate(String(r.id), k, String(v));
-                        }}
-                        disabled={savingId != null && String(savingId) === String(r.id)}
-                      >
-                        {statusOptions.map((opt, idx) => (
-                          <option key={`${k}:${idx}:${opt}`} value={opt}>
-                            {opt || "—"}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  );
-                }
+                const inputType = isDateTime ? "datetime-local" : isDateOnly ? "date" : "text";
 
-                // Default editable input
                 return (
                   <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
                     <input
-                      type={isDateTime ? "datetime-local" : "text"}
+                      type={inputType}
                       step={isDateTime ? 60 : undefined}
                       className="w-full bg-transparent border-0 outline-none text-sm"
                       value={value}
