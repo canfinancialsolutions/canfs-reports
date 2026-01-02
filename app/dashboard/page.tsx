@@ -947,12 +947,13 @@ export default function Dashboard() {
               >
                 {upcomingLoading ? "Refreshing…" : "Refresh"}
               </Button>
-              <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>
-                Export XLSX
-              </Button>
               <Button variant="secondary" onClick={() => setUpcomingVisible((v) => !v)}>
                 {upcomingVisible ? "Hide Results" : "Show Results"}
               </Button>
+              <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>
+                Export XLSX
+              </Button>
+
             </div>
           </div>
 
