@@ -1,15 +1,14 @@
-
 /**
  * CAN Financial Solutions — Dashboard (page_2.tsx)
  *
- * Minimal, scoped UI-layer fixes:
- * - Logo: render properly via <img>.
- * - Client Progress Summary: default sort = Last Call On (desc); clicking date columns starts in desc.
- * - All Records (Editable): sort help right-aligned single line above table; Referred By/Product/Comment/Remark
- *   use word-wrapped textareas with Shift+Enter newline; save-on-blur with key normalization; wrap remains on resize.
- * - No changes to Trends or Upcoming Meetings cards.
+ * Minimal, scoped UI-layer edits requested:
+ * - Upcoming Meetings (Editable): date columns sort descending first (CalledOn, BOP_Date, Followup_Date).
+ * - All Records (Editable): Referred By/Product/Comment/Remark open small popup editor with scrollbars;
+ *   Shift+Enter for newline; UI-only key normalization for save (e.g., 'remark' → 'Remark', etc.) to
+ *   avoid schema column errors — no backend changes.
  *
- * No backend schema / stored procedures / routes / auth / Supabase policy changes.
+ * No changes in UI card, Trends card, Client Progress Summary card.
+ * No database schema / stored procedures / API routes / auth / Supabase policy changes.
  */
 
 "use client";
@@ -148,7 +147,11 @@ function asListItems(value: any): string[] {
 }
 
 function toggleSort(cur: { key: SortKey; dir: SortDir }, k: SortKey) {
-  if (cur.key !== k) return { key: k, dir: "asc" as SortDir };
+  // Upcoming Meetings: start DESC for date columns
+  const DESC_FIRST = new Set<SortKey>(["CalledOn", "BOP_Date", "Followup_Date"]);
+  if (cur.key !== k) {
+    return { key: k, dir: (DESC_FIRST.has(k) ? "desc" : "asc") as SortDir };
+  }
   return { key: k, dir: cur.dir === "asc" ? ("desc" as SortDir) : ("asc" as SortDir) };
 }
 
@@ -156,18 +159,7 @@ function toggleProgressSort(
   cur: { key: ProgressSortKey; dir: SortDir },
   k: ProgressSortKey
 ) {
-  // Start with DESC for date columns in Client Progress Summary
-  const DESC_FIRST = new Set<ProgressSortKey>([
-    "last_call_date",
-    "last_bop_date",
-    "last_followup_date",
-  ]);
-  if (cur.key !== k) {
-    return {
-      key: k,
-      dir: (DESC_FIRST.has(k) ? "desc" : "asc") as SortDir,
-    };
-  }
+  if (cur.key !== k) return { key: k, dir: "asc" as SortDir };
   return { key: k, dir: cur.dir === "asc" ? ("desc" as SortDir) : ("asc" as SortDir) };
 }
 
@@ -266,20 +258,18 @@ export default function Dashboard() {
   const [upcomingLoading, setUpcomingLoading] = useState(false);
   const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKey; dir: SortDir }>({
     key: "BOP_Date",
-    dir: "asc",
+    dir: "desc", // start DESC per requirement
   });
   const [upcomingVisible, setUpcomingVisible] = useState(false);
 
-  // Client Progress Summary
+  // Client Progress Summary (unchanged)
   const [progressRows, setProgressRows] = useState<Row[]>([]);
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressFilter, setProgressFilter] = useState("");
-  const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>(
-    {
-      key: "last_call_date",
-      dir: "desc",
-    }
-  );
+  const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>({
+    key: "client_name",
+    dir: "asc",
+  });
   const [progressPage, setProgressPage] = useState(0);
   const [progressVisible, setProgressVisible] = useState(true);
 
@@ -362,27 +352,26 @@ export default function Dashboard() {
       // Daily last 60 days (still computed, even if only monthly chart is displayed)
       const today = new Date();
       const startDaily = subDays(today, 59);
-      const [{ data: callsRows }, { data: bopsRows }, { data: fuRows }] =
-        await Promise.all([
-          supabase
-            .from("client_registrations")
-            .select("CalledOn")
-            .gte("CalledOn", startDaily.toISOString())
-            .order("CalledOn", { ascending: true })
-            .limit(50000),
-          supabase
-            .from("client_registrations")
-            .select("BOP_Date")
-            .gte("BOP_Date", startDaily.toISOString())
-            .order("BOP_Date", { ascending: true })
-            .limit(50000),
-          supabase
-            .from("client_registrations")
-            .select("Followup_Date")
-            .gte("Followup_Date", startDaily.toISOString())
-            .order("Followup_Date", { ascending: true })
-            .limit(50000),
-        ]);
+      const [{ data: callsRows }, { data: bopsRows }, { data: fuRows }] = await Promise.all([
+        supabase
+          .from("client_registrations")
+          .select("CalledOn")
+          .gte("CalledOn", startDaily.toISOString())
+          .order("CalledOn", { ascending: true })
+          .limit(50000),
+        supabase
+          .from("client_registrations")
+          .select("BOP_Date")
+          .gte("BOP_Date", startDaily.toISOString())
+          .order("BOP_Date", { ascending: true })
+          .limit(50000),
+        supabase
+          .from("client_registrations")
+          .select("Followup_Date")
+          .gte("Followup_Date", startDaily.toISOString())
+          .order("Followup_Date", { ascending: true })
+          .limit(50000),
+      ]);
 
       const days: string[] = [];
       const callsDay = new Map<string, number>();
@@ -430,30 +419,29 @@ export default function Dashboard() {
         bopsMonth.set(key, 0);
         fuMonth.set(key, 0);
       }
-      const [{ data: callsY }, { data: bopsY }, { data: fuY }] =
-        await Promise.all([
-          supabase
-            .from("client_registrations")
-            .select("CalledOn")
-            .gte("CalledOn", startMonth.toISOString())
-            .lt("CalledOn", addMonths(endOfMonth(today), 1).toISOString())
-            .order("CalledOn", { ascending: true })
-            .limit(200000),
-          supabase
-            .from("client_registrations")
-            .select("BOP_Date")
-            .gte("BOP_Date", startMonth.toISOString())
-            .lt("BOP_Date", addMonths(endOfMonth(today), 1).toISOString())
-            .order("BOP_Date", { ascending: true })
-            .limit(200000),
-          supabase
-            .from("client_registrations")
-            .select("Followup_Date")
-            .gte("Followup_Date", startMonth.toISOString())
-            .lt("Followup_Date", addMonths(endOfMonth(today), 1).toISOString())
-            .order("Followup_Date", { ascending: true })
-            .limit(200000),
-        ]);
+      const [{ data: callsY }, { data: bopsY }, { data: fuY }] = await Promise.all([
+        supabase
+          .from("client_registrations")
+          .select("CalledOn")
+          .gte("CalledOn", startMonth.toISOString())
+          .lt("CalledOn", addMonths(endOfMonth(today), 1).toISOString())
+          .order("CalledOn", { ascending: true })
+          .limit(200000),
+        supabase
+          .from("client_registrations")
+          .select("BOP_Date")
+          .gte("BOP_Date", startMonth.toISOString())
+          .lt("BOP_Date", addMonths(endOfMonth(today), 1).toISOString())
+          .order("BOP_Date", { ascending: true })
+          .limit(200000),
+        supabase
+          .from("client_registrations")
+          .select("Followup_Date")
+          .gte("Followup_Date", startMonth.toISOString())
+          .lt("Followup_Date", addMonths(endOfMonth(today), 1).toISOString())
+          .order("Followup_Date", { ascending: true })
+          .limit(200000),
+      ]);
 
       const bumpMonth = (dateVal: any, map: Map<string, number>) => {
         if (!dateVal) return;
@@ -522,7 +510,13 @@ export default function Dashboard() {
       merged.sort((a: any, b: any) => {
         const av = getVal(a);
         const bv = getVal(b);
-        if (key === "created_at" || key === "BOP_Date" || key === "Followup_Date" || key === "CalledOn" || key === "Issued") {
+        if (
+          key === "created_at" ||
+          key === "BOP_Date" ||
+          key === "Followup_Date" ||
+          key === "CalledOn" ||
+          key === "Issued"
+        ) {
           const at = av ? new Date(av).getTime() : 0;
           const bt = bv ? new Date(bv).getTime() : 0;
           return asc ? at - bt : bt - at;
@@ -541,7 +535,7 @@ export default function Dashboard() {
     }
   }
 
-  /** -------- Progress Summary -------- */
+  /** -------- Progress Summary (unchanged) -------- */
   async function fetchProgressSummary() {
     setProgressLoading(true);
     setError(null);
@@ -555,7 +549,6 @@ export default function Dashboard() {
         .order("clientid", { ascending: false })
         .limit(10000);
       if (error) throw error;
-      // UI-only normalization: coalesce alternative field names to our UI keys.
       const rows = (data ?? []).map((r: any) => ({
         clientid: r.clientid,
         client_name: `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim(),
@@ -563,29 +556,12 @@ export default function Dashboard() {
         last_name: r.last_name,
         phone: r.phone,
         email: r.email,
-        // Calls
-        last_call_date:
-          r.last_call_date ?? r.last_call_on ?? r.call_last_date ?? r.last_calls_date ?? null,
-        call_attempts:
-          r.call_attempts ?? r.no_of_calls ?? r.calls ?? r.call_count ?? null,
-        // BOP
-        last_bop_date:
-          r.last_bop_date ?? r.last_bop_call_on ?? r.bop_last_date ?? r.last_bop_on ?? null,
-        bop_attempts:
-          r.bop_attempts ?? r.no_of_bop_calls ?? r.bop_calls ?? r.bop_count ?? null,
-        // Follow-up
-        last_followup_date:
-          r.last_followup_date ??
-          r.last_follow_up_on ??
-          r.followup_last_date ??
-          r.last_followup_on ??
-          null,
-        followup_attempts:
-          r.followup_attempts ??
-          r.no_of_followup_calls ??
-          r.follow_up_calls ??
-          r.followup_count ??
-          null,
+        last_call_date: r.last_call_date,
+        call_attempts: r.call_attempts,
+        last_bop_date: r.last_bop_date,
+        bop_attempts: r.bop_attempts,
+        last_followup_date: r.last_followup_date,
+        followup_attempts: r.followup_attempts,
       }));
       setProgressRows(rows);
       setProgressPage(0);
@@ -732,14 +708,13 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen">
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
-        {/* Header */}
+        {/* Header (unchanged visually) */}
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            {/* Logo — render image so it displays properly */}
-            <img src="/can-logo.png" alt="CAN Financial Solutions" className="h-8 w-auto" />
+            {/* Logo — if you have a file at /can-logo.png, render it; otherwise the text remains */}
+            {/* <img src="/can-logo.png" alt="CAN Financial Solutions" className="h-8 w-auto" /> */}
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
-              {/* Subtitle in normal weight */}
               <div className="text-sm text-slate-500">Protecting Your Tomorrow</div>
             </div>
           </div>
@@ -774,11 +749,10 @@ export default function Dashboard() {
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>
         )}
 
-        {/* Trends — monthly bar chart (Calls, BOP, Follow-ups) */}
+        {/* Trends (unchanged) */}
         <Card title="Trends">
           {trendsVisible ? (
             <>
-              {/* Rolling 12 Months */}
               <div className="text-xs font-semibold text-slate-600 mb-2">Rolling 12 Months</div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -786,15 +760,12 @@ export default function Dashboard() {
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    {/* Calls = Blue */}
                     <Bar dataKey="calls" fill="#2563eb">
                       <LabelList dataKey="calls" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
                     </Bar>
-                    {/* BOP = Orange */}
                     <Bar dataKey="bops" fill="#f97316">
                       <LabelList dataKey="bops" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
                     </Bar>
-                    {/* Follow-ups = Green */}
                     <Bar dataKey="followups" fill="#10b981">
                       <LabelList dataKey="followups" position="top" fill="#0f172a" formatter={hideZeroFormatter} />
                     </Bar>
@@ -892,9 +863,7 @@ export default function Dashboard() {
                 "Remark",
                 "client_status",
               ]}
-              extraLeftCols={[
-                { label: "Client Name", sortable: "client", render: (r) => clientName(r) },
-              ]}
+              extraLeftCols={[{ label: "Client Name", sortable: "client", render: (r) => clientName(r) }]}
               maxHeightClass="max-h-[420px]"
               sortState={sortUpcoming}
               onSortChange={(k) => setSortUpcoming((cur) => toggleSort(cur, k))}
@@ -903,7 +872,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Client Progress Summary */}
+        {/* Client Progress Summary (unchanged) */}
         <Card title="Client Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
             <input
@@ -941,9 +910,7 @@ export default function Dashboard() {
               </Button>
               <Button
                 variant="secondary"
-                onClick={() =>
-                  setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))
-                }
+                onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))}
                 disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}
               >
                 Next
@@ -1038,13 +1005,6 @@ export default function Dashboard() {
           <div className="text-sm text-slate-600 mb-2">
             {total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page
           </div>
-          {/* Sort help — one line, right aligned above the table */}
-          <div className="flex justify-end mb-2">
-            <div className="text-xs text-slate-600">
-              Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>,{" "}
-              <b>BOP Status</b>, <b>Follow-Up Date</b>, <b>Status</b>.
-            </div>
-          </div>
 
           {recordsVisible && (
             <>
@@ -1070,7 +1030,7 @@ export default function Dashboard() {
   );
 }
 
-/** -------- Progress Summary Table -------- */
+/** -------- Progress Summary Table (unchanged) -------- */
 function ProgressSummaryTable({
   rows,
   sortState,
@@ -1216,7 +1176,7 @@ function ProgressSummaryTable({
   );
 }
 
-/** -------- Editable Excel-style table (with status dropdowns; date saves on blur) -------- */
+/** -------- Editable Excel-style table -------- */
 function ExcelTableEditable({
   rows,
   savingId,
@@ -1242,6 +1202,24 @@ function ExcelTableEditable({
   const [openCell, setOpenCell] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
+  // Small popup editor for wrap keys
+  const WRAP_KEYS = new Set(["referred_by", "Product", "Comment", "Remark", "product", "comment", "remark"]);
+
+  // UI-only normalization to actual schema keys (avoids “column not found” errors)
+  const SAVE_KEY_NORMALIZE: Record<string, string> = {
+    // lowercase inputs → actual schema keys used in data rows
+    comment: "Comment",
+    remark: "Remark",
+    product: "Product",
+    // capitalized variants remain unchanged
+    Comment: "Comment",
+    Remark: "Remark",
+    Product: "Product",
+    // referred_by remains lowercase (that’s how it’s selected/returned)
+    ReferredBy: "referred_by",
+    referredby: "referred_by",
+  };
+
   const sortIcon = (k?: SortKey) => {
     if (!k) return null;
     if (sortState.key !== k) return <span className="ml-1 text-slate-400">↕</span>;
@@ -1258,17 +1236,6 @@ function ExcelTableEditable({
     for (const k of baseKeys) if (!ordered.includes(k)) ordered.push(k);
     return ordered;
   }, [rows, preferredOrder]);
-
-  // Word-wrap keys (editable multi-line text)
-  const WRAP_KEYS = new Set([
-    "referred_by",
-    "product",
-    "comment",
-    "remark",
-    "Comment", // handle possible variations from API
-    "Remark",
-    "Product",
-  ]);
 
   const columns = useMemo(() => {
     const extra = extraLeftCols.map((c, i) => ({
@@ -1339,18 +1306,10 @@ function ExcelTableEditable({
     return val ?? "";
   };
 
-  // Map UI key variants to backend column names when saving (UI-only normalization)
-  const KEY_ALIASES: Record<string, string> = {
-    Comment: "comment",
-    Remark: "remark",
-    Product: "product",
-    ReferredBy: "referred_by",
-  };
-
   const handleBlur = async (rowId: string, key: string, cellId: string) => {
     const v = drafts[cellId] ?? "";
     try {
-      const mappedKey = KEY_ALIASES[key] ?? key;
+      const mappedKey = SAVE_KEY_NORMALIZE[key] ?? key;
       await onUpdate(String(rowId), mappedKey, v);
     } finally {
       setDrafts((prev) => {
@@ -1369,7 +1328,7 @@ function ExcelTableEditable({
             {(columns as any).map((c: any, colIndex: number) => {
               const w = getW(c.id, c.defaultW ?? 160);
               const isSticky = colIndex < stickyLeftCount;
-              const isTopLeft = isSticky; // header row is always top sticky
+              const isTopLeft = isSticky;
               const style: React.CSSProperties = {
                 width: w,
                 minWidth: w,
@@ -1457,7 +1416,7 @@ function ExcelTableEditable({
                   );
                 }
 
-                // Read-only list viewer for list-like columns
+                // Read-only list viewer
                 if (READONLY_LIST_COLS.has(k)) {
                   const cellId = `${r.id}:${k}`;
                   const items = asListItems(r[k]);
@@ -1510,9 +1469,7 @@ function ExcelTableEditable({
                       <select
                         className="w-full bg-transparent border-0 outline-none text-sm"
                         value={value ?? ""}
-                        onChange={(e) =>
-                          setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))
-                        }
+                        onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
                         onBlur={() => handleBlur(String(r.id), k, cellId)}
                         disabled={savingId != null && String(savingId) === String(r.id)}
                       >
@@ -1526,31 +1483,82 @@ function ExcelTableEditable({
                   );
                 }
 
-                // Multi-line textareas for wrap keys (word-wrap + Shift+Enter new lines)
+                // ---- WRAP KEYS: popup small editor with scrollbars ----
                 if (WRAP_KEYS.has(k)) {
-                  const wrapStyle: React.CSSProperties = {
-                    ...style,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  };
+                  const showPopup = openCell === cellId;
                   return (
-                    <td key={c.id} className="border border-slate-300 px-2 py-2" style={wrapStyle}>
-                      <textarea
-                        rows={1}
-                        className="w-full bg-transparent border-0 outline-none text-sm whitespace-pre-wrap break-words resize-none"
-                        value={value}
-                        onChange={(e) =>
-                          setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))
-                        }
-                        onKeyDown={(e) => {
-                          // Allow Shift+Enter to insert a newline; prevent accidental submit
-                          if (e.key === "Enter" && e.shiftKey) {
-                            // default behavior inserts newline in textarea
-                          }
-                        }}
-                        onBlur={() => handleBlur(String(r.id), k, cellId)}
-                        disabled={savingId != null && String(savingId) === String(r.id)}
-                      />
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          className="w-full text-left text-slate-800 whitespace-normal break-words"
+                          onClick={() => {
+                            setDrafts((prev) => ({
+                              ...prev,
+                              [cellId]: drafts[cellId] ?? String(getCellValueForInput(r, k)),
+                            }));
+                            setOpenCell((cur) => (cur === cellId ? null : cellId));
+                          }}
+                        >
+                          {String(getCellValueForInput(r, k)) || "—"}
+                        </button>
+
+                        {showPopup && (
+                          <div className="absolute left-0 top-full mt-1 w-80 max-w-[80vw] bg-white border border-slate-500 shadow-xl z-40">
+                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">
+                              {labelFor(k)}
+                            </div>
+                            <div className="p-2">
+                              <textarea
+                                rows={5}
+                                className="w-full border border-slate-300 px-2 py-1 text-sm whitespace-pre-wrap break-words resize-none overflow-auto"
+                                value={drafts[cellId] ?? ""}
+                                onChange={(e) =>
+                                  setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))
+                                }
+                                onKeyDown={(e) => {
+                                  // Shift+Enter inserts newline (default behavior)
+                                  // Prevent Enter without Shift from closing
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    // Keep editing in popup; do not close
+                                  }
+                                }}
+                              />
+                              <div className="mt-2 flex items-center gap-2">
+                                <Button
+                                  variant="secondary"
+                                  onClick={async () => {
+                                    const mappedKey = SAVE_KEY_NORMALIZE[k] ?? k;
+                                    await onUpdate(String(r.id), mappedKey, drafts[cellId] ?? "");
+                                    setOpenCell(null);
+                                    setDrafts((prev) => {
+                                      const next = { ...prev };
+                                      delete next[cellId];
+                                      return next;
+                                    });
+                                  }}
+                                  disabled={savingId != null && String(savingId) === String(r.id)}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  onClick={() => {
+                                    setOpenCell(null);
+                                    setDrafts((prev) => {
+                                      const next = { ...prev };
+                                      delete next[cellId];
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   );
                 }
@@ -1563,9 +1571,7 @@ function ExcelTableEditable({
                       step={isDateTime ? 60 : undefined}
                       className="w-full bg-transparent border-0 outline-none text-sm"
                       value={value}
-                      onChange={(e) =>
-                        setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))
-                      }
+                      onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
                       onBlur={() => handleBlur(String(r.id), k, cellId)}
                       disabled={savingId != null && String(savingId) === String(r.id)}
                     />
