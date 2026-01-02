@@ -72,7 +72,6 @@ const READONLY_LIST_COLS = new Set([
   "wealth_solutions",
   "preferred_days",
 ]);
-
 // Date & datetime keys (UI mapping only)
 const DATE_TIME_KEYS = new Set([
   "BOP_Date",
@@ -275,7 +274,6 @@ const STATUS_OPTIONS: Record<string, string[]> = {
     "Closed",
   ],
 };
-
 function optionsForKey(k: string): string[] | null {
   const lk = k.toLowerCase().replace(/\s+/g, "_");
   if (lk in STATUS_OPTIONS) return STATUS_OPTIONS[lk];
@@ -925,9 +923,9 @@ export default function Dashboard() {
                 "profession",
                 "work_details",
                 "immigration_status",
-               "referred_by",
-               "preferred_days",
-               "preferred_time",
+                "referred_by",
+                "preferred_days",
+                "preferred_time",
               ]}
               extraLeftCols={[{ label: "Client Name", sortable: "client", render: (r) => clientName(r) }]}
               maxHeightClass="max-h-[420px]"
@@ -1506,19 +1504,47 @@ function ExcelTableEditable({
                   );
                 }
 
+                // --- STATUS DROPDOWN for specific keys (fix: show list of predefined values) ---
+                const cellId = `${r.id}:${k}`;
+                const statusOptions = optionsForKey(k);
+                if (statusOptions) {
+                  const value =
+                    drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
+                      <select
+                        className="w-full bg-transparent border-0 outline-none text-sm"
+                        value={value ?? ""}
+                        onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
+                        onBlur={() => {
+                          const v = drafts[cellId] ?? value ?? "";
+                          if (v !== undefined) onUpdate(String(r.id), k, String(v));
+                        }}
+                        disabled={savingId != null && String(savingId) === String(r.id)}
+                      >
+                        {statusOptions.map((opt, idx) => (
+                          <option key={`${k}:${idx}:${opt}`} value={opt}>
+                            {opt || "—"}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  );
+                }
+
                 // --- LIST POPUP for multi-value columns ---
                 if (READONLY_LIST_COLS.has(k)) {
-                  const cellId = `${r.id}:${k}`;
+                  const cellIdList = `${r.id}:${k}`;
                   const items = asListItems(r[k]);
                   const display = items.join(", ");
-                  const showPopup = openCell === cellId;
+                  const showPopup = openCell === cellIdList;
                   return (
                     <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
                       <div className="relative">
                         <button
                           type="button"
                           className="w-full text-left text-slate-800 whitespace-normal break-words"
-                          onClick={() => setOpenCell((cur) => (cur === cellId ? null : cellId))}
+                          onClick={() => setOpenCell((cur) => (cur === cellIdList ? null : cellIdList))}
                         >
                           {display || "—"}
                         </button>
@@ -1548,8 +1574,8 @@ function ExcelTableEditable({
 
                 // --- VIEW-ONLY POPUP for specific keys (Upcoming) ---
                 if (WRAP_KEYS.has(k) && viewOnlyPopupKeys.has(k)) {
-                  const cellId = `${r.id}:${k}`;
-                  const showPopup = openCell === cellId;
+                  const cellIdView = `${r.id}:${k}`;
+                  const showPopup = openCell === cellIdView;
                   const baseVal = String(getCellValueForInput(r, k));
                   return (
                     <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
@@ -1557,7 +1583,7 @@ function ExcelTableEditable({
                         <button
                           type="button"
                           className="w-full text-left text-slate-800 whitespace-normal break-words"
-                          onClick={() => setOpenCell((cur) => (cur === cellId ? null : cellId))}
+                          onClick={() => setOpenCell((cur) => (cur === cellIdView ? null : cellIdView))}
                         >
                           {baseVal || "—"}
                         </button>
@@ -1604,8 +1630,8 @@ function ExcelTableEditable({
 
                 // --- WRAP KEYS: editable popup (All Records)
                 if (WRAP_KEYS.has(k)) {
-                  const cellId = `${r.id}:${k}`;
-                  const showPopup = openCell === cellId;
+                  const cellIdWrap = `${r.id}:${k}`;
+                  const showPopup = openCell === cellIdWrap;
                   const baseVal = String(getCellValueForInput(r, k));
                   return (
                     <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
@@ -1614,8 +1640,8 @@ function ExcelTableEditable({
                           type="button"
                           className="w-full text-left text-slate-800 whitespace-normal break-words"
                           onClick={() => {
-                            setDrafts((prev) => ({ ...prev, [cellId]: drafts[cellId] ?? baseVal }));
-                            setOpenCell((cur) => (cur === cellId ? null : cellId));
+                            setDrafts((prev) => ({ ...prev, [cellIdWrap]: drafts[cellIdWrap] ?? baseVal }));
+                            setOpenCell((cur) => (cur === cellIdWrap ? null : cellIdWrap));
                           }}
                         >
                           {baseVal || "—"}
@@ -1630,8 +1656,8 @@ function ExcelTableEditable({
                               <textarea
                                 rows={5}
                                 className="w-full border border-slate-300 px-2 py-1 text-sm whitespace-pre-wrap break-words resize-none overflow-auto"
-                                value={drafts[cellId] ?? ""}
-                                onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
+                                value={drafts[cellIdWrap] ?? ""}
+                                onChange={(e) => setDrafts((prev) => ({ ...prev, [cellIdWrap]: e.target.value }))}
                                 onKeyDown={(e) => {
                                   // Shift+Enter inserts newline (default); Enter alone keeps editing
                                   if (e.key === "Enter" && !e.shiftKey) {
@@ -1644,11 +1670,11 @@ function ExcelTableEditable({
                                   variant="secondary"
                                   onClick={async () => {
                                     const mappedKey = SAVE_KEY_NORMALIZE[k] ?? k;
-                                    await onUpdate(String(r.id), mappedKey, drafts[cellId] ?? "");
+                                    await onUpdate(String(r.id), mappedKey, drafts[cellIdWrap] ?? "");
                                     setOpenCell(null);
                                     setDrafts((prev) => {
                                       const next = { ...prev };
-                                      delete next[cellId];
+                                      delete next[cellIdWrap];
                                       return next;
                                     });
                                   }}
@@ -1662,7 +1688,7 @@ function ExcelTableEditable({
                                     setOpenCell(null);
                                     setDrafts((prev) => {
                                       const next = { ...prev };
-                                      delete next[cellId];
+                                      delete next[cellIdWrap];
                                       return next;
                                     });
                                   }}
@@ -1679,11 +1705,11 @@ function ExcelTableEditable({
                 }
 
                 // ---- EDITABLE CELLS (default text, date-only, or datetime) ----
-                const cellId = `${r.id}:${k}`;
+                const cellIdInput = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
                 const isDateOnly = DATE_ONLY_KEYS.has(k);
                 const value =
-                  drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
+                  drafts[cellIdInput] !== undefined ? drafts[cellIdInput] : String(getCellValueForInput(r, k));
 
                 const inputType = isDateTime ? "datetime-local" : isDateOnly ? "date" : "text";
 
@@ -1694,9 +1720,9 @@ function ExcelTableEditable({
                       step={isDateTime ? 60 : undefined}
                       className="w-full bg-transparent border-0 outline-none text-sm"
                       value={value}
-                      onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
+                      onChange={(e) => setDrafts((prev) => ({ ...prev, [cellIdInput]: e.target.value }))}
                       onBlur={() => {
-                        const v = drafts[cellId] ?? value ?? "";
+                        const v = drafts[cellIdInput] ?? value ?? "";
                         if (v !== undefined) onUpdate(String(r.id), k, String(v));
                       }}
                       disabled={savingId != null && String(savingId) === String(r.id)}
