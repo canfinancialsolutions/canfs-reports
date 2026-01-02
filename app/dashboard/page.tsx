@@ -247,7 +247,7 @@ function useColumnResizer() {
 
 /** -------- Status Dropdown Options (UI-only enumerations) -------- */
 const STATUS_OPTIONS: Record<string, string[]> = {
-  status: ["", "New Client", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
+  status: ["", "Prospect", "New Client", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
   followup_status: ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Closed", "Completed"],
   "follow-up_status": ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Closed", "Completed"],
   client_status: [
