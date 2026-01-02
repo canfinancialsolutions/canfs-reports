@@ -245,6 +245,78 @@ function useColumnResizer() {
 }
 
 /** -------- Status Dropdown Options (UI-only enumerations) -------- */
+const US_STATE_OPTIONS: string[] = [
+  "",
+  "Alabama",
+  "Alaska",
+  "Arizona",
+  "Arkansas",
+  "California",
+  "Colorado",
+  "Connecticut",
+  "Delaware",
+  "Florida",
+  "Georgia",
+  "Hawaii",
+  "Idaho",
+  "Illinois",
+  "Indiana",
+  "Iowa",
+  "Kansas",
+  "Kentucky",
+  "Louisiana",
+  "Maine",
+  "Maryland",
+  "Massachusetts",
+  "Michigan",
+  "Minnesota",
+  "Mississippi",
+  "Missouri",
+  "Montana",
+  "Nebraska",
+  "Nevada",
+  "New Hampshire",
+  "New Jersey",
+  "New Mexico",
+  "New York",
+  "North Carolina",
+  "North Dakota",
+  "Ohio",
+  "Oklahoma",
+  "Oregon",
+  "Pennsylvania",
+  "Rhode Island",
+  "South Carolina",
+  "South Dakota",
+  "Tennessee",
+  "Texas",
+  "Utah",
+  "Vermont",
+  "Virginia",
+  "Washington",
+  "West Virginia",
+  "Wisconsin",
+  "Wyoming",
+];
+
+const IMMIGRATION_STATUS_OPTIONS: string[] = [
+  "",
+  "U.S. Citizen",
+  "U.S.Green Card",
+  "H-1B",
+  "H-1B/I-140 Approved",
+  "L-1A",
+  "L-1B",
+  "F-1 Student",
+  "F-1 OPT",
+  "F-1 STEM OPT",
+  "H-4 EAD",
+  "E-3",
+  "I-485 Pending",
+  "I-485 EAD/AP",
+  "Other Visa Status",
+];
+
 const STATUS_OPTIONS: Record<string, string[]> = {
   status: ["", "Prospect Client", "New Client", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"],
   followup_status: ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Closed", "Completed"],
@@ -273,6 +345,8 @@ const STATUS_OPTIONS: Record<string, string[]> = {
     "Completed",
     "Closed",
   ],
+  state: US_STATE_OPTIONS,
+  immigration_status: IMMIGRATION_STATUS_OPTIONS,
 };
 function optionsForKey(k: string): string[] | null {
   const lk = k.toLowerCase().replace(/\s+/g, "_");
@@ -938,11 +1012,9 @@ export default function Dashboard() {
                 "date_of_birth",
                 "children",
                 "city",
-                "state",
-                "immigration_status",
                 "work_details",
               ])}
-              viewOnlyPopupKeys={new Set(["immigration_status", "work_details"])}
+              viewOnlyPopupKeys={new Set(["work_details"])}
             />
           )}
         </Card>
