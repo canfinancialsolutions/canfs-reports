@@ -103,14 +103,12 @@ const LABEL_OVERRIDES: Record<string, string> = {
   Product: "Products Sold",
   Comment: "Comment",
   Remark: "Remark",
-  --
   Issued: "Product Issued",
   CalledOn: "Called On",
   BOP_Date: "BOP Date",
   BOP_Status: "BOP Status",
   Followup_Date: "Follow-Up Date",
   FollowUp_Status: "Follow-Up Status",
-
   // NEW columns (labels)
   spouse_name: "Spouse Name",
   date_of_birth: "Date Of Birth",
