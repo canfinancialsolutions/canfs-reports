@@ -2,9 +2,13 @@
  * CAN Financial Solutions — Dashboard (page_2.tsx)
  *
  * Minimal, scoped UI-layer changes only:
- * - Sorting: DESC-first on date columns (Last Call On, Last BOP Call On, Last FollowUp On)
- *   now applied to Client Progress Summary when clicking headers—matching the existing
- *   DESC-first behaviour in Upcoming Meetings and All Records.
+ * - UI: enable logo image display.
+ * - Client Progress Summary:
+ *   • DESC-first sorting on date columns (Last Call On, Last BOP Call On, Last FollowUp On).
+ *   • Initial sort = Last Call On (desc).
+ *   • Small popup editors for Referred By, Product, Comment, Remark with word-wrap, Shift+Enter for new lines,
+ *     and save via existing updateCell (UI-layer key normalization only).
+ * - All Records (Editable): keep existing DESC-first sort for CalledOn, BOP_Date, Followup_Date (no other changes).
  *
  * No backend changes (schema, procedures, routes, auth, Supabase policies).
  */
@@ -155,7 +159,7 @@ function toggleSort(cur: { key: SortKey; dir: SortDir }, k: SortKey) {
   return { key: k, dir: cur.dir === "asc" ? ("desc" as SortDir) : ("asc" as SortDir) };
 }
 
-// UPDATED: DESC-first for Client Progress Summary date columns
+// DESC-first for Client Progress Summary date columns
 function toggleProgressSort(
   cur: { key: ProgressSortKey; dir: SortDir },
   k: ProgressSortKey
@@ -266,7 +270,7 @@ export default function Dashboard() {
   const [upcomingLoading, setUpcomingLoading] = useState(false);
   const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKey; dir: SortDir }>({
     key: "BOP_Date",
-    dir: "desc", // existing DESC-first for BOP date
+    dir: "desc", // existing DESC-first
   });
   const [upcomingVisible, setUpcomingVisible] = useState(false);
 
@@ -275,8 +279,8 @@ export default function Dashboard() {
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressFilter, setProgressFilter] = useState("");
   const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>({
-    key: "client_name",
-    dir: "asc",
+    key: "last_call_date", // initial sort per requirement
+    dir: "desc",
   });
   const [progressPage, setProgressPage] = useState(0);
   const [progressVisible, setProgressVisible] = useState(true);
@@ -570,6 +574,8 @@ export default function Dashboard() {
         bop_attempts: r.bop_attempts,
         last_followup_date: r.last_followup_date,
         followup_attempts: r.followup_attempts,
+        // NOTE: If ReferredBy/Product/Comment/Remark are added to this view in the future,
+        // the popup editor below will pick them up automatically (no backend change here).
       }));
       setProgressRows(rows);
       setProgressPage(0);
@@ -719,9 +725,13 @@ export default function Dashboard() {
         {/* Header */}
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            {/* Logo image (current behavior retained) */}
-            {/* Replace with your actual image if needed */}
-            {/* <img src="/can-logo.png" className="h-8 w-auto" alt="CAN Logo" /> */}
+            {/* Logo image (enable display; hide gracefully if missing) */}
+            <img
+              src="/can-logo.png"
+              className="h-8 w-auto"
+              alt="CAN Logo"
+              onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")}
+            />
             <div>
               <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div>
               <div className="text-sm text-slate-500">Protecting Your Tomorrow</div>
@@ -791,7 +801,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Upcoming Meetings (Editable) — sorting unchanged (DESC-first for date columns) */}
+        {/* Upcoming Meetings (Editable) — no change (DESC-first for date columns retained) */}
         <Card title="Upcoming Meetings (Editable)">
           <div className="grid md:grid-cols-5 gap-3 items-end">
             <label className="block md:col-span-1">
@@ -887,7 +897,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Client Progress Summary — only sorting behavior updated */}
+        {/* Client Progress Summary (sorting + small popup editors for wrap fields) */}
         <Card title="Client Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
             <input
@@ -938,6 +948,8 @@ export default function Dashboard() {
               rows={progressSlice}
               sortState={progressSort}
               onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
+              // pass onUpdate so wrap fields can save
+              onUpdate={updateCell}
             />
           )}
           {progressVisible && (
@@ -948,7 +960,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* All Records (Editable) — sorting unchanged (DESC-first for date columns) */}
+        {/* All Records (Editable) — no change other than confirming existing DESC-first header sort */}
         <Card title="All Records (Editable)">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
             <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">
@@ -1045,17 +1057,39 @@ export default function Dashboard() {
   );
 }
 
-/** -------- Progress Summary Table -------- */
+/** -------- Progress Summary Table (with optional small popup editors for wrap keys) -------- */
 function ProgressSummaryTable({
   rows,
   sortState,
   onSortChange,
+  onUpdate, // optional save handler
 }: {
   rows: Row[];
   sortState: { key: ProgressSortKey; dir: SortDir };
   onSortChange: (k: ProgressSortKey) => void;
+  onUpdate?: (id: string, key: string, value: string) => Promise<void>;
 }) {
   const { widths, startResize } = useColumnResizer();
+
+  // local state to support small popup editor for wrap keys
+  const [openCell, setOpenCell] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  // keys to enable popup editing (only if they exist in rows)
+  const WRAP_KEYS = new Set(["referred_by", "Product", "Comment", "Remark", "product", "comment", "remark"]);
+
+  // UI-only normalization (maps UI keys to actual DB keys used by client_registrations)
+  const SAVE_KEY_NORMALIZE: Record<string, string> = {
+    comment: "Comment",
+    remark: "Remark",
+    product: "Product",
+    Comment: "Comment",
+    Remark: "Remark",
+    Product: "Product",
+    ReferredBy: "referred_by",
+    referredby: "referred_by",
+  };
+
   const cols = useMemo(
     () => [
       { id: "client_name", label: "Client Name", key: "client_name" as ProgressSortKey, defaultW: 170 },
@@ -1069,9 +1103,18 @@ function ProgressSummaryTable({
       { id: "bop_attempts", label: "No of BOP Calls", key: "bop_attempts" as ProgressSortKey, defaultW: 110 },
       { id: "last_followup_date", label: "Last FollowUp On", key: "last_followup_date" as ProgressSortKey, defaultW: 200 },
       { id: "followup_attempts", label: "No of FollowUp Calls", key: "followup_attempts" as ProgressSortKey, defaultW: 140 },
+      // If the data includes wrap fields, we will append dynamic columns for display/edit below.
     ],
     []
   );
+
+  // Append wrap columns dynamically if present in a sample row
+  const sample = rows[0] ?? {};
+  const dynamicWrapCols: { id: string; label: string; defaultW: number }[] = [];
+  ["referred_by", "Product", "Comment", "Remark"].forEach((k) => {
+    if (k in sample) dynamicWrapCols.push({ id: k, label: labelFor(k), defaultW: 260 });
+  });
+  const allCols = [...cols, ...dynamicWrapCols];
 
   const getW = (id: string, def: number) => widths[id] ?? def;
   const stickyLeftPx = (colIndex: number) => (colIndex <= 0 ? 0 : 0);
@@ -1082,7 +1125,7 @@ function ProgressSummaryTable({
     return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
   };
 
-  const minWidth = cols.reduce((sum, c) => sum + getW(c.id, c.defaultW), 0);
+  const minWidth = allCols.reduce((sum, c) => sum + getW(c.id, (c as any).defaultW ?? 160), 0);
 
   const fmtDate = (v: any) => {
     if (!v) return "—";
@@ -1097,13 +1140,20 @@ function ProgressSummaryTable({
     return String(n);
   };
 
+  const getCellValueForInput = (r: Row, k: string) => {
+    const isDateTime = DATE_TIME_KEYS.has(k);
+    const val = r[k];
+    if (isDateTime) return toLocalInput(val);
+    return val ?? "";
+  };
+
   return (
     <div className="overflow-auto border border-slate-500 bg-white max-h-[520px]">
       <table className="w-full table-fixed border-collapse" style={{ minWidth }}>
         <thead className="sticky top-0 bg-slate-100 z-20">
           <tr className="text-left text-xs font-semibold text-slate-700">
-            {cols.map((c, idx) => {
-              const w = getW(c.id, c.defaultW);
+            {allCols.map((c, idx) => {
+              const w = getW(c.id, (c as any).defaultW ?? 160);
               const isSticky = idx === 0;
               const style: React.CSSProperties = {
                 width: w,
@@ -1115,20 +1165,21 @@ function ProgressSummaryTable({
                 zIndex: isSticky ? 40 : 20,
                 background: isSticky ? "#f1f5f9" : undefined,
               };
+              const sortKey = (c as any).key as ProgressSortKey | undefined;
               return (
                 <th
                   key={c.id}
                   className="border border-slate-500 px-2 py-2 whitespace-nowrap relative"
                   style={style}
                 >
-                  {"key" in c ? (
+                  {sortKey ? (
                     <button
                       className="inline-flex items-center hover:underline"
-                      onClick={() => onSortChange((c as any).key!)}
+                      onClick={() => onSortChange(sortKey!)}
                       type="button"
                     >
                       {c.label}
-                      {sortIcon((c as any).key)}
+                      {sortIcon(sortKey)}
                     </button>
                   ) : (
                     c.label
@@ -1146,9 +1197,9 @@ function ProgressSummaryTable({
         </thead>
         <tbody>
           {rows.map((r, ridx) => (
-            <tr key={String(r.clientid ?? ridx)} className="hover:bg-slate-50">
-              {cols.map((c, idx) => {
-                const w = getW(c.id, c.defaultW);
+            <tr key={String((r as any).clientid ?? ridx)} className="hover:bg-slate-50">
+              {allCols.map((c, idx) => {
+                const w = getW(c.id, (c as any).defaultW ?? 160);
                 const isSticky = idx === 0;
                 const style: React.CSSProperties = {
                   width: w,
@@ -1160,33 +1211,165 @@ function ProgressSummaryTable({
                   background: isSticky ? "#ffffff" : undefined,
                   verticalAlign: "middle",
                 };
-                let v = "—";
-                let tdClass = "border border-slate-300 px-2 py-2 whitespace-nowrap";
-                if (c.id === "client_name") v = String(r.client_name ?? "—");
-                else if (c.id === "first_name") v = String(r.first_name ?? "—");
-                else if (c.id === "last_name") v = String(r.last_name ?? "—");
-                else if (c.id === "phone") v = String(r.phone ?? "—");
-                else if (c.id === "email") v = String(r.email ?? "—");
-                else if (c.id === "last_call_date") v = fmtDate(r.last_call_date);
-                else if (c.id === "call_attempts") {
-                  v = fmtCount(r.call_attempts);
-                  tdClass += " text-center align-middle";
-                } else if (c.id === "last_bop_date") v = fmtDate(r.last_bop_date);
-                else if (c.id === "bop_attempts") {
-                  v = fmtCount(r.bop_attempts);
-                  tdClass += " text-center align-middle";
-                } else if (c.id === "last_followup_date") v = fmtDate(r.last_followup_date);
-                else if (c.id === "followup_attempts") {
-                  v = fmtCount(r.followup_attempts);
-                  tdClass += " text-center align-middle";
+                // standard columns
+                if (c.id === "client_name")
+                  return (
+                    <td
+                      key={c.id}
+                      className={`border border-slate-300 px-2 py-2 whitespace-nowrap ${
+                        isSticky ? "font-semibold text-slate-800" : ""
+                      }`}
+                      style={style}
+                    >
+                      {String(r.client_name ?? "—")}
+                    </td>
+                  );
+                if (c.id === "first_name")
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
+                      {String(r.first_name ?? "—")}
+                    </td>
+                  );
+                if (c.id === "last_name")
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
+                      {String(r.last_name ?? "—")}
+                    </td>
+                  );
+                if (c.id === "phone")
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
+                      {String(r.phone ?? "—")}
+                    </td>
+                  );
+                if (c.id === "email")
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
+                      {String(r.email ?? "—")}
+                    </td>
+                  );
+                if (c.id === "last_call_date")
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
+                      {fmtDate(r.last_call_date)}
+                    </td>
+                  );
+                if (c.id === "call_attempts")
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap text-center align-middle" style={style}>
+                      {fmtCount(r.call_attempts)}
+                    </td>
+                  );
+                if (c.id === "last_bop_date")
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
+                      {fmtDate(r.last_bop_date)}
+                    </td>
+                  );
+                if (c.id === "bop_attempts")
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap text-center align-middle" style={style}>
+                      {fmtCount(r.bop_attempts)}
+                    </td>
+                  );
+                if (c.id === "last_followup_date")
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
+                      {fmtDate(r.last_followup_date)}
+                    </td>
+                  );
+                if (c.id === "followup_attempts")
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap text-center align-middle" style={style}>
+                      {fmtCount(r.followup_attempts)}
+                    </td>
+                  );
+
+                // dynamic wrap fields (small popup textarea with word wrap)
+                if (WRAP_KEYS.has(c.id)) {
+                  const k = c.id;
+                  const cellId = `${r.clientid ?? r.id}:${k}`;
+                  const showPopup = openCell === cellId;
+                  const baseVal = String(getCellValueForInput(r, k));
+                  return (
+                    <td key={k} className="border border-slate-300 px-2 py-2 align-top" style={style}>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          className="w-full text-left text-slate-800 whitespace-normal break-words"
+                          onClick={() => {
+                            setDrafts((prev) => ({ ...prev, [cellId]: drafts[cellId] ?? baseVal }));
+                            setOpenCell((cur) => (cur === cellId ? null : cellId));
+                          }}
+                        >
+                          {baseVal || "—"}
+                        </button>
+
+                        {showPopup && (
+                          <div className="absolute left-0 top-full mt-1 w-80 max-w-[80vw] bg-white border border-slate-500 shadow-xl z-40">
+                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">
+                              {labelFor(k)}
+                            </div>
+                            <div className="p-2">
+                              <textarea
+                                rows={5}
+                                className="w-full border border-slate-300 px-2 py-1 text-sm whitespace-pre-wrap break-words resize-none overflow-auto"
+                                value={drafts[cellId] ?? ""}
+                                onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
+                                onKeyDown={(e) => {
+                                  // Shift+Enter inserts newline (default); Enter alone keeps editing
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    // prevent accidental submit/close
+                                    e.stopPropagation();
+                                  }
+                                }}
+                              />
+                              <div className="mt-2 flex items-center gap-2">
+                                <Button
+                                  variant="secondary"
+                                  onClick={async () => {
+                                    if (!onUpdate) {
+                                      setOpenCell(null);
+                                      return;
+                                    }
+                                    const mappedKey = SAVE_KEY_NORMALIZE[k] ?? k;
+                                    await onUpdate(String(r.clientid ?? r.id), mappedKey, drafts[cellId] ?? "");
+                                    setOpenCell(null);
+                                    setDrafts((prev) => {
+                                      const next = { ...prev };
+                                      delete next[cellId];
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  onClick={() => {
+                                    setOpenCell(null);
+                                    setDrafts((prev) => {
+                                      const next = { ...prev };
+                                      delete next[cellId];
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  );
                 }
+
+                // default (unknown) column fallback
                 return (
-                  <td
-                    key={c.id}
-                    className={`${tdClass} ${isSticky ? "font-semibold text-slate-800" : ""}`}
-                    style={style}
-                  >
-                    {v}
+                  <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-normal break-words" style={style}>
+                    {String((r as any)[c.id] ?? "—")}
                   </td>
                 );
               })}
@@ -1198,7 +1381,7 @@ function ProgressSummaryTable({
   );
 }
 
-/** -------- Editable Excel-style table (shared) -------- */
+/** -------- Editable Excel-style table (shared, unchanged aside from existing sort behavior) -------- */
 function ExcelTableEditable({
   rows,
   savingId,
@@ -1424,7 +1607,6 @@ function ExcelTableEditable({
                         value={value ?? ""}
                         onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
                         onBlur={() => {
-                          // save on blur (existing behavior)
                           const v = drafts[cellId] ?? value ?? "";
                           if (v !== undefined) onUpdate(String(r.id), k, String(v));
                         }}
@@ -1439,7 +1621,7 @@ function ExcelTableEditable({
                   );
                 }
 
-                // Fallback: plain text input or text display (unchanged default)
+                // Default editable input
                 return (
                   <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
                     <input
