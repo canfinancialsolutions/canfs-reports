@@ -1,14 +1,15 @@
-/**
+
+/** 
  * CAN Financial Solutions — Dashboard (page_2.tsx)
  *
  * Minimal, scoped UI-layer changes only:
- * - UI: enable logo image display.
+ * - Upcoming Meetings & All Records:
+ *   • Small popup editors for Referred By / Product / Comment / Remark (word wrap, Shift+Enter, scrollbars).
+ *   • UI-layer key normalization to ensure values save correctly via updateCell.
+ *   • Read-only list popup for multi-value columns (Interest Type / Business Opportunities / Wealth Solutions).
  * - Client Progress Summary:
- *   • DESC-first sorting on date columns (Last Call On, Last BOP Call On, Last FollowUp On).
- *   • Initial sort = Last Call On (desc).
- *   • Small popup editors for Referred By, Product, Comment, Remark with word-wrap, Shift+Enter for new lines,
- *     and save via existing updateCell (UI-layer key normalization only).
- * - All Records (Editable): keep existing DESC-first sort for CalledOn, BOP_Date, Followup_Date (no other changes).
+ *   • DESC-first sorting on date columns retained (Last Call On, Last BOP Call On, Last FollowUp On).
+ *   • Existing popup editors for wrap fields remain.
  *
  * No backend changes (schema, procedures, routes, auth, Supabase policies).
  */
@@ -574,8 +575,7 @@ export default function Dashboard() {
         bop_attempts: r.bop_attempts,
         last_followup_date: r.last_followup_date,
         followup_attempts: r.followup_attempts,
-        // NOTE: If ReferredBy/Product/Comment/Remark are added to this view in the future,
-        // the popup editor below will pick them up automatically (no backend change here).
+        // If ReferredBy/Product/Comment/Remark are added later, popup editor below handles them.
       }));
       setProgressRows(rows);
       setProgressPage(0);
@@ -801,7 +801,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Upcoming Meetings (Editable) — no change (DESC-first for date columns retained) */}
+        {/* Upcoming Meetings (Editable) — retains existing sorting; adds popup editors & list popups */}
         <Card title="Upcoming Meetings (Editable)">
           <div className="grid md:grid-cols-5 gap-3 items-end">
             <label className="block md:col-span-1">
@@ -897,7 +897,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Client Progress Summary (sorting + small popup editors for wrap fields) */}
+        {/* Client Progress Summary (sorting + existing popup editors for wrap fields) */}
         <Card title="Client Progress Summary">
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
             <input
@@ -948,8 +948,7 @@ export default function Dashboard() {
               rows={progressSlice}
               sortState={progressSort}
               onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))}
-              // pass onUpdate so wrap fields can save
-              onUpdate={updateCell}
+              onUpdate={updateCell} // already supports popup editor saving if fields exist
             />
           )}
           {progressVisible && (
@@ -960,7 +959,7 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* All Records (Editable) — no change other than confirming existing DESC-first header sort */}
+        {/* All Records (Editable) — retains existing sorting; adds popup editors & list popups */}
         <Card title="All Records (Editable)">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
             <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">
@@ -1103,7 +1102,7 @@ function ProgressSummaryTable({
       { id: "bop_attempts", label: "No of BOP Calls", key: "bop_attempts" as ProgressSortKey, defaultW: 110 },
       { id: "last_followup_date", label: "Last FollowUp On", key: "last_followup_date" as ProgressSortKey, defaultW: 200 },
       { id: "followup_attempts", label: "No of FollowUp Calls", key: "followup_attempts" as ProgressSortKey, defaultW: 140 },
-      // If the data includes wrap fields, we will append dynamic columns for display/edit below.
+      // If data includes wrap fields, dynamic columns appended below.
     ],
     []
   );
@@ -1286,6 +1285,7 @@ function ProgressSummaryTable({
                   );
 
                 // dynamic wrap fields (small popup textarea with word wrap)
+                const WRAP_KEYS = new Set(["referred_by", "Product", "Comment", "Remark", "product", "comment", "remark"]);
                 if (WRAP_KEYS.has(c.id)) {
                   const k = c.id;
                   const cellId = `${r.clientid ?? r.id}:${k}`;
@@ -1319,7 +1319,6 @@ function ProgressSummaryTable({
                                 onKeyDown={(e) => {
                                   // Shift+Enter inserts newline (default); Enter alone keeps editing
                                   if (e.key === "Enter" && !e.shiftKey) {
-                                    // prevent accidental submit/close
                                     e.stopPropagation();
                                   }
                                 }}
@@ -1332,6 +1331,16 @@ function ProgressSummaryTable({
                                       setOpenCell(null);
                                       return;
                                     }
+                                    const SAVE_KEY_NORMALIZE: Record<string, string> = {
+                                      comment: "Comment",
+                                      remark: "Remark",
+                                      product: "Product",
+                                      Comment: "Comment",
+                                      Remark: "Remark",
+                                      Product: "Product",
+                                      ReferredBy: "referred_by",
+                                      referredby: "referred_by",
+                                    };
                                     const mappedKey = SAVE_KEY_NORMALIZE[k] ?? k;
                                     await onUpdate(String(r.clientid ?? r.id), mappedKey, drafts[cellId] ?? "");
                                     setOpenCell(null);
@@ -1381,7 +1390,7 @@ function ProgressSummaryTable({
   );
 }
 
-/** -------- Editable Excel-style table (shared, unchanged aside from existing sort behavior) -------- */
+/** -------- Editable Excel-style table (shared) -------- */
 function ExcelTableEditable({
   rows,
   savingId,
@@ -1424,7 +1433,18 @@ function ExcelTableEditable({
     return ordered;
   }, [rows, preferredOrder]);
 
+  // Popup editor keys and list viewer keys
   const WRAP_KEYS = new Set(["referred_by", "Product", "Comment", "Remark", "product", "comment", "remark"]);
+  const SAVE_KEY_NORMALIZE: Record<string, string> = {
+    comment: "Comment",
+    remark: "Remark",
+    product: "Product",
+    Comment: "Comment",
+    Remark: "Remark",
+    Product: "Product",
+    ReferredBy: "referred_by",
+    referredby: "referred_by",
+  };
 
   const columns = useMemo(() => {
     const extra = extraLeftCols.map((c, i) => ({
@@ -1444,7 +1464,7 @@ function ExcelTableEditable({
           ? 220
           : k.toLowerCase().includes("email")
           ? 240
-          : WRAP_KEYS.has(k)
+          : WRAP_KEYS.has(k) || READONLY_LIST_COLS.has(k)
           ? 260
           : 160;
       const sortable =
@@ -1591,7 +1611,123 @@ function ExcelTableEditable({
                   );
                 }
 
-                // Default editable/non-editable behavior (unchanged)
+                // --- LIST POPUP for multi-value columns ---
+                if (READONLY_LIST_COLS.has(k)) {
+                  const cellId = `${r.id}:${k}`;
+                  const items = asListItems(r[k]);
+                  const display = items.join(", ");
+                  const showPopup = openCell === cellId;
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          className="w-full text-left text-slate-800 whitespace-normal break-words"
+                          onClick={() => setOpenCell((cur) => (cur === cellId ? null : cellId))}
+                        >
+                          {display || "—"}
+                        </button>
+                        {showPopup && (
+                          <div className="absolute left-0 top-full mt-1 w-72 max-w-[70vw] bg-white border border-slate-500 shadow-lg z-30">
+                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">
+                              {labelFor(k)}
+                            </div>
+                            <ul className="max-h-48 overflow-auto">
+                              {(items.length ? items : ["(empty)"]).map((x, i) => (
+                                <li key={i} className="px-2 py-1 text-sm border-b border-slate-100">
+                                  {x}
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="p-2">
+                              <Button variant="secondary" onClick={() => setOpenCell(null)}>
+                                Close
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  );
+                }
+
+                // --- WRAP KEYS: popup small editor with scrollbars ---
+                if (WRAP_KEYS.has(k)) {
+                  const cellId = `${r.id}:${k}`;
+                  const showPopup = openCell === cellId;
+                  const baseVal = String(getCellValueForInput(r, k));
+                  return (
+                    <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          className="w-full text-left text-slate-800 whitespace-normal break-words"
+                          onClick={() => {
+                            setDrafts((prev) => ({ ...prev, [cellId]: drafts[cellId] ?? baseVal }));
+                            setOpenCell((cur) => (cur === cellId ? null : cellId));
+                          }}
+                        >
+                          {baseVal || "—"}
+                        </button>
+
+                        {showPopup && (
+                          <div className="absolute left-0 top-full mt-1 w-80 max-w-[80vw] bg-white border border-slate-500 shadow-xl z-40">
+                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">
+                              {labelFor(k)}
+                            </div>
+                            <div className="p-2">
+                              <textarea
+                                rows={5}
+                                className="w-full border border-slate-300 px-2 py-1 text-sm whitespace-pre-wrap break-words resize-none overflow-auto"
+                                value={drafts[cellId] ?? ""}
+                                onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
+                                onKeyDown={(e) => {
+                                  // Shift+Enter inserts newline (default); Enter alone keeps editing
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.stopPropagation();
+                                  }
+                                }}
+                              />
+                              <div className="mt-2 flex items-center gap-2">
+                                <Button
+                                  variant="secondary"
+                                  onClick={async () => {
+                                    const mappedKey = SAVE_KEY_NORMALIZE[k] ?? k;
+                                    await onUpdate(String(r.id), mappedKey, drafts[cellId] ?? "");
+                                    setOpenCell(null);
+                                    setDrafts((prev) => {
+                                      const next = { ...prev };
+                                      delete next[cellId];
+                                      return next;
+                                    });
+                                  }}
+                                  disabled={savingId != null && String(savingId) === String(r.id)}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  onClick={() => {
+                                    setOpenCell(null);
+                                    setDrafts((prev) => {
+                                      const next = { ...prev };
+                                      delete next[cellId];
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  );
+                }
+
+                // ---- EDITABLE CELLS (default text or datetime) ----
                 const cellId = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
                 const value =
@@ -1610,6 +1746,7 @@ function ExcelTableEditable({
                           const v = drafts[cellId] ?? value ?? "";
                           if (v !== undefined) onUpdate(String(r.id), k, String(v));
                         }}
+                        disabled={savingId != null && String(savingId) === String(r.id)}
                       >
                         {statusOptions.map((opt, idx) => (
                           <option key={`${k}:${idx}:${opt}`} value={opt}>
@@ -1634,6 +1771,7 @@ function ExcelTableEditable({
                         const v = drafts[cellId] ?? value ?? "";
                         if (v !== undefined) onUpdate(String(r.id), k, String(v));
                       }}
+                      disabled={savingId != null && String(savingId) === String(r.id)}
                     />
                   </td>
                 );
