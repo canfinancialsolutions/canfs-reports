@@ -101,7 +101,7 @@ const LABEL_OVERRIDES: Record<string, string> = {
 
   referred_by: "Referred By",
   Profession: "Profession",
-  Product: "Product",
+  Product: "Products Sold",
   Comment: "Comment",
   Remark: "Remark",
 
@@ -898,38 +898,36 @@ export default function Dashboard() {
               savingId={savingId}
               onUpdate={updateCell}
               preferredOrder={[
-                "status",
                 "created_at",
+                "status",
                 "first_name",
                 "last_name",
+                "interest_type",
+                "business_opportunities",
+                "wealth_solutions",
+                "CalledOn",
+                "BOP_Date",
+                "BOP_Status",
+                "Followup_Date",
+                "FollowUp_Status",
+                "Product",
+                "Comment",
+                "Remark",
+                "client_status",
                 "phone",
                 "email",
-                "profession",
-                "preferred_days",
-                "preferred_time",
                 // NEW columns appear (view-only in this card)
                 "spouse_name",
                 "date_of_birth",
                 "children",
                 "city",
                 "state",
-                "immigration_status",
+                "profession",
                 "work_details",
-
-                "interest_type",
-                "business_opportunities",
-                "wealth_solutions",
-
-                "CalledOn",
-                "BOP_Date",
-                "BOP_Status",
-                "Followup_Date",
-                "FollowUp_Status",
-                "referred_by",
-                "Product",
-                "Comment",
-                "Remark",
-                "client_status",
+                "immigration_status",
+               "referred_by",
+               "preferred_days",
+               "preferred_time",
               ]}
               extraLeftCols={[{ label: "Client Name", sortable: "client", render: (r) => clientName(r) }]}
               maxHeightClass="max-h-[420px]"
