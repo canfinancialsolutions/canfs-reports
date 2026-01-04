@@ -1777,8 +1777,7 @@ function ExcelTableEditable({
                 }
 --
 
-@@
- // Date & datetime keys (UI mapping only)
+// Date & datetime keys (UI mapping only)
  const DATE_TIME_KEYS = new Set([
    "BOP_Date",
    "CalledOn",
@@ -1787,146 +1786,146 @@ function ExcelTableEditable({
    "Issued",
  ]);
  const DATE_ONLY_KEYS = new Set(["date_of_birth"]); // calendar date without time
-+/** ------- Yellow highlight helper (ignore timestamp) ------- */
-+function dateOnOrAfterToday(dateVal: any): boolean {
-+  if (!dateVal) return false;
-+  const d = new Date(dateVal);
-+  if (Number.isNaN(d.getTime())) return false;
-+  const today = new Date();
-+  const dOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-+  const tOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-+  return dOnly.getTime() >= tOnly.getTime();
-+}
-+const HIGHLIGHT_DATE_KEYS = new Set(["BOP_Date", "Followup_Date", "FollowUp_Date"]);
-@@
+/** ------- Yellow highlight helper (ignore timestamp) ------- */
+function dateOnOrAfterToday(dateVal: any): boolean {
+  if (!dateVal) return false;
+  const d = new Date(dateVal);
+  if (Number.isNaN(d.getTime())) return false;
+  const today = new Date();
+  const dOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const tOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return dOnly.getTime() >= tOnly.getTime();
+}
+const HIGHLIGHT_DATE_KEYS = new Set(["BOP_Date", "Followup_Date", "FollowUp_Date"]);
+
    const [rangeStart, setRangeStart] = useState(format(new Date(), "yyyy-MM-dd"));
--  const [rangeEnd, setRangeEnd] = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
-+  const [rangeEnd, setRangeEnd] = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
-@@
--              <Button
--                variant="secondary"
--                onClick={() => {
--                  const today = new Date();
--                  const start = format(today, "yyyy-MM-dd");
--                  const end = endOfMonth(addMonths(today, 1));
--                  setRangeStart(start);
--                  setRangeEnd(format(end, "yyyy-MM-dd"));
--                  fetchUpcoming();
--                }}
--                disabled={upcomingLoading}
--              >
--                {upcomingLoading ? "Refreshing…" : "Refresh"}
--              </Button>
-+              <Button
-+                variant="secondary"
-+                onClick={() => {
-+                  const today = new Date();
-+                  const start = format(today, "yyyy-MM-dd");
-+                  const end = format(addDays(today, 30), "yyyy-MM-dd");
-+                  setRangeStart(start);
-+                  setRangeEnd(end);
-+                  fetchUpcoming();
-+                }}
-+                disabled={upcomingLoading}
-+              >
-+                {upcomingLoading ? "Refreshing…" : "Refresh"}
-+              </Button>
-@@
--              <Button variant="secondary" onClick={() => setUpcomingVisible((v) => !v)}>
-+              <Button
-+                variant="secondary"
-+                className={upcomingVisible ? "bg-green-600 text-white" : undefined}
-+                onClick={() => setUpcomingVisible((v) => !v)}
-+              >
+const [rangeEnd, setRangeEnd] = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
+  const [rangeEnd, setRangeEnd] = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
+
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const today = new Date();
+                const start = format(today, "yyyy-MM-dd");
+                const end = endOfMonth(addMonths(today, 1));
+                setRangeStart(start);
+                setRangeEnd(format(end, "yyyy-MM-dd"));
+                fetchUpcoming();
+              }}
+              disabled={upcomingLoading}
+            >
+              {upcomingLoading ? "Refreshing…" : "Refresh"}
+            </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const today = new Date();
+                  const start = format(today, "yyyy-MM-dd");
+                  const end = format(addDays(today, 30), "yyyy-MM-dd");
+                  setRangeStart(start);
+                  setRangeEnd(end);
+                  fetchUpcoming();
+                }}
+                disabled={upcomingLoading}
+              >
+                {upcomingLoading ? "Refreshing…" : "Refresh"}
+              </Button>
+
+            <Button variant="secondary" onClick={() => setUpcomingVisible((v) => !v)}>
+              <Button
+                variant="secondary"
+                className={upcomingVisible ? "bg-green-600 text-white" : undefined}
+                onClick={() => setUpcomingVisible((v) => !v)}
+              >
                  {upcomingVisible ? "Hide Results" : "Show Results"}
--              </Button>
-+              </Button>
-@@
+            </Button>
+              </Button>
+
  function ExcelTableEditable({
-@@
+
    const getCellValueForInput = (r: Row, k: string) => {
-@@
+
    };
-+  const shouldHighlight = (k: string, r: Row) =>
-+    HIGHLIGHT_DATE_KEYS.has(k) && dateOnOrAfterToday(r[k]);
-@@
--                if (c.kind === "extra") {
-+                if (c.kind === "extra") {
+  const shouldHighlight = (k: string, r: Row) =>
+    HIGHLIGHT_DATE_KEYS.has(k) && dateOnOrAfterToday(r[k]);
+
+              if (c.kind === "extra") {
+                if (c.kind === "extra") {
                    const idx = Number(String(c.id).split(":")[1] ?? "0");
                    const colDef = extraLeftCols[idx];
                    const v = colDef?.render ? colDef.render(r) : "";
                    return (
--                    <td
--                      key={c.id}
--                      className={`border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-slate-800`}
--                      style={style}
--                    >
-+                    <td
-+                      key={c.id}
-+                      className={`border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-slate-800 ${shouldHighlight(c.key as string, r) ? "bg-yellow-200" : ""}`}
-+                      style={style}
-+                    >
+                  <td
+                    key={c.id}
+                    className={`border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-slate-800`}
+                    style={style}
+                  >
+                    <td
+                      key={c.id}
+                      className={`border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-slate-800 ${shouldHighlight(c.key as string, r) ? "bg-yellow-200" : ""}`}
+                      style={style}
+                    >
                        {v}
                      </td>
                    );
                  }
-@@
--                  return (
--                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
-+                  return (
-+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-nowrap ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
+
+                return (
+                  <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-nowrap" style={style}>
+                  return (
+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-nowrap ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
                        {v}
                      </td>
                    );
                  }
-@@
--                if (statusOptions) {
-+                if (statusOptions) {
+
+              if (statusOptions) {
+                if (statusOptions) {
                    const value =
                      drafts[cellId] !== undefined ? drafts[cellId] : String(getCellValueForInput(r, k));
                    return (
--                    <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
-+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
+                  <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
                        <select
                          className="w-full bg-transparent border-0 outline-none text-sm"
-@@
--                if (READONLY_LIST_COLS.has(k)) {
-+                if (READONLY_LIST_COLS.has(k)) {
+
+              if (READONLY_LIST_COLS.has(k)) {
+                if (READONLY_LIST_COLS.has(k)) {
                    const cellIdList = `${r.id}:${k}`;
-@@
--                    <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
-+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 align-top ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
-@@
--                if (WRAP_KEYS.has(k) && viewOnlyPopupKeys.has(k)) {
-+                if (WRAP_KEYS.has(k) && viewOnlyPopupKeys.has(k)) {
-@@
--                    <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
-+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 align-top ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
-@@
--                if (nonEditableKeys.has(k)) {
-+                if (nonEditableKeys.has(k)) {
-@@
--                  return (
--                    <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-normal break-words" style={style}>
-+                  return (
-+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-normal break-words ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
+
+                  <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 align-top ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
+
+              if (WRAP_KEYS.has(k) && viewOnlyPopupKeys.has(k)) {
+                if (WRAP_KEYS.has(k) && viewOnlyPopupKeys.has(k)) {
+
+                  <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 align-top ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
+
+              if (nonEditableKeys.has(k)) {
+                if (nonEditableKeys.has(k)) {
+
+                return (
+                  <td key={c.id} className="border border-slate-300 px-2 py-2 whitespace-normal break-words" style={style}>
+                  return (
+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-normal break-words ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
                        {displayVal}
                      </td>
                    );
                  }
-@@
--                if (WRAP_KEYS.has(k)) {
-+                if (WRAP_KEYS.has(k)) {
-@@
--                  return (
--                    <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
-+                  return (
-+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 align-top ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
-@@
--                return (
--                  <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
-+                return (
-+                  <td key={c.id} className={`border border-slate-300 px-2 py-2 ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
+
+              if (WRAP_KEYS.has(k)) {
+                if (WRAP_KEYS.has(k)) {
+
+                return (
+                  <td key={c.id} className="border border-slate-300 px-2 py-2 align-top" style={style}>
+                  return (
+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 align-top ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
+
+              return (
+                <td key={c.id} className="border border-slate-300 px-2 py-2" style={style}>
+                return (
+                  <td key={c.id} className={`border border-slate-300 px-2 py-2 ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
                      <input
                        type={inputType}
 
