@@ -240,7 +240,7 @@ const IMMIGRATION_STATUS_OPTIONS: string[] = [
   "F-1 OPT", "F-1 STEM OPT", "H-4 EAD", "E-3", "I-485 Pending", "I-485 EAD/AP", "Other Visa Status", 
 ]; 
 const STATUS_OPTIONS: Record<string, string[]> = { 
-  status: ["", "Prospect Client", "New Client", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"], 
+  status: ["", "Prospect Client", "New Client",  "Existing Client", "Old Client", "Referral Client", "Initiated", "In-Progress", "On-Hold", "Not Interested", "Completed"], 
   followup_status: ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Closed", "Completed"], 
   "follow-up_status": ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Closed", "Completed"], 
   client_status: ["", "New Client", "Interested", "In-Progress", "Not Interested", "On Hold", "Referral", "Purchased", "Re-Opened", "Completed"], 
