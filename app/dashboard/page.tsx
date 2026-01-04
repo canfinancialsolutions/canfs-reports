@@ -1,5 +1,4 @@
- 
-/** 
+ /** 
  * CAN Financial Solutions — Dashboard (page_0 (2).tsx) 
  * 
  * Minimal, scoped UI-layer changes only: 
@@ -877,7 +876,7 @@ function ExcelTableEditable({
         </thead> 
         <tbody> 
           {rows.map((r, ridx) => ( 
-            <tr key={String(r.id ?? ridx)} className="hover:bg-slate-50"> 
+            <tr key={String(r.id ?? ridx)} className={`hover:bg-slate-50 ${r.client_status === "In Progress" ? "bg-[#F4C542]" : r.client_status === "Not Interested" ? "bg-[#E57373]" : r.client_status === "On Hold" ? "bg-[#FFB74D]" : r.client_status === "Completed" ? "bg-[#2E7D32] text-white" : ""}`}> 
               {(columns as any).map((c: any, colIndex: number) => { 
                 const w = getW(c.id, c.defaultW ?? 160); 
                 const isSticky = colIndex < stickyLeftCount; 
