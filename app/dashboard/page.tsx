@@ -1,4 +1,3 @@
-
 /**
  * CAN Financial Solutions — Dashboard (page_2.tsx)
  *
@@ -1775,31 +1774,6 @@ function ExcelTableEditable({
                     </td>
                   );
                 }
---
-
-// Date & datetime keys (UI mapping only)
- const DATE_TIME_KEYS = new Set([
-   "BOP_Date",
-   "CalledOn",
-   "Followup_Date",
-   "FollowUp_Date",
-   "Issued",
- ]);
- const DATE_ONLY_KEYS = new Set(["date_of_birth"]); // calendar date without time
-/** ------- Yellow highlight helper (ignore timestamp) ------- */
-function dateOnOrAfterToday(dateVal: any): boolean {
-  if (!dateVal) return false;
-  const d = new Date(dateVal);
-  if (Number.isNaN(d.getTime())) return false;
-  const today = new Date();
-  const dOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const tOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  return dOnly.getTime() >= tOnly.getTime();
-}
- 
- 
-
---             
                 // ---- EDITABLE CELLS (default text, date-only, or datetime) ----
                 const cellIdInput = `${r.id}:${k}`;
                 const isDateTime = DATE_TIME_KEYS.has(k);
