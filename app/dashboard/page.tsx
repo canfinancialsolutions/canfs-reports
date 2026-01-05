@@ -1,4 +1,4 @@
- /** 
+/** 
  * CAN Financial Solutions — Dashboard (page_0 (2).tsx) 
  * 
  * Minimal, scoped UI-layer changes only: 
@@ -699,7 +699,15 @@ export default function Dashboard() {
             </div> 
           </div> 
           <div className="text-sm text-slate-600 mb-2">{total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page</div> 
-          {recordsVisible && ( 
+          
+<div className="flex gap-4 mb-2 text-xs font-semibold text-slate-700">
+  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#F4C542] rounded"></span> In Progress</div>
+  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#E57373] rounded"></span> Not Interested</div>
+  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#FFB74D] rounded"></span> On Hold</div>
+  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#2E7D32] rounded"></span> Completed</div>
+</div>
+
+{recordsVisible && ( 
             <> 
               {loading ? ( 
                 <div className="text-slate-600">Loading…</div> 
