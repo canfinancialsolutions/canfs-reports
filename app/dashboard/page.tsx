@@ -700,11 +700,14 @@ export default function Dashboard() {
           </div> 
           <div className="text-sm text-slate-600 mb-2">{total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page</div> 
           
+//  "New Client", "Interested", "In-Progress", "Not Interested", "On Hold", "Referral", "Purchased", "Re-Opened", "Completed"], 
 <div className="flex gap-4 mb-2 text-xs font-semibold text-slate-700">
-  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#F4C542] rounded"></span> In Progress</div>
-  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#E57373] rounded"></span> Not Interested</div>
-  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#FFB74D] rounded"></span> On Hold</div>
-  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#2E7D32] rounded"></span> Completed</div>
+  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#B1FB17] rounded"></span>New Client</div>
+  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#728FCE] rounded"></span>Interested</div>
+  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#FFF380] rounded"></span>In-Progress</div>
+  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#E6BF83] rounded"></span>Not Interested</div>
+  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#C9BE62] rounded"></span>On Hold</div>
+  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#EAC117] rounded"></span>Completed</div>
 </div>
 
 {recordsVisible && ( 
@@ -884,7 +887,7 @@ function ExcelTableEditable({
         </thead> 
         <tbody> 
           {rows.map((r, ridx) => ( 
-            <tr key={String(r.id ?? ridx)} className={`hover:bg-slate-50 ${r.client_status === "In Progress" ? "bg-[#F4C542]" : r.client_status === "Not Interested" ? "bg-[#E57373]" : r.client_status === "On Hold" ? "bg-[#FFB74D]" : r.client_status === "Completed" ? "bg-[#2E7D32] text-white" : ""}`}> 
+            <tr key={String(r.id ?? ridx)} className={`hover:bg-slate-50 ${r.client_status === "New Client" ? "bg-[#B1FB17]" : r.client_status === "Interested" ? "bg-[#728FCE]" : r.client_status === "In-Progress" ? "bg-[#FFF380]" : r.client_status === "Not Interested" ? "bg-[#E6BF83]" : r.client_status === "On Hold" ? "bg-[#C9BE62]" : r.client_status === "Completed" ? "bg-[#EAC117] text-white" : ""}`}> 
               {(columns as any).map((c: any, colIndex: number) => { 
                 const w = getW(c.id, c.defaultW ?? 160); 
                 const isSticky = colIndex < stickyLeftCount; 
