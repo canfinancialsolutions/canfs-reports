@@ -1,4 +1,5 @@
- /** 
+ 
+/** 
  * CAN Financial Solutions — Dashboard (page_0 (2).tsx) 
  * 
  * Minimal, scoped UI-layer changes only: 
@@ -700,7 +701,6 @@ export default function Dashboard() {
           </div> 
           <div className="text-sm text-black mb-2">{total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page</div> 
           
-//  "New Client", "Interested", "In-Progress", "Not Interested", "On Hold", "Referral", "Purchased", "Re-Opened", "Completed"], 
 <div className="flex gap-4 mb-2 text-xs font-semibold text-black">
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#B1FB17] rounded"></span>New Client</div>
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#728FCE] rounded"></span>Interested</div>
