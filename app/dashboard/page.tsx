@@ -1,5 +1,4 @@
- 
-/** 
+ /** 
  * CAN Financial Solutions — Dashboard (page_0 (2).tsx) 
  * 
  * Minimal, scoped UI-layer changes only: 
@@ -559,8 +558,8 @@ export default function Dashboard() {
           <div className="flex items-center gap-3"> 
             <img src="/can-logo.png" className="h-8 w-auto" alt="CAN Logo" onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")} /> 
             <div> 
-              <div className="text-2xl font-bold text-slate-800">CAN Financial Solutions Clients Report</div> 
-              <div className="text-sm text-slate-500">Protecting Your Tomorrow</div> 
+              <div className="text-2xl font-bold text-black">CAN Financial Solutions Clients Report</div> 
+              <div className="text-sm text-black">Protecting Your Tomorrow</div> 
             </div> 
           </div> 
           <div className="flex items-center gap-2"> 
@@ -579,7 +578,7 @@ export default function Dashboard() {
         <Card title="Trends"> 
           {trendsVisible ? ( 
             <> 
-              <div className="text-xs font-semibold text-slate-600 mb-2">Rolling 12 Months</div> 
+              <div className="text-xs font-semibold text-black mb-2">Rolling 12 Months</div> 
               <div className="h-64"> 
                 <ResponsiveContainer width="100%" height="100%"> 
                   <BarChart data={monthly12}> 
@@ -598,20 +597,20 @@ export default function Dashboard() {
                   </BarChart> 
                 </ResponsiveContainer> 
               </div> 
-              {trendLoading && <div className="mt-2 text-xs text-slate-500">Loading…</div>} 
+              {trendLoading && <div className="mt-2 text-xs text-black">Loading…</div>} 
             </> 
           ) : ( 
-            <div className="text-sm text-slate-600">Results are hidden.</div> 
+            <div className="text-sm text-black">Results are hidden.</div> 
           )} 
         </Card> 
         <Card title="Upcoming Meetings (Editable)"> 
           <div className="grid md:grid-cols-5 gap-3 items-end"> 
             <label className="block md:col-span-1"> 
-              <div className="text-xs font-semibold text-slate-600 mb-1">Start</div> 
+              <div className="text-xs font-semibold text-black mb-1">Start</div> 
               <input type="date" className="w-32 border border-slate-300 px-2 py-1" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} /> 
             </label> 
             <label className="block md:col-span-1"> 
-              <div className="text-xs font-semibold text-slate-600 mb-1">End</div> 
+              <div className="text-xs font-semibold text-black mb-1">End</div> 
               <input type="date" className="w-32 border border-slate-300 px-2 py-1" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} /> 
             </label> 
             <div className="flex gap-2 md:col-span-3"> 
@@ -639,8 +638,8 @@ export default function Dashboard() {
             </div> 
           </div> 
           <div className="flex items-center justify-between mb-2 mt-3"> 
-            <div className="text-sm text-slate-600">Table supports vertical + horizontal scrolling.</div> 
-            <div className="text-xs text-slate-600"> 
+            <div className="text-sm text-black">Table supports vertical + horizontal scrolling.</div> 
+            <div className="text-xs text-black"> 
               Click headers to sort: <b>Client Name</b>, <b>Created Date</b>, <b>BOP Date</b>, <b>BOP Status</b>, <b>Follow-Up Date</b>, <b>Status</b>. 
             </div> 
           </div> 
@@ -677,9 +676,9 @@ export default function Dashboard() {
               <Button variant="secondary" onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))} disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}>Next</Button> 
             </div> 
           </div> 
-          <div className="text-xs text-slate-600 mb-2">Click headers to sort.</div> 
+          <div className="text-xs text-black mb-2">Click headers to sort.</div> 
           {progressVisible && (<ProgressSummaryTable rows={progressSlice} sortState={progressSort} onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))} />)} 
-          {progressVisible && (<div className="mt-2 text-xs text-slate-600">Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page</div>)} 
+          {progressVisible && (<div className="mt-2 text-xs text-black">Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page</div>)} 
         </Card> 
         <Card title="All Records (Editable)"> 
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2"> 
@@ -691,7 +690,7 @@ export default function Dashboard() {
             </div> 
             <div className="flex items-center gap-2"> 
               <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white"> 
-                <span className="text-xs font-semibold text-slate-600">Go to page</span> 
+                <span className="text-xs font-semibold text-black">Go to page</span> 
                 <input type="number" min={1} max={totalPages} className="w-20 border border-slate-300 px-2 py-1 text-sm" value={pageJump} onChange={(e) => setPageJump(e.target.value)} /> 
                 <Button variant="secondary" onClick={() => { const n = Number(pageJump); if (!Number.isFinite(n)) return; const p = Math.min(totalPages, Math.max(1, Math.floor(n))); loadPage(p - 1); }} disabled={loading || totalPages <= 1}>Go</Button> 
               </div> 
@@ -699,10 +698,10 @@ export default function Dashboard() {
               <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>Next</Button> 
             </div> 
           </div> 
-          <div className="text-sm text-slate-600 mb-2">{total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page</div> 
+          <div className="text-sm text-black mb-2">{total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page</div> 
           
 //  "New Client", "Interested", "In-Progress", "Not Interested", "On Hold", "Referral", "Purchased", "Re-Opened", "Completed"], 
-<div className="flex gap-4 mb-2 text-xs font-semibold text-slate-700">
+<div className="flex gap-4 mb-2 text-xs font-semibold text-black">
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#B1FB17] rounded"></span>New Client</div>
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#728FCE] rounded"></span>Interested</div>
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#FFF380] rounded"></span>In-Progress</div>
@@ -714,7 +713,7 @@ export default function Dashboard() {
 {recordsVisible && ( 
             <> 
               {loading ? ( 
-                <div className="text-slate-600">Loading…</div> 
+                <div className="text-black">Loading…</div> 
               ) : ( 
                 <ExcelTableEditable 
                   rows={records} 
@@ -752,7 +751,7 @@ function ProgressSummaryTable({ rows, sortState, onSortChange }: { rows: Row[]; 
   ], []); 
   const getW = (id: string, def: number) => widths[id] ?? def; 
   const stickyLeftPx = (colIndex: number) => (colIndex <= 0 ? 0 : 0); 
-  const sortIcon = (k?: ProgressSortKey) => { if (!k) return null; if (sortState.key !== k) return <span className="ml-1 text-slate-400">↕</span>; return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>; }; 
+  const sortIcon = (k?: ProgressSortKey) => { if (!k) return null; if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>; return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>; }; 
   const minWidth = cols.reduce((sum, c) => sum + getW(c.id, c.defaultW), 0); 
   const fmtDate = (v: any) => { if (!v) return "—"; const d = new Date(v); const t = d.getTime(); if (!Number.isFinite(t)) return "—"; return d.toLocaleString(); }; 
   const fmtCount = (v: any) => { const n = Number(v); if (!Number.isFinite(n)) return "—"; return String(n); }; 
@@ -760,7 +759,7 @@ function ProgressSummaryTable({ rows, sortState, onSortChange }: { rows: Row[]; 
     <div className="overflow-auto border border-slate-500 bg-white max-h-[520px]"> 
       <table className="w-full table-fixed border-collapse" style={{ minWidth }}> 
         <thead className="sticky top-0 bg-slate-100 z-20"> 
-          <tr className="text-left text-xs font-semibold text-slate-700"> 
+          <tr className="text-left text-xs font-semibold text-black"> 
             {cols.map((c, idx) => { 
               const w = getW(c.id, c.defaultW); 
               const isSticky = idx === 0; 
@@ -807,7 +806,7 @@ function ProgressSummaryTable({ rows, sortState, onSortChange }: { rows: Row[]; 
                 else if (c.id === "bop_attempts") { v = fmtCount(r.bop_attempts); tdClass += " text-center align-middle"; } 
                 else if (c.id === "last_followup_date") v = fmtDate(r.last_followup_date); 
                 else if (c.id === "followup_attempts") { v = fmtCount(r.followup_attempts); tdClass += " text-center align-middle"; } 
-                return (<td key={c.id} className={`${tdClass} ${isSticky ? "font-semibold text-slate-800" : ""}`} style={style}>{v}</td>); 
+                return (<td key={c.id} className={`${tdClass} ${isSticky ? "font-semibold text-black" : ""}`} style={style}>{v}</td>); 
               })} 
             </tr> 
           ))} 
@@ -827,7 +826,7 @@ function ExcelTableEditable({
   const { widths, startResize } = useColumnResizer(); 
   const [openCell, setOpenCell] = useState<string | null>(null); 
   const [drafts, setDrafts] = useState<Record<string, string>>({}); 
-  const sortIcon = (k?: SortKey) => { if (!k) return null; if (sortState.key !== k) return <span className="ml-1 text-slate-400">↕</span>; return <span className="ml-1 text-slate-700">{sortState.dir === "asc" ? "↑" : "↓"}</span>; }; 
+  const sortIcon = (k?: SortKey) => { if (!k) return null; if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>; return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>; }; 
   const keys = useMemo(() => { 
     if (!rows.length) return [] as string[]; 
     const baseKeys = Object.keys(rows[0]).filter((k) => k !== "id"); 
@@ -861,7 +860,7 @@ function ExcelTableEditable({
     <div className={`overflow-auto border border-slate-500 bg-white ${maxHeightClass}`}> 
       <table className="w-full table-fixed border-collapse" style={{ minWidth }}> 
         <thead className="sticky top-0 bg-slate-100 z-20"> 
-          <tr className="text-left text-xs font-semibold text-slate-700"> 
+          <tr className="text-left text-xs font-semibold text-black"> 
             {(columns as any).map((c: any, colIndex: number) => { 
               const w = getW(c.id, c.defaultW ?? 160); 
               const isSticky = colIndex < stickyLeftCount; 
@@ -897,7 +896,7 @@ function ExcelTableEditable({
                   const idx = Number(String(c.id).split(":")[1] ?? "0"); 
                   const colDef = extraLeftCols[idx]; 
                   const v = colDef?.render ? colDef.render(r) : ""; 
-                  return (<td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-slate-800 ${shouldHighlight(c.key as string, r) ? "bg-yellow-200" : ""}`} style={style}>{v}</td>); 
+                  return (<td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-black ${shouldHighlight(c.key as string, r) ? "bg-yellow-200" : ""}`} style={style}>{v}</td>); 
                 } 
                 const k = c.key as string; 
                 if (k === "created_at") { 
@@ -931,10 +930,10 @@ function ExcelTableEditable({
                   return ( 
                     <td key={c.id} className={`border border-slate-300 px-2 py-2 align-top ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}> 
                       <div className="relative"> 
-                        <button type="button" className="w-full text-left text-slate-800 whitespace-normal break-words" onClick={() => setOpenCell((cur) => (cur === cellIdList ? null : cellIdList))}>{display || "—"}</button> 
+                        <button type="button" className="w-full text-left text-black whitespace-normal break-words" onClick={() => setOpenCell((cur) => (cur === cellIdList ? null : cellIdList))}>{display || "—"}</button> 
                         {showPopup && ( 
                           <div className="absolute left-0 top-full mt-1 w-72 max-w-[70vw] bg-white border border-slate-500 shadow-lg z-30"> 
-                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">{labelFor(k)}</div> 
+                            <div className="px-2 py-1 text-xs font-semibold text-black bg-slate-100 border-b border-slate-300">{labelFor(k)}</div> 
                             <ul className="max-h-48 overflow-auto"> 
                               {(items.length ? items : ["(empty)"]).map((x, i) => (<li key={i} className="px-2 py-1 text-sm border-b border-slate-100">{x}</li>))} 
                             </ul> 
@@ -952,10 +951,10 @@ function ExcelTableEditable({
                   return ( 
                     <td key={c.id} className={`border border-slate-300 px-2 py-2 align-top ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}> 
                       <div className="relative"> 
-                        <button type="button" className="w-full text-left text-slate-800 whitespace-normal break-words" onClick={() => setOpenCell((cur) => (cur === cellIdView ? null : cellIdView))}>{baseVal || "—"}</button> 
+                        <button type="button" className="w-full text-left text-black whitespace-normal break-words" onClick={() => setOpenCell((cur) => (cur === cellIdView ? null : cellIdView))}>{baseVal || "—"}</button> 
                         {showPopup && ( 
                           <div className="absolute left-0 top-full mt-1 w-80 max-w-[80vw] bg-white border border-slate-500 shadow-xl z-40"> 
-                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">{labelFor(k)}</div> 
+                            <div className="px-2 py-1 text-xs font-semibold text-black bg-slate-100 border-b border-slate-300">{labelFor(k)}</div> 
                             <div className="p-2"> 
                               <textarea rows={5} readOnly className="w-full border border-slate-300 px-2 py-1 text-sm whitespace-pre-wrap break-words resize-none overflow-auto bg-slate-50" value={baseVal} /> 
                               <div className="mt-2"><Button variant="secondary" onClick={() => setOpenCell(null)}>Close</Button></div> 
@@ -977,10 +976,10 @@ function ExcelTableEditable({
                   return ( 
                     <td key={c.id} className={`border border-slate-300 px-2 py-2 align-top ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}> 
                       <div className="relative"> 
-                        <button type="button" className="w-full text-left text-slate-800 whitespace-normal break-words" onClick={() => { setDrafts((prev) => ({ ...prev, [cellIdWrap]: drafts[cellIdWrap] ?? baseVal })); setOpenCell((cur) => (cur === cellIdWrap ? null : cellIdWrap)); }}>{baseVal || "—"}</button> 
+                        <button type="button" className="w-full text-left text-black whitespace-normal break-words" onClick={() => { setDrafts((prev) => ({ ...prev, [cellIdWrap]: drafts[cellIdWrap] ?? baseVal })); setOpenCell((cur) => (cur === cellIdWrap ? null : cellIdWrap)); }}>{baseVal || "—"}</button> 
                         {showPopup && ( 
                           <div className="absolute left-0 top-full mt-1 w-80 max-w-[80vw] bg-white border border-slate-500 shadow-xl z-40"> 
-                            <div className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 border-b border-slate-300">{labelFor(k)}</div> 
+                            <div className="px-2 py-1 text-xs font-semibold text-black bg-slate-100 border-b border-slate-300">{labelFor(k)}</div> 
                             <div className="p-2"> 
                               <textarea rows={5} className="w-full border border-slate-300 px-2 py-1 text-sm whitespace-pre-wrap break-words resize-none overflow-auto" value={drafts[cellIdWrap] ?? ""} onChange={(e) => setDrafts((prev) => ({ ...prev, [cellIdWrap]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.stopPropagation(); } }} /> 
                               <div className="mt-2 flex items-center gap-2"> 
