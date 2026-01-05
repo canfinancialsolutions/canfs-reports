@@ -704,7 +704,7 @@ export default function Dashboard() {
 <div className="flex gap-4 mb-2 text-xs font-semibold text-black">
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#B1FB17] rounded"></span>New Client</div>
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#728FCE] rounded"></span>Interested</div>
-  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#728FCE] rounded"></span>In-Progress</div>
+  <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#ADDFFF] rounded"></span>In-Progress</div>
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#E6BF83] rounded"></span>Not Interested</div>
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#C9BE62] rounded"></span>On Hold</div>
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#3CB371] rounded"></span>Completed</div>
@@ -887,7 +887,7 @@ function ExcelTableEditable({
         </thead> 
         <tbody> 
           {rows.map((r, ridx) => ( 
-            <tr key={String(r.id ?? ridx)} className={`hover:bg-slate-50 ${r.client_status === "New Client" ? "bg-[#B1FB17]" : r.client_status === "Interested" ? "bg-[#728FCE]" : r.client_status === "In-Progress" ? "bg-[#728FCE]" : r.client_status === "Not Interested" ? "bg-[#E6BF83]" : r.client_status === "On Hold" ? "bg-[#C9BE62]" : r.client_status === "Completed" ? "bg-[#3CB371] text-black" : ""}`}> 
+            <tr key={String(r.id ?? ridx)} className={`hover:bg-slate-50 ${r.client_status === "New Client" ? "bg-[#B1FB17]" : r.client_status === "Interested" ? "bg-[#728FCE]" : r.client_status === "In-Progress" ? "bg-[#ADDFFF]" : r.client_status === "Not Interested" ? "bg-[#E6BF83]" : r.client_status === "On Hold" ? "bg-[#C9BE62]" : r.client_status === "Completed" ? "bg-[#3CB371] text-black" : ""}`}> 
               {(columns as any).map((c: any, colIndex: number) => { 
                 const w = getW(c.id, c.defaultW ?? 160); 
                 const isSticky = colIndex < stickyLeftCount; 
