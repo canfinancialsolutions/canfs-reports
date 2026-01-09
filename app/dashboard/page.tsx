@@ -258,19 +258,19 @@ export default function Dashboard() {
   const [daily60, setDaily60] = useState<{ day: string; calls?: number; bops?: number; followups?: number }[]>([]); 
   const [monthly12, setMonthly12] = useState<{ month: string; calls?: number; bops?: number; followups?: number }[]>([]); 
   const [trendLoading, setTrendLoading] = useState(false); 
-  const [trendsVisible, setTrendsVisible] = useState(false); 
+  // const [trendsVisible, setTrendsVisible] = useState(false); 
   const [rangeStart, setRangeStart] = useState(format(new Date(), "yyyy-MM-dd")); 
   const [rangeEnd, setRangeEnd] = useState(format(addDays(new Date(), 30), "yyyy-MM-dd")); 
   const [upcoming, setUpcoming] = useState<Row[]>([]); 
   const [upcomingLoading, setUpcomingLoading] = useState(false); 
   const [sortUpcoming, setSortUpcoming] = useState<{ key: SortKey; dir: SortDir }>({ key: "BOP_Date", dir: "desc" }); 
-  const [upcomingVisible, setUpcomingVisible] = useState(false); 
+  // const [upcomingVisible, setUpcomingVisible] = useState(false); 
   const [progressRows, setProgressRows] = useState<Row[]>([]); 
   const [progressLoading, setProgressLoading] = useState(false); 
   const [progressFilter, setProgressFilter] = useState(""); 
   const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>({ key: "last_call_date", dir: "desc" }); 
   const [progressPage, setProgressPage] = useState(0); 
-  const [progressVisible, setProgressVisible] = useState(false);
+  // const [progressVisible, setProgressVisible] = useState(false);
   const [q, setQ] = useState(""); 
   const [records, setRecords] = useState<Row[]>([]); 
   const [total, setTotal] = useState(0); 
@@ -279,7 +279,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true); 
   const [savingId, setSavingId] = useState<string | null>(null); 
   const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" }); 
-  const [recordsVisible, setRecordsVisible] = useState(false);  
+  // const [recordsVisible, setRecordsVisible] = useState(false);  
  
          const [trendsVisible, setTrendsVisible] = useState(false);
          const [upcomingVisible, setUpcomingVisible] = useState(false);
