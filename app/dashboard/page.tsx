@@ -254,10 +254,6 @@ function optionsForKey(k: string): string[] | null {
   return null; 
 } 
 export default function Dashboard() { 
-         const [trendsVisible, setTrendsVisible] = useState(false);
-         const [upcomingVisible, setUpcomingVisible] = useState(false);
-         const [progressVisible, setProgressVisible] = useState(false);
-         const [recordsVisible, setRecordsVisible] = useState(false);
   const [error, setError] = useState<string | null>(null); 
   const [daily60, setDaily60] = useState<{ day: string; calls?: number; bops?: number; followups?: number }[]>([]); 
   const [monthly12, setMonthly12] = useState<{ month: string; calls?: number; bops?: number; followups?: number }[]>([]); 
@@ -284,6 +280,12 @@ export default function Dashboard() {
   const [savingId, setSavingId] = useState<string | null>(null); 
   const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" }); 
   const [recordsVisible, setRecordsVisible] = useState(false);  
+ 
+         const [trendsVisible, setTrendsVisible] = useState(false);
+         const [upcomingVisible, setUpcomingVisible] = useState(false);
+         const [progressVisible, setProgressVisible] = useState(false);
+         const [recordsVisible, setRecordsVisible] = useState(false);
+ 
   useEffect(() => { 
     (async () => { 
       try { 
