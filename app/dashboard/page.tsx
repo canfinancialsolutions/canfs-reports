@@ -271,7 +271,7 @@ export default function Dashboard() {
   const [progressFilter, setProgressFilter] = useState(""); 
   const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>({ key: "last_call_date", dir: "desc" }); 
   const [progressPage, setProgressPage] = useState(0); 
-  const [progressVisible, setProgressVisible] = useState(true); 
+  // const [progressVisible, setProgressVisible] = useState(true); 
   const [q, setQ] = useState(""); 
   const [records, setRecords] = useState<Row[]>([]); 
   const [total, setTotal] = useState(0); 
