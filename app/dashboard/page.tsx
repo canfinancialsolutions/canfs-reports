@@ -280,8 +280,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true); 
   const [savingId, setSavingId] = useState<string | null>(null); 
   const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" }); 
-  const [recordsVisible, setRecordsVisible] = useState(false);
-  /* const [recordsVisible, setRecordsVisible] = useState(true); */
+  const [recordsVisible, setRecordsVisible] = useState(false);  
   useEffect(() => { 
     (async () => { 
       try { 
@@ -309,7 +308,7 @@ export default function Dashboard() {
     const id = setTimeout(() => { 
       loadPage(0); 
      // changed
-      setRecordsVisible(false); 
+      setRecordsVisible(true); 
     }, 300); 
     return () => clearTimeout(id); 
   }, [q]); 
