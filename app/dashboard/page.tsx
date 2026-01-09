@@ -254,6 +254,10 @@ function optionsForKey(k: string): string[] | null {
   return null; 
 } 
 export default function Dashboard() { 
+         const [trendsVisible, setTrendsVisible] = useState(false);
+         const [upcomingVisible, setUpcomingVisible] = useState(false);
+         const [progressVisible, setProgressVisible] = useState(false);
+         const [recordsVisible, setRecordsVisible] = useState(false);
   const [error, setError] = useState<string | null>(null); 
   const [daily60, setDaily60] = useState<{ day: string; calls?: number; bops?: number; followups?: number }[]>([]); 
   const [monthly12, setMonthly12] = useState<{ month: string; calls?: number; bops?: number; followups?: number }[]>([]); 
@@ -270,7 +274,7 @@ export default function Dashboard() {
   const [progressFilter, setProgressFilter] = useState(""); 
   const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>({ key: "last_call_date", dir: "desc" }); 
   const [progressPage, setProgressPage] = useState(0); 
-  const [progressVisible, setProgressVisible] = useState(true);
+  const [progressVisible, setProgressVisible] = useState(false);
   const [q, setQ] = useState(""); 
   const [records, setRecords] = useState<Row[]>([]); 
   const [total, setTotal] = useState(0); 
@@ -279,7 +283,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true); 
   const [savingId, setSavingId] = useState<string | null>(null); 
   const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" }); 
-  const [recordsVisible, setRecordsVisible] = useState(true);  
+  const [recordsVisible, setRecordsVisible] = useState(false);  
   useEffect(() => { 
     (async () => { 
       try { 
@@ -566,10 +570,7 @@ export default function Dashboard() {
           </div> 
           <div className="flex items-center gap-2"> 
 
-         const [trendsVisible, setTrendsVisible] = useState(false);
-         const [upcomingVisible, setUpcomingVisible] = useState(false);
-         const [progressVisible, setProgressVisible] = useState(false);
-         const [recordsVisible, setRecordsVisible] = useState(false);
+         
 
             <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
             <Button variant="secondary" onClick={logout}> 
