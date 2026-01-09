@@ -566,6 +566,12 @@ export default function Dashboard() {
             </div> 
           </div> 
           <div className="flex items-center gap-2"> 
+           /* Hide All the Cards by default */
+         const [trendsVisible, setTrendsVisible] = useState(false);
+         const [upcomingVisible, setUpcomingVisible] = useState(false);
+         const [progressVisible, setProgressVisible] = useState(false);
+         const [recordsVisible, setRecordsVisible] = useState(false);
+
             <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
             <Button variant="secondary" onClick={logout}> 
               <span className="inline-flex items-center gap-2"> 
