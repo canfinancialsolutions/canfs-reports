@@ -267,6 +267,7 @@ export default function Dashboard() {
   const [upcomingVisible, setUpcomingVisible] = useState(false); 
   const [progressRows, setProgressRows] = useState<Row[]>([]); 
   const [progressLoading, setProgressLoading] = useState(false); 
+  const [progressVisible, setProgressVisible] = useState(false);
   const [progressFilter, setProgressFilter] = useState(""); 
   const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>({ key: "last_call_date", dir: "desc" }); 
   const [progressPage, setProgressPage] = useState(0); 
@@ -279,7 +280,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true); 
   const [savingId, setSavingId] = useState<string | null>(null); 
   const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" }); 
-  const [recordsVisible, setRecordsVisible] = useState(true); 
+  const [recordsVisible, setRecordsVisible] = useState(false);
+  // const [recordsVisible, setRecordsVisible] = useState(true); 
   useEffect(() => { 
     (async () => { 
       try { 
