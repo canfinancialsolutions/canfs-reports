@@ -279,12 +279,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true); 
   const [savingId, setSavingId] = useState<string | null>(null); 
   const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" }); 
-  // const [recordsVisible, setRecordsVisible] = useState(true);  
+  const [recordsVisible, setRecordsVisible] = useState(true);  
  
          const [trendsVisible, setTrendsVisible] = useState(false);
          const [upcomingVisible, setUpcomingVisible] = useState(false);
          const [progressVisible, setProgressVisible] = useState(false);
-         const [recordsVisible, setRecordsVisible] = useState(false);
+        // const [recordsVisible, setRecordsVisible] = useState(false);
  
   useEffect(() => { 
     (async () => { 
