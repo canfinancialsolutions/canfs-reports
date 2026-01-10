@@ -590,8 +590,6 @@ export default function Dashboard() {
     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">Cycle End on {cycleEnd}</div>
     <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded text-center text-xs font-bosemiboldld">Cycle Days {cycleDays}</div>
     <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded text-center text-xs font-bosemiboldld">Today Meetings {meetingTodayCount}</div>
-   // Comment <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded text-center text-xs font-bosemiboldld">Tomorrow Meetings {meetingTomorrowCount}</div>
-     
     </div>);
   })()}
             <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
