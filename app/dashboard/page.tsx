@@ -583,7 +583,6 @@ export default function Dashboard() {
     const meetingTomorrowCount = records.filter(r => r.BOP_Date?.startsWith(today+1) || r.Followup_Date?.startsWith(today+1)).length;
      
     return (<div className="flex gap-2 mr-4">
-     //<div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Cycle Days {cycleDays}</div>     
     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
       New Clients {newClientsCount}
     </div>
@@ -594,10 +593,13 @@ export default function Dashboard() {
       Cycle End on {cycleEnd}
     </div>
     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
-      Meetings Today {meetingTodayCount}
+      Cycle Days {cycleDays}
+     </div>  
+    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
+      Today Meetings {meetingTodayCount}
     </div>
     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
-      Meetings Tomorrow {meetingTomorrowCount}
+      Tomorrow Meetings {meetingTomorrowCount}
     </div>
 
     </div>);
