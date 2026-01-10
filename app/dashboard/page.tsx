@@ -562,7 +562,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3"> 
             <img src="/can-logo.png" className="h-8 w-auto" alt="CAN Logo" onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")} /> 
             <div> 
-              <div className="text-1xl font-bold  text-green-600">CAN Financial Solutions Clients Report</div> 
+              <div className="text-1x2 font-bold  text-green-800">CAN Financial Solutions Clients Report</div> 
               <div className="text-sm text-black">Protecting Your Tomorrow</div> 
             </div> 
           </div> 
@@ -612,7 +612,7 @@ export default function Dashboard() {
           </div> 
         </header> 
         {error && (<div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>)} 
-        <Card title="Trends"> 
+        < text-green-600 Card title="Trends"> 
   <div className="mb-2">
     <Button variant="secondary" onClick={() => setTrendsVisible(v => !v)}>
       {trendsVisible ? "Hide Trends" : "Show Trends"}
