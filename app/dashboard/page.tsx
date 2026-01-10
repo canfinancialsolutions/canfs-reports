@@ -298,7 +298,7 @@ export default function Dashboard() {
       } catch (e: any) { 
         setError(e?.message ?? "Failed to initialize"); 
       } finally { 
-        setLoading(false); 
+        setLoading(true); 
       } 
     })(); 
   }, []); 
@@ -471,7 +471,7 @@ export default function Dashboard() {
     } catch (e: any) { 
       setError(e?.message ?? "Failed to load Client Progress Summary"); 
     } finally { 
-      setProgressLoading(false); 
+      setProgressLoading(true); 
     } 
   } 
   async function loadPage(nextPage: number) {
