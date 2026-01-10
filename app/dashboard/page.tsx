@@ -588,16 +588,16 @@ export default function Dashboard() {
     </div>
        
     {cycleDays > 0 && cycleDays <= 30 && (<>
-    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">Cycle Start <div className="text-center text-xs font-semibold">{cycleStart}</div>
+    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">Cycle Start<div className="text-center text-xs font-semibold">{cycleStart}</div>
     </div>
-    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">Cycle End <div className="text-center text-xs font-semibold">{cycleEnd}</div>
+    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">Cycle End<div className="text-center text-xs font-semibold">{cycleEnd}</div>
     </div>
-    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">Cycle Days <div className="text-center text-xs font-semibold">{cycleDays}</div>
+    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">Cycle Days<div className="text-center text-xs font-semibold">{cycleDays}</div>
     </div>
-  </>
-)}
-    
-    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded text-center text-xs font-bosemiboldld">Today Meetings {meetingTodayCount}</div>
+      </>
+    )}
+     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">Today Meetings<div className="text-center text-xs font-semibold">{meetingTodayCount}</div>
+    </div>
     </div>);
   })()}
             <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
