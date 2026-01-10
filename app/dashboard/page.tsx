@@ -586,9 +586,9 @@ export default function Dashboard() {
       <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">New Clients <b>{newClientsCount}</b></div>
       <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded"> Cycle Days <b>{cycleDays}</b></div>     
       <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Cycle Start <b>{cycleStart}</b></div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Cycle End <b>{cycleEnd</b>}</div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Cycle End <b>{cycleEnd}</b></div>
       <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Meeting Today <b>{meetingTodayCount}</b></div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Meeting Tomorrow <b>{meetingTomorrowCount} </div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Meeting Tomorrow <b>{meetingTomorrowCount}</b> </div>
     </div>);
   })()}
             <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
