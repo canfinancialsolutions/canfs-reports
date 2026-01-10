@@ -588,16 +588,22 @@ export default function Dashboard() {
     </div>
     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">Cycle Start on {cycleStart}</div>
     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">Cycle End on {cycleEnd}</div>
-    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">Cycle Days {cycleDays}</div>  
+   
+<div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
+  Cycle Days
+  <div className="text-center text-lg font-bold">{cycleDays}</div>
+</div>
 
-<div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded text-center">
-  Today Meetings<br />
-  <span className="block text-lg font-bold">{meetingTodayCount}</span>
+<div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
+  Today Meetings
+  <div className="text-center text-lg font-bold">{meetingTodayCount}</div>
 </div>
-<div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded text-center">
-  Tomorrow Meetings<br />
-  <span className="block text-lg font-bold">{meetingTomorrowCount}</span>
+
+<div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
+  Tomorrow Meetings
+  <div className="text-center text-lg font-bold">{meetingTomorrowCount}</div>
 </div>
+
 
     </div>);
   })()}
