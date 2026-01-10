@@ -577,10 +577,30 @@ export default function Dashboard() {
     const cycleStart = latestIssuedDate ? latestIssuedDate.toLocaleDateString() : "—";
     const cycleEnd = latestIssuedDate ? new Date(latestIssuedDate.getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString() : "—";
 
-    const cycleDays = latestIssuedDate ? Math.floor((Date.now()-latestIssuedDate.getTime())/(1000*60*60*24)) : 0;
+     
+{cycleDays > 0 && cycleDays <= 30 && (
+  <>
+    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
+      Cycle Start
+      <div className="text-center text-lg font-bold">{cycleStart}</div>
+    </div>
+    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
+      Cycle End
+      <div className="text-center text-lg font-bold">{cycleEnd}</div>
+    </div>
+    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
+      Cycle Days
+      <div className="text-center text-lg font-bold">{cycleDays}</div>
+    </div>
+  </>
+)}
+
+   /*
+   const cycleDays = latestIssuedDate ? Math.floor((Date.now()-latestIssuedDate.getTime())/(1000*60*60*24)) : 0;
     const today = new Date().toISOString().split("T")[0];
     const meetingTodayCount = records.filter(r => r.BOP_Date?.startsWith(today) || r.Followup_Date?.startsWith(today)).length;
     const meetingTomorrowCount = records.filter(r => r.BOP_Date?.startsWith(today+1) || r.Followup_Date?.startsWith(today+1)).length;
+     */
      
     return (<div className="flex gap-2 mr-4">
     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
