@@ -269,7 +269,11 @@ export default function Dashboard() {
   const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>({ key: "last_call_date", dir: "desc" }); 
   const [progressPage, setProgressPage] = useState(0); 
   const [q, setQ] = useState(""); 
-  const [records, setRecords] = useState<Row[]>([]); 
+  
+const [newClientsCount, setNewClientsCount] = useState(0);
+const [cycleDays, setCycleDays] = useState(0);
+
+const [records, setRecords] = useState<Row[]>([]); 
   const [total, setTotal] = useState(0); 
   const [page, setPage] = useState(0); 
   const [pageJump, setPageJump] = useState("1"); 
@@ -489,7 +493,12 @@ export default function Dashboard() {
       dataQuery = applySort(dataQuery, sortAll); 
       const { data, error } = await dataQuery; 
       if (error) throw error; 
-      setRecords(data ?? []); 
+      setRecords(data ?? []);
+
+setNewClientsCount((data ?? []).filter(r => r.status === "New Client").length);
+const latestIssued = (data ?? []).reduce((max, r) => { const d = r.Issued ? new Date(r.Issued).getTime() : 0; return d > max ? d : max; }, 0);
+setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 * 60 * 24)) : 0);
+ 
       setPage(nextPage); 
       setPageJump(String(nextPage + 1)); 
     } catch (e: any) { 
@@ -566,11 +575,30 @@ export default function Dashboard() {
               <div className="text-sm text-black">Protecting Your Tomorrow</div> 
             </div> 
           </div> 
-          <div className="flex items-center gap-2"> 
+          <div className="flex items-center gap-4">
+  <div className="flex gap-2 mr-4">
+    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">New Clients - {newClientsCount}</div>
+    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">Cycle Days - {cycleDays}</div>
+  </div>
+  <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button>
+  <Button variant="secondary" onClick={logout}>
+    <span className="inline-flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" />
+      </svg>
+      Logout
+    </span>
+  </Button>
+</div> 
 
          
 
-            <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
+            <div className="flex items-center gap-4">
+  <div className="flex gap-2">
+    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">New Clients - {newClientsCount}</div>
+    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">Cycle Days - {cycleDays}</div>
+  </div>
+  <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
             <Button variant="secondary" onClick={logout}> 
               <span className="inline-flex items-center gap-2"> 
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> 
@@ -695,7 +723,21 @@ export default function Dashboard() {
               <Button variant="secondary" onClick={() => { setQ(""); loadPage(0); setRecordsVisible(true); }}>Refresh</Button> 
               <Button variant="secondary" onClick={() => setRecordsVisible((v) => !v)}>{recordsVisible ? "Hide Results" : "Show Results"}</Button> 
             </div> 
-            <div className="flex items-center gap-2"> 
+            <div className="flex items-center gap-4">
+  <div className="flex gap-2 mr-4">
+    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">New Clients - {newClientsCount}</div>
+    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">Cycle Days - {cycleDays}</div>
+  </div>
+  <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button>
+  <Button variant="secondary" onClick={logout}>
+    <span className="inline-flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" />
+      </svg>
+      Logout
+    </span>
+  </Button>
+</div> 
               <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white"> 
                 <span className="text-xs font-semibold text-black">Go to page</span> 
                 <input type="number" min={1} max={totalPages} className="w-20 border border-slate-300 px-2 py-1 text-sm" value={pageJump} onChange={(e) => setPageJump(e.target.value)} /> 
