@@ -596,10 +596,12 @@ export default function Dashboard() {
       Cycle Days {cycleDays}
      </div>  
     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
-      Today Meetings {meetingTodayCount}
+      Today Meetings 
+     {meetingTodayCount}
     </div>
-    <div className="px-5 py-3 bg-gray-200 text-xs font-semibold rounded text-center">
-     Tomorrow Meetings {meetingTomorrowCount}
+    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
+     Tomorrow Meetings 
+    {meetingTomorrowCount}
     </div>
 
     </div>);
