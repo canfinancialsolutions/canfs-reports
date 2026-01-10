@@ -648,7 +648,7 @@ export default function Dashboard() {
               <input type="date" className="w-32 border border-slate-300 px-2 py-1" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} /> 
             </label> 
             <div className="flex gap-2 md:col-span-3"> 
-              <Button variant="secondary" onClick={() => fetchUpcoming()}>➡️</Button> 
+              <Button variant="secondary" onClick={() => fetchUpcoming()}><b>➡️</b></Button> 
               <Button 
                 variant="secondary" 
                 onClick={() => { 
