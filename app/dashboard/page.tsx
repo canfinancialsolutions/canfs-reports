@@ -890,7 +890,7 @@ function ExcelTableEditable({
   const getCellValueForInput = (r: Row, k: string) => { const isDateTime = DATE_TIME_KEYS.has(k); const isDateOnly = DATE_ONLY_KEYS.has(k); const val = r[k]; if (isDateTime) return toLocalInput(val); if (isDateOnly) return toLocalDateInput(val); return val ?? ""; }; 
   const shouldHighlight = (k: string, r: Row) => HIGHLIGHT_DATE_KEYS.has(k) && dateOnOrAfterToday(r[k]); 
   return ( 
-    <div className={`overflow-auto border border-slate-500 bg-white ${maxHeightClass}`}> 
+<div className={`overflow-auto border border-slate-500 bg-white ${maxHeightClass ?? ''}`}>
       <table className="w-full table-fixed border-collapse" style={{ minWidth }}> 
         <thead className="sticky top-0 bg-slate-100 z-20"> 
           <tr className="text-left text-xs font-semibold text-black"> 
