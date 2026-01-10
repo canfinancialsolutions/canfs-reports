@@ -269,7 +269,11 @@ export default function Dashboard() {
   const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>({ key: "last_call_date", dir: "desc" }); 
   const [progressPage, setProgressPage] = useState(0); 
   const [q, setQ] = useState(""); 
-  const [records, setRecords] = useState<Row[]>([]); 
+  const [records, setRecords] = useState<Row[]>([]);
+
+const [newClientsCount, setNewClientsCount] = useState(0);
+const [cycleDays, setCycleDays] = useState(0);
+ 
   const [total, setTotal] = useState(0); 
   const [page, setPage] = useState(0); 
   const [pageJump, setPageJump] = useState("1"); 
@@ -489,7 +493,12 @@ export default function Dashboard() {
       dataQuery = applySort(dataQuery, sortAll); 
       const { data, error } = await dataQuery; 
       if (error) throw error; 
-      setRecords(data ?? []); 
+      setRecords(data ?? []);
+
+setNewClientsCount((data ?? []).filter(r => r.status === "New Client").length);
+const latestIssued = (data ?? []).reduce((max, r) => { const d = r.Issued ? new Date(r.Issued).getTime() : 0; return d > max ? d : max; }, 0);
+setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 * 60 * 24)) : 0);
+ 
       setPage(nextPage); 
       setPageJump(String(nextPage + 1)); 
     } catch (e: any) { 
@@ -582,7 +591,10 @@ export default function Dashboard() {
           </div> 
         </header> 
         {error && (<div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>)} 
-        <Card title="Trends"> 
+        <Card title="Trends">
+
+<div className="mb-2"><Button variant="secondary" onClick={() => setTrendsVisible(v => !v)}>{trendsVisible ? "Hide Results" : "Show Results"}</Button></div>
+ 
           {trendsVisible ? ( 
             <> 
               <div className="text-xs font-semibold text-black mb-2">Rolling 12 Months</div> 
@@ -687,7 +699,11 @@ export default function Dashboard() {
           {progressVisible && (<ProgressSummaryTable rows={progressSlice} sortState={progressSort} onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))} />)} 
           {progressVisible && (<div className="mt-2 text-xs text-black">Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page</div>)} 
         </Card> 
-        <Card title="All Records (Editable)"> 
+        
+<div className="text-sm text-black mb-2">New Clients - {newClientsCount}</div>
+<div className="text-sm text-black mb-2">Cycle Days - {cycleDays}</div>
+
+<Card title="All Records (Editable)"> 
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2"> 
             <div className="flex flex-col md:flex-row md:items-center gap-2 w-full"> 
               <input className="w-80 border border-slate-300 px-3 py-2" placeholder="Search by first name, last name, or phone" value={q} onChange={(e) => setQ(e.target.value)} /> 
