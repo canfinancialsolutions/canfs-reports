@@ -576,10 +576,12 @@ export default function Dashboard() {
     const cycleDays = latestIssuedDate ? Math.floor((Date.now()-latestIssuedDate.getTime())/(1000*60*60*24)) : 0;
     const today = new Date().toISOString().split("T")[0];
     const meetingTodayCount = records.filter(r => r.BOP_Date?.startsWith(today) || r.Followup_Date?.startsWith(today)).length;
+      const meetingTomorrowCount = records.filter(r => r.BOP_Date?.startsWith(today+1) || r.Followup_Date?.startsWith(today+1)).length;
     return (<div className="flex gap-2 mr-4">
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">New Clients → {newClientsCount}</div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Cycle Days → {cycleDays}</div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Meeting Today → {meetingTodayCount}</div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded"><b>{newClientsCount} New Clients</b></div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded"><b>{cycleDays} Cycle Days</b></div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded"><b>{meetingTodayCount} Meeting today</b></div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded"><b>{meetingTomorrowCount}Meeting tomorrow</b></div>
     </div>);
   })()}
             <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
