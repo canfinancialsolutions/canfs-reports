@@ -570,18 +570,6 @@ export default function Dashboard() {
 
          
 
-  {(() => {
-    const newClientsCount = records.filter(r => r.status === "New Client").length;
-    const latestIssuedDate = records.map(r => r.Issued).filter(Boolean).map(d => new Date(d)).sort((a,b)=>b.getTime()-a.getTime())[0];
-    const cycleDays = latestIssuedDate ? Math.floor((Date.now()-latestIssuedDate.getTime())/(1000*60*60*24)) : 0;
-    const today = new Date().toISOString().split("T")[0];
-    const meetingTodayCount = records.filter(r => r.BOP_Date?.startsWith(today) || r.Followup_Date?.startsWith(today)).length;
-    return (<div className="flex gap-2 mr-4">
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">New Clients → {newClientsCount}</div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Cycle Days → {cycleDays}</div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Meeting Today → {meetingTodayCount}</div>
-    </div>);
-  })()}
             <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
             <Button variant="secondary" onClick={logout}> 
               <span className="inline-flex items-center gap-2"> 
@@ -595,7 +583,6 @@ export default function Dashboard() {
         </header> 
         {error && (<div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>)} 
         <Card title="Trends"> 
-  <Button variant="secondary" onClick={() => setTrendsVisible(v => !v)} className="mb-2">{trendsVisible ? "Hide Trends" : "Show Trends"}</Button>
           {trendsVisible ? ( 
             <> 
               <div className="text-xs font-semibold text-black mb-2">Rolling 12 Months</div> 
