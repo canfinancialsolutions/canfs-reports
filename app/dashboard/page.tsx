@@ -604,10 +604,10 @@ export default function Dashboard() {
           </div> 
         </header> 
         {error && (<div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>)} 
-        <Card title="Trends"> 
+        <Card title="Trends 📊"> 
   <div className="mb-2">
     <Button variant="secondary" onClick={() => setTrendsVisible(v => !v)}>
-      {trendsVisible ? "Hide Trends" : "Show Trends"}
+      {trendsVisible ? "Hide 📊" : "Show 📊"}
     </Button>
   </div>
           {trendsVisible ? ( 
@@ -637,7 +637,7 @@ export default function Dashboard() {
             <div className="text-sm text-black">Results are hidden.</div> 
           )} 
         </Card> 
-        <Card title="Upcoming Meetings (Editable)"> 
+        <Card title="Upcoming Meetings📣"> 
           <div className="grid md:grid-cols-5 gap-3 items-end"> 
             <label className="block md:col-span-1"> 
               <div className="text-xs font-semibold text-black mb-1">Start</div> 
@@ -661,10 +661,9 @@ export default function Dashboard() {
                 }} 
                 disabled={upcomingLoading} 
               > 
-                {upcomingLoading ? "Refreshing…" : "Refresh"} 
+                {upcomingLoading ? "Refreshing…" : "🔄"} 
               </Button> 
-              <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>"Export"
-</Button> 
+            <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>Export XLSX</Button>
               <Button variant="secondary" onClick={() => setUpcomingVisible((v) => !v)}> 
                 <span className={upcomingVisible ? "text-green-600" : undefined}> 
                   {upcomingVisible ? "Hide Results" : "Show Results"} 
@@ -715,7 +714,7 @@ export default function Dashboard() {
           {progressVisible && (<ProgressSummaryTable rows={progressSlice} sortState={progressSort} onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))} />)} 
           {progressVisible && (<div className="mt-2 text-xs text-black">Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page</div>)} 
         </Card> 
-        <Card title="All Records (Editable)"> 
+        <Card title="Clients List 🧑🏻‍🤝‍🧑🏻"> 
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2"> 
             <div className="flex flex-col md:flex-row md:items-center gap-2 w-full"> 
               <input className="w-80 border border-slate-300 px-3 py-2" placeholder="Search by first name, last name, or phone" value={q} onChange={(e) => setQ(e.target.value)} /> 
