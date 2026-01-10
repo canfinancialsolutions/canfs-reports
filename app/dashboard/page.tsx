@@ -665,7 +665,7 @@ export default function Dashboard() {
               </Button> 
              <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>📤</Button> 
              <Button variant="secondary" onClick={() => setUpcomingVisible((v) => !v)}> 
-                <span className={upcomingVisible ? "text-green-600" : undefined}> 
+                <span className={upcomingVisible ? "text-black" : undefined}> 
                   {upcomingVisible ? "Hide🗂️" : "Show🗂️"} 
                 </span> 
               </Button> 
