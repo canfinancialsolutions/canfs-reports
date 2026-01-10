@@ -578,10 +578,10 @@ export default function Dashboard() {
     const meetingTodayCount = records.filter(r => r.BOP_Date?.startsWith(today) || r.Followup_Date?.startsWith(today)).length;
       const meetingTomorrowCount = records.filter(r => r.BOP_Date?.startsWith(today+1) || r.Followup_Date?.startsWith(today+1)).length;
     return (<div className="flex gap-2 mr-4">
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded"><b>{newClientsCount} New Clients</b></div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded"><b>{cycleDays} Cycle Days</b></div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded"><b>{meetingTodayCount} Meeting today</b></div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded"><b>{meetingTomorrowCount}Meeting tomorrow</b></div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{newClientsCount} New Clients</div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{cycleDays} Cycle Days</div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{meetingTodayCount} Meeting today</div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{meetingTomorrowCount} Meeting tomorrow</div>
     </div>);
   })()}
             <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
