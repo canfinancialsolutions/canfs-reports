@@ -663,8 +663,8 @@ export default function Dashboard() {
               > 
                 {upcomingLoading ? "Refreshing…" : "🔄"} 
               </Button> 
-            <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>https://img.icons8.com/?size=100&id=8Q0JnVzEzZWf&format=png&color=000000</Button>
-              <Button variant="secondary" onClick={() => setUpcomingVisible((v) => !v)}> 
+             <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>Export XLSX</Button> 
+             <Button variant="secondary" onClick={() => setUpcomingVisible((v) => !v)}> 
                 <span className={upcomingVisible ? "text-green-600" : undefined}> 
                   {upcomingVisible ? "Hide Results" : "Show Results"} 
                 </span> 
