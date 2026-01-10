@@ -591,15 +591,15 @@ export default function Dashboard() {
   <>
     <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
       Cycle Start
-      <div className="text-center text-lg font-bold">{cycleStart}</div>
+      <div className="text-center text-xs font-semibold">{cycleStart}</div>
     </div>
     <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
       Cycle End
-      <div className="text-center text-lg font-bold">{cycleEnd}</div>
+      <div className="text-center text-xs font-semibold">{cycleEnd}</div>
     </div>
     <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
       Cycle Days
-      <div className="text-center text-lg font-bold">{cycleDays}</div>
+      <div className="text-center text-xs font-semibold">{cycleDays}</div>
     </div>
   </>
 )}
