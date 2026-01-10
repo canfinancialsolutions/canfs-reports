@@ -573,13 +573,23 @@ export default function Dashboard() {
   {(() => {
     const newClientsCount = records.filter(r => r.status === "New Client").length;
     const latestIssuedDate = records.map(r => r.Issued).filter(Boolean).map(d => new Date(d)).sort((a,b)=>b.getTime()-a.getTime())[0];
+     
+    const cycleStart = latestIssuedDate ? latestIssuedDate.toLocaleDateString() : "—";
+    const cycleEnd = latestIssuedDate ? new Date(latestIssuedDate.getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString() : "—";
+
     const cycleDays = latestIssuedDate ? Math.floor((Date.now()-latestIssuedDate.getTime())/(1000*60*60*24)) : 0;
     const today = new Date().toISOString().split("T")[0];
     const meetingTodayCount = records.filter(r => r.BOP_Date?.startsWith(today) || r.Followup_Date?.startsWith(today)).length;
+    const meetingTomorrowCount = records.filter(r => r.BOP_Date?.startsWith(today+1) || r.Followup_Date?.startsWith(today+1)).length;
+     
     return (<div className="flex gap-2 mr-4">
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">New Clients → {newClientsCount}</div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Cycle Days → {cycleDays}</div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Meeting Today → {meetingTodayCount}</div>
+    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
+      New Clients {newClientsCount}
+    </div>
+    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">Cycle Start on {cycleStart}</div>
+    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">Cycle End on {cycleEnd}</div>
+    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded text-center text-xs font-bosemiboldld">Cycle Days {cycleDays}</div>
+    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded text-center text-xs font-bosemiboldld">Today Meetings {meetingTodayCount}</div>
     </div>);
   })()}
             <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
@@ -595,7 +605,11 @@ export default function Dashboard() {
         </header> 
         {error && (<div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>)} 
         <Card title="Trends"> 
-  <Button variant="secondary" onClick={() => setTrendsVisible(v => !v)} className="mb-2">{trendsVisible ? "Hide Trends" : "Show Trends"}</Button>
+  <div className="mb-2">
+    <Button variant="secondary" onClick={() => setTrendsVisible(v => !v)}>
+      {trendsVisible ? "Hide Trends" : "Show Trends"}
+    </Button>
+  </div>
           {trendsVisible ? ( 
             <> 
               <div className="text-xs font-semibold text-black mb-2">Rolling 12 Months</div> 
