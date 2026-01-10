@@ -271,8 +271,7 @@ export default function Dashboard() {
   const [q, setQ] = useState(""); 
   const [records, setRecords] = useState<Row[]>([]);
 
-const [newClientsCount, setNewClientsCount] = useState(0);
-const [cycleDays, setCycleDays] = useState(0);
+
  
   const [total, setTotal] = useState(0); 
   const [page, setPage] = useState(0); 
@@ -556,6 +555,10 @@ setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 
   const progressPageSafe = Math.min(progressTotalPages - 1, Math.max(0, progressPage)); 
   const progressSlice = progressFilteredSorted.slice(progressPageSafe * PROGRESS_PAGE_SIZE, progressPageSafe * PROGRESS_PAGE_SIZE + PROGRESS_PAGE_SIZE); 
   const allVisible = trendsVisible && upcomingVisible && progressVisible && recordsVisible; 
+
+ const [newClientsCount, setNewClientsCount] = useState(0);
+ const [cycleDays, setCycleDays] = useState(0);
+ 
   const toggleAllCards = () => { 
     const target = !allVisible; 
     setTrendsVisible(target); 
@@ -573,6 +576,8 @@ setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 
             <div> 
               <div className="text-2xl font-bold text-black">CAN Financial Solutions Clients Report</div> 
               <div className="text-sm text-black">Protecting Your Tomorrow</div> 
+             <div className="text-sm text-black mb-2"><b>New Clients -</b> {newClientsCount}</div>
+            <div className="text-sm text-black mb-2"><b>Cycle Days - </b>b>{cycleDays}</div>
             </div> 
           </div> 
           <div className="flex items-center gap-2"> 
@@ -700,8 +705,7 @@ setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 
           {progressVisible && (<div className="mt-2 text-xs text-black">Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page</div>)} 
         </Card> 
         
-<div className="text-sm text-black mb-2">New Clients - {newClientsCount}</div>
-<div className="text-sm text-black mb-2">Cycle Days - {cycleDays}</div>
+
 
 <Card title="All Records (Editable)"> 
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2"> 
