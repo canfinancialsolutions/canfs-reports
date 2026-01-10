@@ -2,15 +2,46 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import { format, addDays } from "date-fns";
+import {
+  addDays,
+  addMonths,
+  format,
+  isValid,
+  parseISO,
+  startOfMonth,
+  subMonths,
+  subDays,
+  endOfMonth,
+} from "date-fns";
+import {
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  BarChart,
+  Bar,
+  LabelList,
+} from "recharts";
 import { getSupabase } from "@/lib/supabaseClient";
 import { Button, Card } from "@/components/ui";
 
+type Row = Record<string, any>;
+
 export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
-  const [records, setRecords] = useState<any[]>([]);
+  const [daily60, setDaily60] = useState<{ day: string; calls?: number; bops?: number; followups?: number }[]>([]);
+  const [monthly12, setMonthly12] = useState<{ month: string; calls?: number; bops?: number; followups?: number }[]>([]);
+  const [trendLoading, setTrendLoading] = useState(false);
+  const [rangeStart, setRangeStart] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [rangeEnd, setRangeEnd] = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
+  const [upcoming, setUpcoming] = useState<Row[]>([]);
+  const [upcomingLoading, setUpcomingLoading] = useState(false);
+  const [progressRows, setProgressRows] = useState<Row[]>([]);
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [progressFilter, setProgressFilter] = useState("");
+  const [records, setRecords] = useState<Row[]>([]);
   const [newClientsCount, setNewClientsCount] = useState(0);
   const [cycleDays, setCycleDays] = useState(0);
 
@@ -116,8 +147,54 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* Cards go here */}
+        {/* Cards */}
         {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
+
+        {/* Trends Card */}
+        {trendsVisible && (
+          <Card title="Trends">
+            <div className="text-xs font-semibold text-black mb-2">Rolling 12 Months</div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthly12}>
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="calls" fill="#2563eb">
+                    <LabelList dataKey="calls" position="top" fill="#0f172a" />
+                  </Bar>
+                  <Bar dataKey="bops" fill="#f97316">
+                    <LabelList dataKey="bops" position="top" fill="#0f172a" />
+                  </Bar>
+                  <Bar dataKey="followups" fill="#10b981">
+                    <LabelList dataKey="followups" position="top" fill="#0f172a" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        )}
+
+        {/* Upcoming Meetings Card */}
+        {upcomingVisible && (
+          <Card title="Upcoming Meetings (Editable)">
+            <div className="text-sm text-black">Upcoming meetings table goes here...</div>
+          </Card>
+        )}
+
+        {/* Client Progress Summary Card */}
+        {progressVisible && (
+          <Card title="Client Progress Summary">
+            <div className="text-sm text-black">Progress summary table goes here...</div>
+          </Card>
+        )}
+
+        {/* All Records Card */}
+        {recordsVisible && (
+          <Card title="All Records (Editable)">
+            <div className="text-sm text-black">Editable records table goes here...</div>
+          </Card>
+        )}
       </div>
     </div>
   );
