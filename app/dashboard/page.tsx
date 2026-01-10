@@ -583,23 +583,16 @@ export default function Dashboard() {
     const meetingTomorrowCount = records.filter(r => r.BOP_Date?.startsWith(today+1) || r.Followup_Date?.startsWith(today+1)).length;
         
     return (<div className="flex gap-2 mr-4">
-    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
-      New Clients {newClientsCount}
+     
+    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">New Clients <div className="text-center text-xs font-semibold">{newClientsCount}</div>
     </div>
        
-{cycleDays > 0 && cycleDays <= 30 && (
-  <>
-    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
-      Cycle Start
-      <div className="text-center text-xs font-semibold">{cycleStart}</div>
+    {cycleDays > 0 && cycleDays <= 30 && (<>
+    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">Cycle Start <div className="text-center text-xs font-semibold">{cycleStart}</div>
     </div>
-    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
-      Cycle End
-      <div className="text-center text-xs font-semibold">{cycleEnd}</div>
+    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">Cycle End <div className="text-center text-xs font-semibold">{cycleEnd}</div>
     </div>
-    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">
-      Cycle Days
-      <div className="text-center text-xs font-semibold">{cycleDays}</div>
+    <div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded">Cycle Days <div className="text-center text-xs font-semibold">{cycleDays}</div>
     </div>
   </>
 )}
