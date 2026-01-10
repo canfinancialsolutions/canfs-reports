@@ -566,20 +566,11 @@ export default function Dashboard() {
               <div className="text-sm text-black">Protecting Your Tomorrow</div> 
             </div> 
           </div> 
-          <div className="flex items-center gap-4">
-  <div className="flex gap-2 mr-4">
-    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">New Clients - {newClientsCount}</div>
-    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">Cycle Days - {cycleDays}</div>
-  </div> 
+          <div className="flex items-center gap-2"> 
 
          
 
-            <div className="flex items-center gap-4">
-  <div className="flex gap-2">
-    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">New Clients - {newClientsCount}</div>
-    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">Cycle Days - {cycleDays}</div>
-  </div>
-  <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
+            <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
             <Button variant="secondary" onClick={logout}> 
               <span className="inline-flex items-center gap-2"> 
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> 
@@ -704,11 +695,7 @@ export default function Dashboard() {
               <Button variant="secondary" onClick={() => { setQ(""); loadPage(0); setRecordsVisible(true); }}>Refresh</Button> 
               <Button variant="secondary" onClick={() => setRecordsVisible((v) => !v)}>{recordsVisible ? "Hide Results" : "Show Results"}</Button> 
             </div> 
-            <div className="flex items-center gap-4">
-  <div className="flex gap-2 mr-4">
-    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">New Clients - {newClientsCount}</div>
-    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">Cycle Days - {cycleDays}</div>
-  </div> 
+            <div className="flex items-center gap-2"> 
               <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white"> 
                 <span className="text-xs font-semibold text-black">Go to page</span> 
                 <input type="number" min={1} max={totalPages} className="w-20 border border-slate-300 px-2 py-1 text-sm" value={pageJump} onChange={(e) => setPageJump(e.target.value)} /> 
