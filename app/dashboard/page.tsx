@@ -282,6 +282,13 @@ export default function Dashboard() {
   const [upcomingVisible, setUpcomingVisible] = useState(false);
   const [progressVisible, setProgressVisible] = useState(false);
  
+const latestIssued = records.reduce((max, r) => {
+  const d = r.Issued ? new Date(r.Issued).getTime() : 0;
+  return d > max ? d : max;
+}, 0);
+const cycleDays = latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 * 60 * 24)) : 0;
+
+ 
   useEffect(() => { 
     (async () => { 
       try { 
