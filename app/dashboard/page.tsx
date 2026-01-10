@@ -56,8 +56,8 @@ type ProgressSortKey =
   | "bop_attempts" 
   | "last_followup_date" 
   | "followup_attempts"; 
-const ALL_PAGE_SIZE = 20; 
-const PROGRESS_PAGE_SIZE = 20; 
+const ALL_PAGE_SIZE = 10; 
+const PROGRESS_PAGE_SIZE = 10; 
 const READONLY_LIST_COLS = new Set([ 
   "interest_type", 
   "business_opportunities", 
