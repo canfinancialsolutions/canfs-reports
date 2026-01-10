@@ -1,51 +1,33 @@
 
 "use client";
 export const dynamic = "force-dynamic";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+
+import React, { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
-import {
-  addDays,
-  addMonths,
-  format,
-  isValid,
-  parseISO,
-  startOfMonth,
-  subMonths,
-  subDays,
-  endOfMonth,
-} from "date-fns";
-import {
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  Tooltip,
-  BarChart,
-  Bar,
-  LabelList,
-} from "recharts";
+import { format, addDays } from "date-fns";
 import { getSupabase } from "@/lib/supabaseClient";
 import { Button, Card } from "@/components/ui";
 
 export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
-  const [daily60, setDaily60] = useState<{ day: string; calls?: number; bops?: number; followups?: number }[]>([]);
-  const [monthly12, setMonthly12] = useState<{ month: string; calls?: number; bops?: number; followups?: number }[]>([]);
-  const [trendLoading, setTrendLoading] = useState(false);
-  const [rangeStart, setRangeStart] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [rangeEnd, setRangeEnd] = useState(format(addDays(new Date(), 30), "yyyy-MM-dd"));
-  const [upcoming, setUpcoming] = useState<any[]>([]);
-  const [upcomingLoading, setUpcomingLoading] = useState(false);
-  const [progressRows, setProgressRows] = useState<any[]>([]);
-  const [progressLoading, setProgressLoading] = useState(false);
-  const [progressFilter, setProgressFilter] = useState("");
   const [records, setRecords] = useState<any[]>([]);
   const [newClientsCount, setNewClientsCount] = useState(0);
   const [cycleDays, setCycleDays] = useState(0);
 
+  // Hide all cards by default
   const [recordsVisible, setRecordsVisible] = useState(false);
   const [trendsVisible, setTrendsVisible] = useState(false);
   const [upcomingVisible, setUpcomingVisible] = useState(false);
   const [progressVisible, setProgressVisible] = useState(false);
+
+  // Placeholder functions to avoid build errors
+  async function fetchTrends() {
+    return Promise.resolve();
+  }
+
+  async function fetchProgressSummary() {
+    return Promise.resolve();
+  }
 
   useEffect(() => {
     (async () => {
@@ -59,8 +41,6 @@ export default function Dashboard() {
         await Promise.all([fetchTrends(), fetchProgressSummary(), loadPage(0)]);
       } catch (e: any) {
         setError(e?.message ?? "Failed to initialize");
-      } finally {
-        setTrendLoading(false);
       }
     })();
   }, []);
@@ -71,6 +51,7 @@ export default function Dashboard() {
       const { data } = await supabase.from("client_registrations").select("*");
       setRecords(data ?? []);
       setNewClientsCount((data ?? []).filter(r => r.status === "New Client").length);
+
       const latestIssued = (data ?? []).reduce((max, r) => {
         const d = r.Issued ? new Date(r.Issued).getTime() : 0;
         return d > max ? d : max;
@@ -90,6 +71,15 @@ export default function Dashboard() {
     setRecordsVisible(target);
   };
 
+  async function logout() {
+    try {
+      const supabase = getSupabase();
+      await supabase.auth.signOut();
+    } finally {
+      window.location.href = "/";
+    }
+  }
+
   return (
     <div className="min-h-screen">
       <div className="max-w-[1600px] mx-auto p-6 space-y-6">
@@ -101,6 +91,8 @@ export default function Dashboard() {
               <div className="text-sm text-black">Protecting Your Tomorrow</div>
             </div>
           </div>
+
+          {/* Right side with labels and buttons */}
           <div className="flex items-center gap-4">
             <div className="flex gap-2 mr-4">
               <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">
@@ -113,7 +105,7 @@ export default function Dashboard() {
             <Button variant="secondary" onClick={toggleAllCards}>
               {allVisible ? "Hide All" : "Show All"}
             </Button>
-            <Button variant="secondary" onClick={() => { /* logout logic */ }}>
+            <Button variant="secondary" onClick={logout}>
               <span className="inline-flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" />
@@ -123,9 +115,10 @@ export default function Dashboard() {
             </Button>
           </div>
         </header>
+
         {/* Cards go here */}
+        {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
       </div>
     </div>
   );
 }
-``
