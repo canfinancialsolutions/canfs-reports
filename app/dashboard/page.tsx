@@ -598,7 +598,7 @@ export default function Dashboard() {
     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
       Today Meetings {meetingTodayCount}
     </div>
-    <div className="px-4 py-2 bg-gray-200 text-xs font-semibold rounded text-center">
+    <div className="px-5 py-3 bg-gray-200 text-xs font-semibold rounded text-center">
      Tomorrow Meetings {meetingTomorrowCount}
     </div>
 
