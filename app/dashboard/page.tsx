@@ -269,10 +269,7 @@ export default function Dashboard() {
   const [progressSort, setProgressSort] = useState<{ key: ProgressSortKey; dir: SortDir }>({ key: "last_call_date", dir: "desc" }); 
   const [progressPage, setProgressPage] = useState(0); 
   const [q, setQ] = useState(""); 
-  const [records, setRecords] = useState<Row[]>([]);
-
-
- 
+  const [records, setRecords] = useState<Row[]>([]); 
   const [total, setTotal] = useState(0); 
   const [page, setPage] = useState(0); 
   const [pageJump, setPageJump] = useState("1"); 
@@ -492,12 +489,7 @@ export default function Dashboard() {
       dataQuery = applySort(dataQuery, sortAll); 
       const { data, error } = await dataQuery; 
       if (error) throw error; 
-      setRecords(data ?? []);
-
-setNewClientsCount((data ?? []).filter(r => r.status === "New Client").length);
-const latestIssued = (data ?? []).reduce((max, r) => { const d = r.Issued ? new Date(r.Issued).getTime() : 0; return d > max ? d : max; }, 0);
-setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 * 60 * 24)) : 0);
- 
+      setRecords(data ?? []); 
       setPage(nextPage); 
       setPageJump(String(nextPage + 1)); 
     } catch (e: any) { 
@@ -555,10 +547,6 @@ setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 
   const progressPageSafe = Math.min(progressTotalPages - 1, Math.max(0, progressPage)); 
   const progressSlice = progressFilteredSorted.slice(progressPageSafe * PROGRESS_PAGE_SIZE, progressPageSafe * PROGRESS_PAGE_SIZE + PROGRESS_PAGE_SIZE); 
   const allVisible = trendsVisible && upcomingVisible && progressVisible && recordsVisible; 
-
- const [newClientsCount, setNewClientsCount] = useState(0);
- const [cycleDays, setCycleDays] = useState(0);
- 
   const toggleAllCards = () => { 
     const target = !allVisible; 
     setTrendsVisible(target); 
@@ -576,15 +564,18 @@ setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 
             <div> 
               <div className="text-2xl font-bold text-black">CAN Financial Solutions Clients Report</div> 
               <div className="text-sm text-black">Protecting Your Tomorrow</div> 
-             <div className="text-sm text-black mb-2"><b>New Clients - {newClientsCount}</b></div>
-            <div className="text-sm text-black mb-2"><b>Cycle Days - {cycleDays}</b></div>
             </div> 
           </div> 
           <div className="flex items-center gap-2"> 
 
          
 
-            <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
+            <div className="flex items-center gap-4">
+  <div className="flex gap-2">
+    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">New Clients - {newClientsCount}</div>
+    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">Cycle Days - {cycleDays}</div>
+  </div>
+  <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
             <Button variant="secondary" onClick={logout}> 
               <span className="inline-flex items-center gap-2"> 
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> 
@@ -596,10 +587,7 @@ setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 
           </div> 
         </header> 
         {error && (<div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>)} 
-        <Card title="Trends">
-
-<div className="mb-2"><Button variant="secondary" onClick={() => setTrendsVisible(v => !v)}>{trendsVisible ? "Hide Results" : "Show Results"}</Button></div>
- 
+        <Card title="Trends"> 
           {trendsVisible ? ( 
             <> 
               <div className="text-xs font-semibold text-black mb-2">Rolling 12 Months</div> 
@@ -704,10 +692,7 @@ setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 
           {progressVisible && (<ProgressSummaryTable rows={progressSlice} sortState={progressSort} onSortChange={(k) => setProgressSort((cur) => toggleProgressSort(cur, k))} />)} 
           {progressVisible && (<div className="mt-2 text-xs text-black">Page <b>{progressPageSafe + 1}</b> of <b>{progressTotalPages}</b> • showing {PROGRESS_PAGE_SIZE} per page</div>)} 
         </Card> 
-        
-
-
-<Card title="All Records (Editable)"> 
+        <Card title="All Records (Editable)"> 
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2"> 
             <div className="flex flex-col md:flex-row md:items-center gap-2 w-full"> 
               <input className="w-80 border border-slate-300 px-3 py-2" placeholder="Search by first name, last name, or phone" value={q} onChange={(e) => setQ(e.target.value)} /> 
