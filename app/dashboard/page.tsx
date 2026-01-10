@@ -225,6 +225,7 @@ function useColumnResizer() {
   }; 
   return { widths, setWidths, startResize }; 
 } 
+
 const US_STATE_OPTIONS: string[] = [ 
   "", 
   "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", 
@@ -281,8 +282,11 @@ export default function Dashboard() {
   const [trendsVisible, setTrendsVisible] = useState(false);
   const [upcomingVisible, setUpcomingVisible] = useState(false);
   const [progressVisible, setProgressVisible] = useState(false);
- 
-const latestIssued = records.reduce((max, r) => {
+
+ const [newClientsCount, setNewClientsCount] = useState(0);
+ const [cycleDays, setCycleDays] = useState(0);
+
+  const latestIssued = records.reduce((max, r) => {
   const d = r.Issued ? new Date(r.Issued).getTime() : 0;
   return d > max ? d : max;
 }, 0);
