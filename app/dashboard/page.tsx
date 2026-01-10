@@ -582,7 +582,7 @@ export default function Dashboard() {
       <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{newClientsCount} New Clients</div>
       <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{cycleDays} Cycle Days</div>
       <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{latestIssuedDate} Cycle Start at</div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{latestIssuedDate}+30 Cycle End at</div>
+     // <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{latestIssuedDate}+30 Cycle End at</div>
       <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{meetingTodayCount} Meeting today</div>
       <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{meetingTomorrowCount} Meeting tomorrow</div>
     </div>);
