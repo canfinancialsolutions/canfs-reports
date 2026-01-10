@@ -663,7 +663,7 @@ export default function Dashboard() {
               > 
                 {upcomingLoading ? "Refreshing…" : "🔄"} 
               </Button> 
-            <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>Export XLSX</Button>
+            <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>https://img.icons8.com/?size=100&id=8Q0JnVzEzZWf&format=png&color=000000</Button>
               <Button variant="secondary" onClick={() => setUpcomingVisible((v) => !v)}> 
                 <span className={upcomingVisible ? "text-green-600" : undefined}> 
                   {upcomingVisible ? "Hide Results" : "Show Results"} 
@@ -699,7 +699,7 @@ export default function Dashboard() {
             /> 
           )} 
         </Card> 
-        <Card title="Client Progress Summary"> 
+        <Card title="Client Progress Summary📑"> 
           <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2"> 
             <input className="w-72 border border-slate-300 px-3 py-2" placeholder="Filter by client name..." value={progressFilter} onChange={(e) => { setProgressFilter(e.target.value); setProgressPage(0); }} /> 
             <Button variant="secondary" onClick={() => setProgressVisible(true)}>Go</Button> 
@@ -719,7 +719,7 @@ export default function Dashboard() {
             <div className="flex flex-col md:flex-row md:items-center gap-2 w-full"> 
               <input className="w-80 border border-slate-300 px-3 py-2" placeholder="Search by first name, last name, or phone" value={q} onChange={(e) => setQ(e.target.value)} /> 
               <Button variant="secondary" onClick={() => loadPage(0)}>Go</Button> 
-              <Button variant="secondary" onClick={() => { setQ(""); loadPage(0); setRecordsVisible(true); }}>"🔄"</Button> 
+              <Button variant="secondary" onClick={() => { setQ(""); loadPage(0); setRecordsVisible(true); }}>🔄</Button> 
               <Button variant="secondary" onClick={() => setRecordsVisible((v) => !v)}>{recordsVisible ? "Hide Results" : "Show Results"}</Button> 
             </div> 
             <div className="flex items-center gap-2"> 
