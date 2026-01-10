@@ -576,8 +576,8 @@ setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 
             <div> 
               <div className="text-2xl font-bold text-black">CAN Financial Solutions Clients Report</div> 
               <div className="text-sm text-black">Protecting Your Tomorrow</div> 
-             <div className="text-sm text-black mb-2"><b>New Clients -</b> {newClientsCount}</div>
-            <div className="text-sm text-black mb-2"><b>Cycle Days - </b>b>{cycleDays}</div>
+             <div className="text-sm text-black mb-2"><b>New Clients - {newClientsCount}</b></div>
+            <div className="text-sm text-black mb-2"><b>Cycle Days - {cycleDays}</b></div>
             </div> 
           </div> 
           <div className="flex items-center gap-2"> 
