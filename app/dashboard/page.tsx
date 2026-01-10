@@ -471,7 +471,7 @@ export default function Dashboard() {
     } catch (e: any) { 
       setError(e?.message ?? "Failed to load Client Progress Summary"); 
     } finally { 
-      setProgressLoading(true); 
+      setProgressLoading(false); 
     } 
   } 
   async function loadPage(nextPage: number) {
