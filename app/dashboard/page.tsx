@@ -568,6 +568,7 @@ setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 
     <div className="min-h-screen"> 
       <div className="max-w-[1600px] mx-auto p-6 space-y-6"> 
         
+
 <header className="flex items-center justify-between gap-3">
   <div className="flex items-center gap-3">
     <img src="/can-logo.png" className="h-8 w-auto" alt="CAN Logo" />
@@ -593,9 +594,13 @@ setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 
     <Button variant="secondary" onClick={logout}>
       <span className="inline-flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" />
-        </div>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2        </svg>
+        Logout
+      </span>
+    </Button>
+  </div>
 </header>
+
 
           <div className="flex items-center gap-4">
   <div className="flex gap-2 mr-4">
