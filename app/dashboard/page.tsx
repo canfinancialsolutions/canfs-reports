@@ -225,7 +225,6 @@ function useColumnResizer() {
   }; 
   return { widths, setWidths, startResize }; 
 } 
-
 const US_STATE_OPTIONS: string[] = [ 
   "", 
   "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", 
@@ -282,16 +281,6 @@ export default function Dashboard() {
   const [trendsVisible, setTrendsVisible] = useState(false);
   const [upcomingVisible, setUpcomingVisible] = useState(false);
   const [progressVisible, setProgressVisible] = useState(false);
-
- const [newClientsCount, setNewClientsCount] = useState(0);
- const [cycleDays, setCycleDays] = useState(0);
-
-  const latestIssued = records.reduce((max, r) => {
-  const d = r.Issued ? new Date(r.Issued).getTime() : 0;
-  return d > max ? d : max;
-}, 0);
-const cycleDays = latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 * 60 * 24)) : 0;
-
  
   useEffect(() => { 
     (async () => { 
@@ -582,20 +571,15 @@ const cycleDays = latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 
          
 
             <div className="flex items-center gap-4">
+  <div className="flex gap-2 mr-4">
+    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">New Clients - {newClientsCount}</div>
+    <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">Cycle Days - {cycleDays}</div>
+  </div>
   <div className="flex gap-2">
     <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">New Clients - {newClientsCount}</div>
     <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">Cycle Days - {cycleDays}</div>
   </div>
-  <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button>
-  <Button variant="secondary" onClick={logout}>
-    <span className="inline-flex items-center gap-2">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" />
-      </svg>
-      Logout
-    </span>
-  </Button>
-</div> 
+  <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
             <Button variant="secondary" onClick={logout}> 
               <span className="inline-flex items-center gap-2"> 
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> 
