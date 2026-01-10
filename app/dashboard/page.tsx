@@ -583,12 +583,12 @@ export default function Dashboard() {
     const meetingTomorrowCount = records.filter(r => r.BOP_Date?.startsWith(today+1) || r.Followup_Date?.startsWith(today+1)).length;
      
     return (<div className="flex gap-2 mr-4">
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{newClientsCount} New Clients</div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{cycleDays} Cycle Days</div>     
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Cycle Start → {cycleStart}</div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Cycle End → {cycleEnd}</div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{meetingTodayCount} Meeting today</div>
-      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">{meetingTomorrowCount} Meeting tomorrow</div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">New Clients <b>{newClientsCount}</b></div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded"> Cycle Days <b>{cycleDays}</b></div>     
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Cycle Start <b>{cycleStart}</b></div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Cycle End <b>{cycleEnd</b>}</div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Meeting Today <b>{meetingTodayCount}</b></div>
+      <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded">Meeting Tomorrow <b>{meetingTomorrowCount} </div>
     </div>);
   })()}
             <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
