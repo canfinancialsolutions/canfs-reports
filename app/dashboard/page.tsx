@@ -586,23 +586,18 @@ export default function Dashboard() {
     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
       New Clients {newClientsCount}
     </div>
-    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
-      Cycle Start on {cycleStart}
-    </div>
-    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
-      Cycle End on {cycleEnd}
-    </div>
-    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
-      Cycle Days {cycleDays}
-     </div>  
-    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
-      Today Meetings 
-     {meetingTodayCount}
-    </div>
-    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
-     Tomorrow Meetings 
-    {meetingTomorrowCount}
-    </div>
+    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">Cycle Start on {cycleStart}</div>
+    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">Cycle End on {cycleEnd}</div>
+    <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">Cycle Days {cycleDays}</div>  
+
+<div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded text-center">
+  Today Meetings<br />
+  <span className="block text-lg font-bold">{meetingTodayCount}</span>
+</div>
+<div className="px-3 py-2 bg-gray-200 text-xs font-semibold rounded text-center">
+  Tomorrow Meetings<br />
+  <span className="block text-lg font-bold">{meetingTomorrowCount}</span>
+</div>
 
     </div>);
   })()}
