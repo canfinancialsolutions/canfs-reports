@@ -278,9 +278,6 @@ export default function Dashboard() {
   const [sortAll, setSortAll] = useState<{ key: SortKey; dir: SortDir }>({ key: "created_at", dir: "desc" }); 
   const [recordsVisible, setRecordsVisible] = useState(false);  
 
-  const [newClientsCount, setNewClientsCount] = useState(0);
-  const [cycleDays, setCycleDays] = useState(0);
-  
   const [trendsVisible, setTrendsVisible] = useState(false);
   const [upcomingVisible, setUpcomingVisible] = useState(false);
   const [progressVisible, setProgressVisible] = useState(false);
@@ -298,7 +295,7 @@ export default function Dashboard() {
       } catch (e: any) { 
         setError(e?.message ?? "Failed to initialize"); 
       } finally { 
-        setLoading(true); 
+        setLoading(false); 
       } 
     })(); 
   }, []); 
@@ -474,22 +471,33 @@ export default function Dashboard() {
       setProgressLoading(false); 
     } 
   } 
-  async function loadPage(nextPage: number) {
-    try {
-      const supabase = getSupabase();
-      const { data } = await supabase.from("client_registrations").select("*");
-      setRecords(data ?? []);
-      setNewClientsCount((data ?? []).filter(r => r.status === "New Client").length);
-
-      const latestIssued = (data ?? []).reduce((max, r) => {
-        const d = r.Issued ? new Date(r.Issued).getTime() : 0;
-        return d > max ? d : max;
-      }, 0);
-      setCycleDays(latestIssued ? Math.floor((Date.now() - latestIssued) / (1000 * 60 * 60 * 24)) : 0);
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to load records");
-    }
-  }
+  async function loadPage(nextPage: number) { 
+    setError(null); 
+    setLoading(true); 
+    try { 
+      const supabase = getSupabase(); 
+      const search = q.trim(); 
+      let countQuery = supabase.from("client_registrations").select("id", { count: "exact", head: true }); 
+      if (search) countQuery = countQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`); 
+      const { count, error: cErr } = await countQuery; 
+      if (cErr) throw cErr; 
+      setTotal(count ?? 0); 
+      const from = nextPage * ALL_PAGE_SIZE; 
+      const to = from + ALL_PAGE_SIZE - 1; 
+      let dataQuery = supabase.from("client_registrations").select("*").range(from, to); 
+      if (search) dataQuery = dataQuery.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`); 
+      dataQuery = applySort(dataQuery, sortAll); 
+      const { data, error } = await dataQuery; 
+      if (error) throw error; 
+      setRecords(data ?? []); 
+      setPage(nextPage); 
+      setPageJump(String(nextPage + 1)); 
+    } catch (e: any) { 
+      setError(e?.message ?? "Failed to load records"); 
+    } finally { 
+      setLoading(false); 
+    } 
+  } 
   async function updateCell(id: string, key: string, rawValue: string) { 
     setSavingId(id); 
     setError(null); 
@@ -558,31 +566,21 @@ export default function Dashboard() {
               <div className="text-sm text-black">Protecting Your Tomorrow</div> 
             </div> 
           </div> 
-         
-          {/* Right side with labels and buttons */}
-          <div className="flex items-center gap-4">
-            <div className="flex gap-2 mr-4">
-              <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">
-                New Clients - {newClientsCount}
-              </div>
-              <div className="px-3 py-1 border border-slate-300 rounded bg-white text-black text-sm font-semibold">
-                Cycle Days - {cycleDays}
-              </div>
-            </div>
-            <Button variant="secondary" onClick={toggleAllCards}>
-              {allVisible ? "Hide All" : "Show All"}
-            </Button>
-            <Button variant="secondary" onClick={logout}>
-              <span className="inline-flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" />
-                </svg>
-                Logout
-              </span>
-            </Button>
-          </div>
-        </header>
+          <div className="flex items-center gap-2"> 
 
+         
+
+            <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide All" : "Show All"}</Button> 
+            <Button variant="secondary" onClick={logout}> 
+              <span className="inline-flex items-center gap-2"> 
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> 
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" /> 
+                </svg> 
+                Logout 
+              </span> 
+            </Button> 
+          </div> 
+        </header> 
         {error && (<div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>)} 
         <Card title="Trends"> 
           {trendsVisible ? ( 
