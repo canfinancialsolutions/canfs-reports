@@ -723,8 +723,8 @@ export default function Dashboard() {
               <Button variant="secondary" onClick={() => setRecordsVisible((v) => !v)}>{recordsVisible ? "Hide🗂️" : "Show🗂️"}</Button> 
             </div> 
             <div className="flex items-center gap-2"> 
-              <div className="flex items-center gap-2 border border-slate-300 px-3 py-2 bg-white"> 
-                <span className="text-xs font-semibold text-black">Go Page🔢</span> 
+              <div className="flex items-center gap-2 border border-slate-300 px-3 py-3 bg-white"> 
+                <span className="text-xs font-semibold text-black">Go Page🔢</span>
                 <input type="number" min={1} max={totalPages} className="w-20 border border-slate-300 px-2 py-1 text-sm" value={pageJump} onChange={(e) => setPageJump(e.target.value)} /> 
                 <Button variant="secondary" onClick={() => { const n = Number(pageJump); if (!Number.isFinite(n)) return; const p = Math.min(totalPages, Math.max(1, Math.floor(n))); loadPage(p - 1); }} disabled={loading || totalPages <= 1}>➡️</Button> 
               </div> 
