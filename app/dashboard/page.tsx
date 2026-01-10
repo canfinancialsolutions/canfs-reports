@@ -612,7 +612,7 @@ export default function Dashboard() {
           </div> 
         </header> 
         {error && (<div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>)} 
-        < text-green-600 Card title="Trends"> 
+        <Card title="Trends"> 
   <div className="mb-2">
     <Button variant="secondary" onClick={() => setTrendsVisible(v => !v)}>
       {trendsVisible ? "Hide Trends" : "Show Trends"}
