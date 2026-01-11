@@ -557,9 +557,9 @@ export default function Dashboard() {
   const hideZeroFormatter = (val: any) => { const n = Number(val); return Number.isFinite(n) && n === 0 ? "" : val; }; 
   return ( 
     <div className="min-h-screen"> 
-      <div className="max-w-[1600px] mx-auto p-6 space-y-6"> 
-        <header className="flex items-center justify-between gap-3"> 
-          <div className="flex items-center gap-3"> 
+      <div className="max-w-[1600px] mx-auto p-4 space-y-4"> 
+        <header className="flex items-center justify-between gap-2"> 
+          <div className="flex items-center gap-2"> 
             <img src="/can-logo.png" className="h-12 w-auto" alt="CAN Logo" onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")} /> 
             <div> 
               <div className="text-1xl font-semibold text-green-600">CAN Financial Solutions Clients Report</div> 
