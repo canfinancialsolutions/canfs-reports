@@ -318,6 +318,14 @@ export default function Dashboard() {
     if (sort.key === "client") return query.order("first_name", { ascending }).order("last_name", { ascending }); 
     return query.order(sort.key, { ascending }); 
   } 
+ async function logout() { 
+    try { 
+      const supabase = getSupabase(); 
+      await supabase.auth.signOut(); 
+    } finally { 
+      window.location.href = "/"; 
+    } 
+  } 
   async function ut() { 
     try { 
       const supabase = getSupabase(); 
