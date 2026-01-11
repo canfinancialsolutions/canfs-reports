@@ -570,7 +570,7 @@ export default function Dashboard() {
   Protecting Your Tomorrow
 </div>
    <div className="text-2xl font-semibold text-blue-600">CAN Financial Solutions Clients Report</div> 
-              <div className="text-sm font-semibold text-gold-400">Protecting Your Tomorrow</div> 
+              <div className="text-sm font-semibold text-yellow-500 ">Protecting Your Tomorrow</div> 
             </div> 
           </div> 
           <div className="flex items-center gap-2"> 
