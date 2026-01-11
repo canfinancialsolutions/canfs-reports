@@ -318,7 +318,7 @@ export default function Dashboard() {
     if (sort.key === "client") return query.order("first_name", { ascending }).order("last_name", { ascending }); 
     return query.order(sort.key, { ascending }); 
   } 
-  async function logout() { 
+  async function ut() { 
     try { 
       const supabase = getSupabase(); 
       await supabase.auth.signOut(); 
@@ -563,7 +563,7 @@ export default function Dashboard() {
             <img src="/can-logo.png" className="h-12 w-auto" alt="CAN Logo" onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")} /> 
             <div> 
               <div className="text-2xl font-semibold text-green-600">CAN Financial Solutions Clients Report</div> 
-              <div className="text-sm font-semibold text-gold">Protecting Your Tomorrow</div> 
+              <div className="text-sm font-semibold text-gold-400">Protecting Your Tomorrow</div> 
             </div> 
           </div> 
           <div className="flex items-center gap-2"> 
