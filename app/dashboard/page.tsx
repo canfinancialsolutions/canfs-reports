@@ -562,7 +562,14 @@ export default function Dashboard() {
           <div className="flex items-center gap-2"> 
             <img src="/can-logo.png" className="h-12 w-auto" alt="CAN Logo" onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")} /> 
             <div> 
-              <div className="text-2xl font-semibold text-green-600">CAN Financial Solutions Clients Report</div> 
+           
+<div className="text-2xl font-semibold text-blue-600">
+  CAN Financial Solutions Clients Report
+</div>
+<div className="text-sm font-semibold text-yellow-500">
+  Protecting Your Tomorrow
+</div>
+   <div className="text-2xl font-semibold text-blue-600">CAN Financial Solutions Clients Report</div> 
               <div className="text-sm font-semibold text-gold-400">Protecting Your Tomorrow</div> 
             </div> 
           </div> 
