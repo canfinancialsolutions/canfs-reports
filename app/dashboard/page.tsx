@@ -15,6 +15,7 @@
  * No backend changes (schema / procs / routes / auth / RLS).
  */
 
+
 "use client";
 export const dynamic = "force-dynamic";
 
