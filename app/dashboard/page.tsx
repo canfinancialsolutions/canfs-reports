@@ -15,11 +15,11 @@
  * No backend changes (schema / procs / routes / auth / RLS).
  */
 
-
 "use client";
 export const dynamic = "force-dynamic";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import * as XLSX from "xlsx";
 import {
   addDays,
@@ -358,7 +358,7 @@ export default function Dashboard() {
   const [sortBusiness, setSortBusiness] = useState<{ key: SortKey; dir: SortDir }>({ key: "issue_date", dir: "desc" });
   const [businessVisible, setBusinessVisible] = useState(false);
 
-  // Logo: fixed-size wrapper + opacity (no layout shift, no DOM add/remove on error)
+  // Logo: fixed-size wrapper + Next/Image with explicit width/height and priority
   const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
@@ -819,15 +819,17 @@ export default function Dashboard() {
       <div className="max-w-[1600px] mx-auto p-4 space-y-4">
         <header className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            {/* Fixed-size logo container; we never remove the <img>, only toggle opacity to avoid layout shift */}
-            <div className="relative shrink-0 w-[120px] h-12">
-              <div className="absolute inset-0 h-12 w-[120px] bg-transparent" />
-              <img
+            {/* Fixed-size logo container; Next/Image reserves intrinsic box to prevent layout shift */}
+            <div className="relative flex-none w-[120px] h-12">
+              {/* Static placeholder ensures dimensions are always occupied */}
+              <div className="absolute inset-0" aria-hidden="true" />
+              <Image
                 src="/can-logo.png"
+                alt="CAN Logo"
                 width={120}
                 height={48}
+                priority
                 className={`absolute inset-0 h-12 w-[120px] object-contain transition-opacity ${logoError ? "opacity-0" : "opacity-100"}`}
-                alt="CAN Logo"
                 onError={() => setLogoError(true)}
               />
             </div>
@@ -1050,15 +1052,6 @@ export default function Dashboard() {
           </div>
           <div className="text-sm text-black mb-2">{total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page</div>
 
-          <div className="flex gap-4 mb-2 text-xs font-semibold text-black">
-            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#B1FB17] rounded"></span>New Client</div>
-            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#728FCE] rounded"></span>Interested</div>
-            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#ADDFFF] rounded"></span>In-Progress</div>
-            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#C9BE62] rounded"></span>On Hold</div>
-            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#E6BF83] rounded"></span>Closed</div>
-            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#3CB371] rounded"></span>Completed</div>
-          </div>
-
           {recordsVisible && (
             <>
               {loading ? (
@@ -1167,24 +1160,10 @@ function ProgressSummaryTable(
   ], []);
   const getW = (id: string, def: number) => widths[id] ?? def;
   const stickyLeftPx = (colIndex: number) => (colIndex <= 0 ? 0 : 0);
-  const sortIcon = (k?: ProgressSortKey) => {
-    if (!k) return null;
-    if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>;
-    return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
-  };
+  const sortIcon = (k?: ProgressSortKey) => { if (!k) return null; if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>; return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>; };
   const minWidth = cols.reduce((sum, c) => sum + getW(c.id, c.defaultW), 0);
-  const fmtDate = (v: any) => {
-    if (!v) return "—";
-    const d = new Date(v);
-    const t = d.getTime();
-    if (!Number.isFinite(t)) return "—";
-    return d.toLocaleString();
-  };
-  const fmtCount = (v: any) => {
-    const n = Number(v);
-    if (!Number.isFinite(n)) return "—";
-    return String(n);
-  };
+  const fmtDate = (v: any) => { if (!v) return "—"; const d = new Date(v); const t = d.getTime(); if (!Number.isFinite(t)) return "—"; return d.toLocaleString(); };
+  const fmtCount = (v: any) => { const n = Number(v); if (!Number.isFinite(n)) return "—"; return String(n); };
   return (
     <div className="overflow-auto border border-slate-500 bg-white max-h-[520px]">
       <table className="w-full table-fixed border-collapse" style={{ minWidth }}>
@@ -1286,11 +1265,7 @@ function ExcelTableEditable({
   const [openCell, setOpenCell] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
-  const sortIcon = (k?: SortKey) => {
-    if (!k) return null;
-    if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>;
-    return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
-  };
+  const sortIcon = (k?: SortKey) => { if (!k) return null; if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>; return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>; };
 
   const keys = useMemo(() => {
     if (!rows.length) return [] as string[];
@@ -1426,7 +1401,7 @@ function ExcelTableEditable({
                           <div className="absolute left-0 top-full mt-1 w-72 max-w-[70vw] bg-white border border-slate-500 shadow-lg z-30">
                             <div className="px-2 py-1 text-xs font-semibold text-black bg-slate-100 border-b border-slate-300">{labelFor(k)}</div>
                             <ul className="max-h-48 overflow-auto">
-                              {(items.length ? items : ["(empty)"]).map((x, i) => (<li key={i} className="px-2 py-1 text-sm border-b border-slate-100">{x}</li>))}
+                              {(items.length ? items : ["(empty)")).map((x, i) => (<li key={i} className="px-2 py-1 text-sm border-b border-slate-100">{x}</li>))}
                             </ul>
                             <div className="p-2"><Button type="button" variant="secondary" onClick={() => setOpenCell(null)}>Close</Button></div>
                           </div>
