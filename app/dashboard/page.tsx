@@ -1,17 +1,15 @@
+
 // app/dashboard/page.tsx
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import DashboardClient from "./DashboardClient";
+import { redirect } from 'next/navigation'
+import DashboardClient from './DashboardClient'
+import { createServerSupabase } from '@/lib/supabase/server'
 
 export default async function DashboardPage() {
-  const supabase = createServerComponentClient({ cookies });
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const supabase = await createServerSupabase()
 
-  if (!session) {
-    redirect("/");
-  }
-  return <DashboardClient />;
+  // Verify the user (server-side). This actually validates the token.
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (!user) redirect('/')
+
+  return <DashboardClient />
 }
