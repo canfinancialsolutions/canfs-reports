@@ -13,7 +13,9 @@
  *     • Pagination same as All Records
  *
  * No backend changes (schema / procs / routes / auth / RLS).
+- Fixed logo shaking/jumping using fixed-size wrapper + placeholder on error.
  */
+
 "use client";
 export const dynamic = "force-dynamic";
 
@@ -363,21 +365,9 @@ export default function Dashboard() {
   const [sortBusiness, setSortBusiness] = useState<{ key: SortKey; dir: SortDir }>({ key: "issue_date", dir: "desc" });
   const [businessVisible, setBusinessVisible] = useState(false);
 
-  
-// Auto-fetch Business data when Business card becomes visible or its sort changes
-            useEffect(() => {
-            if (businessVisible) {
-             loadBusinessPage(0);
-            }
-            }, [businessVisible, sortBusiness.key, sortBusiness.dir]);
-             // Debounced search for Business card
-            useEffect(() => {
-            if (!businessVisible) return;
-            const t = setTimeout(() => loadBusinessPage(0), 300);
-            return () => clearTimeout(t);
-            }, [businessQ]);
+  // Logo error to avoid shaking (fixed-size placeholder)
+  const [logoError, setLogoError] = useState(false);
 
-  
   useEffect(() => {
     (async () => {
       try {
@@ -410,6 +400,18 @@ export default function Dashboard() {
     }, 300);
     return () => clearTimeout(id);
   }, [q]);
+
+  // Auto-fetch Business when visible or sort changes
+  useEffect(() => {
+    if (businessVisible) loadBusinessPage(0);
+  }, [businessVisible, sortBusiness.key, sortBusiness.dir]);
+
+  // Debounced Business search
+  useEffect(() => {
+    if (!businessVisible) return;
+    const t = setTimeout(() => loadBusinessPage(0), 300);
+    return () => clearTimeout(t);
+  }, [businessQ]);
 
   function applySort(query: any, sort: { key: SortKey; dir: SortDir }) {
     const ascending = sort.dir === "asc";
@@ -825,17 +827,21 @@ export default function Dashboard() {
       <div className="max-w-[1600px] mx-auto p-4 space-y-4">
         <header className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-          // Prevent logo layout shift on load error
-            const [logoError, setLogoError] = useState(false);
-            <img
-              src="/can-logo.png"
-              className="h-12 w-auto"
-              alt="CAN Logo"
-              onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")}
-            />
             {/* Fixed-size logo container prevents layout shift (no shaking/jumping) */}
-            <div className="relative shrink-0 w-[120px] h
-
+            <div className="relative shrink-0 w-[120px] h-12">
+              {!logoError ? (
+                <img
+                  src="/can-logo.png"
+                  width={120}
+                  height={48}
+                  className="absolute inset-0 h-12 w-[120px] object-contain"
+                  alt="CAN Logo"
+                  onError={() => setLogoError(true)}
+                />
+              ) : (
+                <div className="absolute inset-0 h-12 w-[120px]" aria-label="CAN Logo placeholder" />
+              )}
+            </div>
             <div>
               <div className="text-1x2 font-bold text-blue-800">CAN Financial Solutions Clients Report</div>
               <div className="text-sm font-semibold text-yellow-500">Protecting Your Tomorrow</div>
