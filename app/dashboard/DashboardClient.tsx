@@ -26,8 +26,8 @@ import {
   Bar,
   LabelList,
 } from "recharts";
-import { getSupabase } from "@/lib/supabaseClient";
-import { Button, Card } from "@/components/ui";
+import { getSupabase } from "/lib/supabaseClient";
+import { Button, Card } from "/components/ui";
 
 // Preload a stable web font to minimize font-swap layout shift in the header
 const inter = Inter({ subsets: ["latin"], display: "swap" });
