@@ -1,6 +1,8 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+import { createBrowserSupabase } from '/lib/supabase/client'
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import Image from "next/image";
@@ -30,6 +32,7 @@ import { getSupabase } from "/lib/supabaseClient";
 import { Button, Card } from "/components/ui";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
+const supabase = createBrowserSupabase();
 
 type Row = Record<string, any>;
 
