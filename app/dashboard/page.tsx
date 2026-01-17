@@ -14,6 +14,7 @@
  *
  * No backend changes (schema / procs / routes / auth / RLS).
  */
+
 "use client";
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,6 @@ type SortKey =
   | "status"
   | "CalledOn"
   | "Issued"
-  // Business table sort keys (UI-only)
   | "issue_date"
   | "submit_date"
   | "client_name"
@@ -83,21 +83,18 @@ const READONLY_LIST_COLS = new Set([
   "preferred_days",
 ]);
 
-// Date & datetime keys (UI mapping only)
 const DATE_TIME_KEYS = new Set([
   "BOP_Date",
   "CalledOn",
   "Followup_Date",
   "FollowUp_Date",
   "Issued",
-  // business timestamps
   "submit_date",
   "issue_date",
 ]);
 
-const DATE_ONLY_KEYS = new Set(["date_of_birth"]); // calendar date (no time)
+const DATE_ONLY_KEYS = new Set(["date_of_birth"]);
 
-/** ------- Helpers ------- */
 function dateOnOrAfterToday(dateVal: any): boolean {
   if (!dateVal) return false;
   const d = new Date(dateVal);
@@ -140,7 +137,6 @@ const LABEL_OVERRIDES: Record<string, string> = {
   state: "State",
   immigration_status: "Immigration Status",
   work_details: "Work Details",
-  // business table
   associate_name: "Associate Name",
   policy_number: "Policy #",
   submit_date: "Submit Date",
@@ -216,7 +212,6 @@ function toggleSort(cur: { key: SortKey; dir: SortDir }, k: SortKey) {
     "CalledOn",
     "BOP_Date",
     "Followup_Date",
-    // business + common
     "issue_date",
     "submit_date",
     "created_at",
@@ -276,7 +271,6 @@ function useColumnResizer() {
   return { widths, setWidths, startResize };
 }
 
-/** ------- Dropdown options ------- */
 const US_STATE_OPTIONS: string[] = [
   "",
   "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware",
@@ -363,21 +357,9 @@ export default function Dashboard() {
   const [sortBusiness, setSortBusiness] = useState<{ key: SortKey; dir: SortDir }>({ key: "issue_date", dir: "desc" });
   const [businessVisible, setBusinessVisible] = useState(false);
 
-  
-// Auto-fetch Business data when Business card becomes visible or its sort changes
-            useEffect(() => {
-            if (businessVisible) {
-             loadBusinessPage(0);
-            }
-            }, [businessVisible, sortBusiness.key, sortBusiness.dir]);
-             // Debounced search for Business card
-            useEffect(() => {
-            if (!businessVisible) return;
-            const t = setTimeout(() => loadBusinessPage(0), 300);
-            return () => clearTimeout(t);
-            }, [businessQ]);
+  // Logo error to avoid shaking (fixed-size placeholder)
+  const [logoError, setLogoError] = useState(false);
 
-  
   useEffect(() => {
     (async () => {
       try {
@@ -410,6 +392,18 @@ export default function Dashboard() {
     }, 300);
     return () => clearTimeout(id);
   }, [q]);
+
+  // Auto-fetch Business when visible or sort changes
+  useEffect(() => {
+    if (businessVisible) loadBusinessPage(0);
+  }, [businessVisible, sortBusiness.key, sortBusiness.dir]);
+
+  // Debounced Business search
+  useEffect(() => {
+    if (!businessVisible) return;
+    const t = setTimeout(() => loadBusinessPage(0), 300);
+    return () => clearTimeout(t);
+  }, [businessQ]);
 
   function applySort(query: any, sort: { key: SortKey; dir: SortDir }) {
     const ascending = sort.dir === "asc";
@@ -825,17 +819,21 @@ export default function Dashboard() {
       <div className="max-w-[1600px] mx-auto p-4 space-y-4">
         <header className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-          // Prevent logo layout shift on load error
-            const [logoError, setLogoError] = useState(false);
-            <img
-              src="/can-logo.png"
-              className="h-12 w-auto"
-              alt="CAN Logo"
-              onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")}
-            />
             {/* Fixed-size logo container prevents layout shift (no shaking/jumping) */}
-            <div className="relative shrink-0 w-[120px] h
-
+            <div className="relative shrink-0 w-[120px] h-12">
+              {!logoError ? (
+                <img
+                  src="/can-logo.png"
+                  width={120}
+                  height={48}
+                  className="absolute inset-0 h-12 w-[120px] object-contain"
+                  alt="CAN Logo"
+                  onError={() => setLogoError(true)}
+                />
+              ) : (
+                <div className="absolute inset-0 h-12 w-[120px]" aria-label="CAN Logo placeholder" />
+              )}
+            </div>
             <div>
               <div className="text-1x2 font-bold text-blue-800">CAN Financial Solutions Clients Report</div>
               <div className="text-sm font-semibold text-yellow-500">Protecting Your Tomorrow</div>
@@ -1029,21 +1027,26 @@ export default function Dashboard() {
                 <input
                   type="number"
                   min={1}
-                  max={totalPages}
+                  max={Math.max(1, Math.ceil((total ?? 0) / ALL_PAGE_SIZE))}
                   className="w-20 border border-slate-300 px-3 py-2 text-sm"
                   value={pageJump}
                   onChange={(e) => setPageJump(e.target.value)}
                 />
                 <Button
                   variant="secondary"
-                  onClick={() => { const n = Number(pageJump); if (!Number.isFinite(n)) return; const p = Math.min(totalPages, Math.max(1, Math.floor(n))); loadPage(p - 1); }}
-                  disabled={loading || totalPages <= 1}
+                  onClick={() => {
+                    const n = Number(pageJump);
+                    if (!Number.isFinite(n)) return;
+                    const p = Math.min(Math.max(1, Math.floor(n)), Math.max(1, Math.ceil((total ?? 0) / ALL_PAGE_SIZE)));
+                    loadPage(p - 1);
+                  }}
+                  disabled={loading || Math.max(1, Math.ceil((total ?? 0) / ALL_PAGE_SIZE)) <= 1}
                 >
                   ➡️
                 </Button>
               </div>
-              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={!canPrev || loading}>◀️</Button>
-              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={!canNext || loading}>▶️</Button>
+              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={(page <= 0) || loading}>◀️</Button>
+              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={((page + 1) * ALL_PAGE_SIZE >= (total ?? 0)) || loading}>▶️</Button>
             </div>
           </div>
           <div className="text-sm text-black mb-2">{total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page</div>
@@ -1164,10 +1167,24 @@ function ProgressSummaryTable(
   ], []);
   const getW = (id: string, def: number) => widths[id] ?? def;
   const stickyLeftPx = (colIndex: number) => (colIndex <= 0 ? 0 : 0);
-  const sortIcon = (k?: ProgressSortKey) => { if (!k) return null; if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>; return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>; };
+  const sortIcon = (k?: ProgressSortKey) => {
+    if (!k) return null;
+    if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>;
+    return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
+  };
   const minWidth = cols.reduce((sum, c) => sum + getW(c.id, c.defaultW), 0);
-  const fmtDate = (v: any) => { if (!v) return "—"; const d = new Date(v); const t = d.getTime(); if (!Number.isFinite(t)) return "—"; return d.toLocaleString(); };
-  const fmtCount = (v: any) => { const n = Number(v); if (!Number.isFinite(n)) return "—"; return String(n); };
+  const fmtDate = (v: any) => {
+    if (!v) return "—";
+    const d = new Date(v);
+    const t = d.getTime();
+    if (!Number.isFinite(t)) return "—";
+    return d.toLocaleString();
+  };
+  const fmtCount = (v: any) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "—";
+    return String(n);
+  };
   return (
     <div className="overflow-auto border border-slate-500 bg-white max-h-[520px]">
       <table className="w-full table-fixed border-collapse" style={{ minWidth }}>
@@ -1177,10 +1194,13 @@ function ProgressSummaryTable(
               const w = getW(c.id, c.defaultW);
               const isSticky = idx === 0;
               const style: React.CSSProperties = {
-                width: w, minWidth: w, maxWidth: w,
+                width: w,
+                minWidth: w,
+                maxWidth: w,
                 position: isSticky ? "sticky" : undefined,
                 left: isSticky ? stickyLeftPx(idx) : undefined,
-                top: 0, zIndex: isSticky ? 40 : 20,
+                top: 0,
+                zIndex: isSticky ? 40 : 20,
                 background: isSticky ? "#f1f5f9" : undefined,
               };
               return (
@@ -1208,7 +1228,9 @@ function ProgressSummaryTable(
                 const w = getW(c.id, c.defaultW);
                 const isSticky = idx === 0;
                 const style: React.CSSProperties = {
-                  width: w, minWidth: w, maxWidth: w,
+                  width: w,
+                  minWidth: w,
+                  maxWidth: w,
                   position: isSticky ? "sticky" : undefined,
                   left: isSticky ? stickyLeftPx(idx) : undefined,
                   zIndex: isSticky ? 10 : 1,
@@ -1269,7 +1291,11 @@ function ExcelTableEditable({
   const [openCell, setOpenCell] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
-  const sortIcon = (k?: SortKey) => { if (!k) return null; if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>; return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>; };
+  const sortIcon = (k?: SortKey) => {
+    if (!k) return null;
+    if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>;
+    return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
+  };
 
   const keys = useMemo(() => {
     if (!rows.length) return [] as string[];
@@ -1283,9 +1309,6 @@ function ExcelTableEditable({
   }, [rows, preferredOrder]);
 
   const WRAP_KEYS = new Set(["referred_by", "Product", "Comment", "Remark", "product", "comment", "remark", "immigration_status", "work_details"]);
-  const SAVE_KEY_NORMALIZE: Record<string, string> = {
-    comment: "Comment", remark: "Remark", product: "Product", Comment: "Comment", Remark: "Remark", Product: "Product", ReferredBy: "referred_by", referredby: "referred_by"
-  };
 
   const columns = useMemo(() => {
     const extra = extraLeftCols.map((c, i) => ({ id: `extra:${i}`, label: c.label, sortable: c.sortable, kind: "extra" as const, defaultW: c.label.toLowerCase().includes("client") ? 180 : 150 }));
@@ -1303,7 +1326,6 @@ function ExcelTableEditable({
         k === "status" ? ("status" as SortKey) :
         k === "CalledOn" ? ("CalledOn" as SortKey) :
         k === "Issued" ? ("Issued" as SortKey) :
-        // business sortables
         k === "issue_date" ? ("issue_date" as SortKey) :
         k === "submit_date" ? ("submit_date" as SortKey) :
         k === "client_name" ? ("client_name" as SortKey) :
@@ -1318,9 +1340,23 @@ function ExcelTableEditable({
   }, [extraLeftCols, keys]);
 
   const getW = (id: string, def: number) => widths[id] ?? def;
-  const stickyLeftPx = (colIndex: number) => { let left = 0; for (let i = 0; i < colIndex; i++) { const c = (columns as any)[i]; left += getW(c.id, c.defaultW ?? 160); } return left; };
+  const stickyLeftPx = (colIndex: number) => {
+    let left = 0;
+    for (let i = 0; i < colIndex; i++) {
+      const c: any = (columns as any)[i];
+      left += getW(c.id, c.defaultW ?? 160);
+    }
+    return left;
+  };
   const minWidth = (columns as any).reduce((sum: number, c: any) => sum + getW(c.id, c.defaultW ?? 160), 0);
-  const getCellValueForInput = (r: Row, k: string) => { const isDateTime = DATE_TIME_KEYS.has(k); const isDateOnly = DATE_ONLY_KEYS.has(k); const val = r[k]; if (isDateTime) return toLocalInput(val); if (isDateOnly) return toLocalDateInput(val); return val ?? ""; };
+  const getCellValueForInput = (r: Row, k: string) => {
+    const isDateTime = DATE_TIME_KEYS.has(k);
+    const isDateOnly = DATE_ONLY_KEYS.has(k);
+    const val = r[k];
+    if (isDateTime) return toLocalInput(val);
+    if (isDateOnly) return toLocalDateInput(val);
+    return val ?? "";
+  };
   const shouldHighlight = (k: string, r: Row) => HIGHLIGHT_DATE_KEYS.has(k) && dateOnOrAfterToday(r[k]);
 
   return (
@@ -1332,7 +1368,16 @@ function ExcelTableEditable({
               const w = getW(c.id, c.defaultW ?? 160);
               const isSticky = colIndex < stickyLeftCount;
               const isTopLeft = isSticky;
-              const style: React.CSSProperties = { width: w, minWidth: w, maxWidth: w, position: isSticky ? "sticky" : undefined, left: isSticky ? stickyLeftPx(colIndex) : undefined, top: 0, zIndex: isTopLeft ? 50 : 20, background: isSticky ? "#f1f5f9" : undefined };
+              const style: React.CSSProperties = {
+                width: w,
+                minWidth: w,
+                maxWidth: w,
+                position: isSticky ? "sticky" : undefined,
+                left: isSticky ? stickyLeftPx(colIndex) : undefined,
+                top: 0,
+                zIndex: isTopLeft ? 50 : 20,
+                background: isSticky ? "#f1f5f9" : undefined,
+              };
               const headerLabel = c.label;
               return (
                 <th key={c.id} className="border border-slate-500 px-2 py-2 whitespace-nowrap relative" style={style}>
@@ -1359,15 +1404,15 @@ function ExcelTableEditable({
                 const w = getW(c.id, c.defaultW ?? 160);
                 const isSticky = colIndex < stickyLeftCount;
                 const style: React.CSSProperties = { width: w, minWidth: w, maxWidth: w, position: isSticky ? "sticky" : undefined, left: isSticky ? stickyLeftPx(colIndex) : undefined, zIndex: isSticky ? 10 : 1, background: isSticky ? "#ffffff" : undefined };
-                if (c.kind === "extra") {
+                if ((c as any).kind === "extra") {
                   const idx = Number(String(c.id).split(":")[1] ?? "0");
                   const colDef = extraLeftCols[idx];
                   const v = colDef?.render ? colDef.render(r) : "";
                   return (
-                    <td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-black ${shouldHighlight(c.key as string, r) ? "bg-yellow-200" : ""}`} style={style}>{v}</td>
+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-nowrap font-semibold text-black ${shouldHighlight((c as any).key as string, r) ? "bg-yellow-200" : ""}`} style={style}>{v}</td>
                   );
                 }
-                const k = c.key as string;
+                const k = (c as any).key as string;
                 if (k === "created_at") {
                   const d = new Date(r.created_at);
                   const v = Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString();
@@ -1385,7 +1430,10 @@ function ExcelTableEditable({
                         className="w-full bg-transparent border-0 outline-none text-sm"
                         value={value ?? ""}
                         onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
-                        onBlur={() => { const v = drafts[cellId] ?? value ?? ""; if (v !== undefined) onUpdate(String(r.id), k, String(v)); }}
+                        onBlur={() => {
+                          const v = drafts[cellId] ?? value ?? "";
+                          if (v !== undefined) onUpdate(String(r.id), k, String(v));
+                        }}
                         disabled={savingId != null && String(savingId) === String(r.id)}
                       >
                         {statusOptions.map((opt, idx) => (
@@ -1442,7 +1490,9 @@ function ExcelTableEditable({
                 }
 
                 if (nonEditableKeys.has(k)) {
-                  const displayVal = DATE_ONLY_KEYS.has(k) ? (() => { const d = new Date(r[k]); return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString(); })() : String(getCellValueForInput(r, k)) || "—";
+                  const displayVal = DATE_ONLY_KEYS.has(k)
+                    ? (() => { const d = new Date(r[k]); return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString(); })()
+                    : String(getCellValueForInput(r, k)) || "—";
                   return (
                     <td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-normal break-words ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>{displayVal}</td>
                   );
@@ -1474,3 +1524,4 @@ function ExcelTableEditable({
     </div>
   );
 }
+
