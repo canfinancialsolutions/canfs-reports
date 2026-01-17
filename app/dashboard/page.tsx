@@ -822,15 +822,7 @@ export default function Dashboard() {
             {/* Fixed-size logo container; Next/Image reserves intrinsic box to prevent layout shift */}
             <div className="relative flex-none w-[120px] h-12">
               <div className="absolute inset-0" aria-hidden="true" />
-              <Image
-                src="/can-logo.png"
-                alt="CAN Logo"
-                width={120}
-                height={48}
-                priority
-                className={`absolute inset-0 h-12 w-[120px] object-contain transition-opacity ${logoError ? "opacity-0" : "opacity-100"}`}
-                onError={() => setLogoError(true)}
-              />
+             
             </div>
             <div>
               <div className="text-1x2 font-bold text-blue-800">CAN Financial Solutions Clients Report</div>
