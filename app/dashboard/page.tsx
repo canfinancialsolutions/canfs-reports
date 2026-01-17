@@ -15,6 +15,7 @@
  * No backend changes (schema / procs / routes / auth / RLS).
  */
 
+
 "use client";
 export const dynamic = "force-dynamic";
 
@@ -357,7 +358,7 @@ export default function Dashboard() {
   const [sortBusiness, setSortBusiness] = useState<{ key: SortKey; dir: SortDir }>({ key: "issue_date", dir: "desc" });
   const [businessVisible, setBusinessVisible] = useState(false);
 
-  // Logo error to avoid shaking (fixed-size placeholder)
+  // Logo: fixed-size wrapper + opacity (no layout shift, no DOM add/remove on error)
   const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
@@ -393,7 +394,7 @@ export default function Dashboard() {
     return () => clearTimeout(id);
   }, [q]);
 
-  // Auto-fetch Business when visible or sort changes
+  // Auto-fetch Business when card is visible or sort changes
   useEffect(() => {
     if (businessVisible) loadBusinessPage(0);
   }, [businessVisible, sortBusiness.key, sortBusiness.dir]);
@@ -707,7 +708,6 @@ export default function Dashboard() {
     }
   }
 
-  // Business table
   const businessTotalPages = Math.max(1, Math.ceil((businessTotal ?? 0) / ALL_PAGE_SIZE));
 
   async function loadBusinessPage(nextPage: number) {
@@ -819,25 +819,17 @@ export default function Dashboard() {
       <div className="max-w-[1600px] mx-auto p-4 space-y-4">
         <header className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            {/* Fixed-size logo container prevents layout shift (no shaking/jumping) */}
+            {/* Fixed-size logo container; we never remove the <img>, only toggle opacity to avoid layout shift */}
             <div className="relative shrink-0 w-[120px] h-12">
-              {!logoError ? (
-         // Prevent logo layout shift on load error
-            const [logoError, setLogoError] = useState(false);
-           <img
-                  src="/can-logo.png"
-                  width={120}
-                  height={48}
-                  className="absolute inset-0 h-12 w-[120px] object-contain"
-                  alt="CAN Logo"
-                  onError={() => setLogoError(true)}
-                />
-            {/* Fixed-size logo container prevents layout shift (no shaking/jumping) */}  
-           <div className="relative shrink-0 w-[120px] h
-
-              ) : (
-                <div className="absolute inset-0 h-12 w-[120px]" aria-label="CAN Logo placeholder" />
-              )}
+              <div className="absolute inset-0 h-12 w-[120px] bg-transparent" />
+              <img
+                src="/can-logo.png"
+                width={120}
+                height={48}
+                className={`absolute inset-0 h-12 w-[120px] object-contain transition-opacity ${logoError ? "opacity-0" : "opacity-100"}`}
+                alt="CAN Logo"
+                onError={() => setLogoError(true)}
+              />
             </div>
             <div>
               <div className="text-1x2 font-bold text-blue-800">CAN Financial Solutions Clients Report</div>
@@ -845,10 +837,10 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={toggleAllCards}>
+            <Button type="button" variant="secondary" onClick={toggleAllCards}>
               {allVisibleWithBusiness ? "Hide All" : "Show All"}
             </Button>
-            <Button variant="secondary" onClick={logout}>
+            <Button type="button" variant="secondary" onClick={logout}>
               <span className="inline-flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" />
@@ -866,7 +858,7 @@ export default function Dashboard() {
         {/* Trends Card */}
         <Card title="Trends 📊">
           <div className="mb-2">
-            <Button variant="secondary" onClick={() => setTrendsVisible((v) => !v)}>
+            <Button type="button" variant="secondary" onClick={() => setTrendsVisible((v) => !v)}>
               {trendsVisible ? "Hide 📊" : "Show 📊"}
             </Button>
           </div>
@@ -920,10 +912,11 @@ export default function Dashboard() {
               />
             </label>
             <div className="flex gap-2 md:col-span-3">
-              <Button variant="secondary" onClick={() => fetchUpcoming()}>
+              <Button type="button" variant="secondary" onClick={() => fetchUpcoming()}>
                 <b>➡️</b>
               </Button>
               <Button
+                type="button"
                 variant="secondary"
                 onClick={() => {
                   const today = new Date();
@@ -937,10 +930,10 @@ export default function Dashboard() {
               >
                 {upcomingLoading ? "Refreshing…" : "🔄"}
               </Button>
-              <Button variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>
+              <Button type="button" variant="secondary" onClick={exportUpcomingXlsx} disabled={upcoming.length === 0}>
                 📤
               </Button>
-              <Button variant="secondary" onClick={() => setUpcomingVisible((v) => !v)}>
+              <Button type="button" variant="secondary" onClick={() => setUpcomingVisible((v) => !v)}>
                 <span className={upcomingVisible ? "text-black" : undefined}>
                   {upcomingVisible ? "Hide🗂️" : "Show🗂️"}
                 </span>
@@ -985,16 +978,16 @@ export default function Dashboard() {
               value={progressFilter}
               onChange={(e) => { setProgressFilter(e.target.value); setProgressPage(0); }}
             />
-            <Button variant="secondary" onClick={() => setProgressVisible(true)}>➡️</Button>
-            <Button variant="secondary" onClick={() => { setProgressFilter(""); fetchProgressSummary().then(() => setProgressVisible(true)); }} disabled={progressLoading}>
+            <Button type="button" variant="secondary" onClick={() => setProgressVisible(true)}>➡️</Button>
+            <Button type="button" variant="secondary" onClick={() => { setProgressFilter(""); fetchProgressSummary().then(() => setProgressVisible(true)); }} disabled={progressLoading}>
               {progressLoading ? "Loading…" : "🔄"}
             </Button>
-            <Button variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
+            <Button type="button" variant="secondary" onClick={() => setProgressVisible((v) => !v)}>
               {progressVisible ? "Hide🗂️" : "Show🗂️"}
             </Button>
             <div className="md:ml-auto flex items-center gap-2">
-              <Button variant="secondary" onClick={() => setProgressPage((p) => Math.max(0, p - 1))} disabled={!progressVisible || progressPageSafe <= 0}>◀️</Button>
-              <Button variant="secondary" onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))} disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}>▶️</Button>
+              <Button type="button" variant="secondary" onClick={() => setProgressPage((p) => Math.max(0, p - 1))} disabled={!progressVisible || progressPageSafe <= 0}>◀️</Button>
+              <Button type="button" variant="secondary" onClick={() => setProgressPage((p) => Math.min(progressTotalPages - 1, p + 1))} disabled={!progressVisible || progressPageSafe >= progressTotalPages - 1}>▶️</Button>
             </div>
           </div>
           <div className="text-xs text-black mb-2">Click headers to sort.</div>
@@ -1020,9 +1013,9 @@ export default function Dashboard() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
-              <Button variant="secondary" onClick={() => loadPage(0)}>➡️</Button>
-              <Button variant="secondary" onClick={() => { setQ(""); loadPage(0); setRecordsVisible(true); }}>🔄</Button>
-              <Button variant="secondary" onClick={() => setRecordsVisible((v) => !v)}>
+              <Button type="button" variant="secondary" onClick={() => loadPage(0)}>➡️</Button>
+              <Button type="button" variant="secondary" onClick={() => { setQ(""); loadPage(0); setRecordsVisible(true); }}>🔄</Button>
+              <Button type="button" variant="secondary" onClick={() => setRecordsVisible((v) => !v)}>
                 {recordsVisible ? "Hide🗂️" : "Show🗂️"}
               </Button>
             </div>
@@ -1038,6 +1031,7 @@ export default function Dashboard() {
                   onChange={(e) => setPageJump(e.target.value)}
                 />
                 <Button
+                  type="button"
                   variant="secondary"
                   onClick={() => {
                     const n = Number(pageJump);
@@ -1050,8 +1044,8 @@ export default function Dashboard() {
                   ➡️
                 </Button>
               </div>
-              <Button variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={(page <= 0) || loading}>◀️</Button>
-              <Button variant="secondary" onClick={() => loadPage(page + 1)} disabled={((page + 1) * ALL_PAGE_SIZE >= (total ?? 0)) || loading}>▶️</Button>
+              <Button type="button" variant="secondary" onClick={() => loadPage(Math.max(0, page - 1))} disabled={(page <= 0) || loading}>◀️</Button>
+              <Button type="button" variant="secondary" onClick={() => loadPage(page + 1)} disabled={((page + 1) * ALL_PAGE_SIZE >= (total ?? 0)) || loading}>▶️</Button>
             </div>
           </div>
           <div className="text-sm text-black mb-2">{total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page</div>
@@ -1096,9 +1090,9 @@ export default function Dashboard() {
                 value={businessQ}
                 onChange={(e) => setBusinessQ(e.target.value)}
               />
-              <Button variant="secondary" onClick={() => loadBusinessPage(0)}>➡️</Button>
-              <Button variant="secondary" onClick={() => { setBusinessQ(""); loadBusinessPage(0); setBusinessVisible(true); }}>🔄</Button>
-              <Button variant="secondary" onClick={() => setBusinessVisible((v) => !v)}>
+              <Button type="button" variant="secondary" onClick={() => loadBusinessPage(0)}>➡️</Button>
+              <Button type="button" variant="secondary" onClick={() => { setBusinessQ(""); loadBusinessPage(0); setBusinessVisible(true); }}>🔄</Button>
+              <Button type="button" variant="secondary" onClick={() => setBusinessVisible((v) => !v)}>
                 {businessVisible ? "Hide🗂️" : "Show🗂️"}
               </Button>
             </div>
@@ -1114,6 +1108,7 @@ export default function Dashboard() {
                   onChange={(e) => setBusinessPageJump(e.target.value)}
                 />
                 <Button
+                  type="button"
                   variant="secondary"
                   onClick={() => { const n = Number(businessPageJump); if (!Number.isFinite(n)) return; const p = Math.min(businessTotalPages, Math.max(1, Math.floor(n))); loadBusinessPage(p - 1); }}
                   disabled={businessLoading}
@@ -1121,8 +1116,8 @@ export default function Dashboard() {
                   ➡️
                 </Button>
               </div>
-              <Button variant="secondary" onClick={() => loadBusinessPage(Math.max(0, businessPage - 1))} disabled={businessLoading || businessPage <= 0}>◀️</Button>
-              <Button variant="secondary" onClick={() => loadBusinessPage(businessPage + 1)} disabled={businessLoading || (businessPage + 1) * ALL_PAGE_SIZE >= (businessTotal ?? 0)}>▶️</Button>
+              <Button type="button" variant="secondary" onClick={() => loadBusinessPage(Math.max(0, businessPage - 1))} disabled={businessLoading || businessPage <= 0}>◀️</Button>
+              <Button type="button" variant="secondary" onClick={() => loadBusinessPage(businessPage + 1)} disabled={businessLoading || (businessPage + 1) * ALL_PAGE_SIZE >= (businessTotal ?? 0)}>▶️</Button>
             </div>
           </div>
           <div className="text-sm text-black mb-2">{(businessTotal ?? 0).toLocaleString()} records • showing {ALL_PAGE_SIZE} per page</div>
@@ -1199,13 +1194,10 @@ function ProgressSummaryTable(
               const w = getW(c.id, c.defaultW);
               const isSticky = idx === 0;
               const style: React.CSSProperties = {
-                width: w,
-                minWidth: w,
-                maxWidth: w,
+                width: w, minWidth: w, maxWidth: w,
                 position: isSticky ? "sticky" : undefined,
                 left: isSticky ? stickyLeftPx(idx) : undefined,
-                top: 0,
-                zIndex: isSticky ? 40 : 20,
+                top: 0, zIndex: isSticky ? 40 : 20,
                 background: isSticky ? "#f1f5f9" : undefined,
               };
               return (
@@ -1233,9 +1225,7 @@ function ProgressSummaryTable(
                 const w = getW(c.id, c.defaultW);
                 const isSticky = idx === 0;
                 const style: React.CSSProperties = {
-                  width: w,
-                  minWidth: w,
-                  maxWidth: w,
+                  width: w, minWidth: w, maxWidth: w,
                   position: isSticky ? "sticky" : undefined,
                   left: isSticky ? stickyLeftPx(idx) : undefined,
                   zIndex: isSticky ? 10 : 1,
@@ -1345,23 +1335,9 @@ function ExcelTableEditable({
   }, [extraLeftCols, keys]);
 
   const getW = (id: string, def: number) => widths[id] ?? def;
-  const stickyLeftPx = (colIndex: number) => {
-    let left = 0;
-    for (let i = 0; i < colIndex; i++) {
-      const c: any = (columns as any)[i];
-      left += getW(c.id, c.defaultW ?? 160);
-    }
-    return left;
-  };
+  const stickyLeftPx = (colIndex: number) => { let left = 0; for (let i = 0; i < colIndex; i++) { const c: any = (columns as any)[i]; left += getW(c.id, c.defaultW ?? 160); } return left; };
   const minWidth = (columns as any).reduce((sum: number, c: any) => sum + getW(c.id, c.defaultW ?? 160), 0);
-  const getCellValueForInput = (r: Row, k: string) => {
-    const isDateTime = DATE_TIME_KEYS.has(k);
-    const isDateOnly = DATE_ONLY_KEYS.has(k);
-    const val = r[k];
-    if (isDateTime) return toLocalInput(val);
-    if (isDateOnly) return toLocalDateInput(val);
-    return val ?? "";
-  };
+  const getCellValueForInput = (r: Row, k: string) => { const isDateTime = DATE_TIME_KEYS.has(k); const isDateOnly = DATE_ONLY_KEYS.has(k); const val = r[k]; if (isDateTime) return toLocalInput(val); if (isDateOnly) return toLocalDateInput(val); return val ?? ""; };
   const shouldHighlight = (k: string, r: Row) => HIGHLIGHT_DATE_KEYS.has(k) && dateOnOrAfterToday(r[k]);
 
   return (
@@ -1373,16 +1349,7 @@ function ExcelTableEditable({
               const w = getW(c.id, c.defaultW ?? 160);
               const isSticky = colIndex < stickyLeftCount;
               const isTopLeft = isSticky;
-              const style: React.CSSProperties = {
-                width: w,
-                minWidth: w,
-                maxWidth: w,
-                position: isSticky ? "sticky" : undefined,
-                left: isSticky ? stickyLeftPx(colIndex) : undefined,
-                top: 0,
-                zIndex: isTopLeft ? 50 : 20,
-                background: isSticky ? "#f1f5f9" : undefined,
-              };
+              const style: React.CSSProperties = { width: w, minWidth: w, maxWidth: w, position: isSticky ? "sticky" : undefined, left: isSticky ? stickyLeftPx(colIndex) : undefined, top: 0, zIndex: isTopLeft ? 50 : 20, background: isSticky ? "#f1f5f9" : undefined };
               const headerLabel = c.label;
               return (
                 <th key={c.id} className="border border-slate-500 px-2 py-2 whitespace-nowrap relative" style={style}>
@@ -1435,10 +1402,7 @@ function ExcelTableEditable({
                         className="w-full bg-transparent border-0 outline-none text-sm"
                         value={value ?? ""}
                         onChange={(e) => setDrafts((prev) => ({ ...prev, [cellId]: e.target.value }))}
-                        onBlur={() => {
-                          const v = drafts[cellId] ?? value ?? "";
-                          if (v !== undefined) onUpdate(String(r.id), k, String(v));
-                        }}
+                        onBlur={() => { const v = drafts[cellId] ?? value ?? ""; if (v !== undefined) onUpdate(String(r.id), k, String(v)); }}
                         disabled={savingId != null && String(savingId) === String(r.id)}
                       >
                         {statusOptions.map((opt, idx) => (
@@ -1464,7 +1428,7 @@ function ExcelTableEditable({
                             <ul className="max-h-48 overflow-auto">
                               {(items.length ? items : ["(empty)"]).map((x, i) => (<li key={i} className="px-2 py-1 text-sm border-b border-slate-100">{x}</li>))}
                             </ul>
-                            <div className="p-2"><Button variant="secondary" onClick={() => setOpenCell(null)}>Close</Button></div>
+                            <div className="p-2"><Button type="button" variant="secondary" onClick={() => setOpenCell(null)}>Close</Button></div>
                           </div>
                         )}
                       </div>
@@ -1485,7 +1449,7 @@ function ExcelTableEditable({
                             <div className="px-2 py-1 text-xs font-semibold text-black bg-slate-100 border-b border-slate-300">{labelFor(k)}</div>
                             <div className="p-2">
                               <textarea rows={5} readOnly className="w-full border border-slate-300 px-2 py-1 text-sm whitespace-pre-wrap break-words resize-none overflow-auto bg-slate-50" value={baseVal} />
-                              <div className="mt-2"><Button variant="secondary" onClick={() => setOpenCell(null)}>Close</Button></div>
+                              <div className="mt-2"><Button type="button" variant="secondary" onClick={() => setOpenCell(null)}>Close</Button></div>
                             </div>
                           </div>
                         )}
@@ -1495,9 +1459,7 @@ function ExcelTableEditable({
                 }
 
                 if (nonEditableKeys.has(k)) {
-                  const displayVal = DATE_ONLY_KEYS.has(k)
-                    ? (() => { const d = new Date(r[k]); return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString(); })()
-                    : String(getCellValueForInput(r, k)) || "—";
+                  const displayVal = DATE_ONLY_KEYS.has(k) ? (() => { const d = new Date(r[k]); return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString(); })() : String(getCellValueForInput(r, k)) || "—";
                   return (
                     <td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-normal break-words ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>{displayVal}</td>
                   );
@@ -1529,4 +1491,5 @@ function ExcelTableEditable({
     </div>
   );
 }
+
 
