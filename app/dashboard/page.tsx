@@ -15,7 +15,6 @@
  * No backend changes (schema / procs / routes / auth / RLS).
  */
 
-
 "use client";
 export const dynamic = "force-dynamic";
 
@@ -822,7 +821,6 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             {/* Fixed-size logo container; Next/Image reserves intrinsic box to prevent layout shift */}
             <div className="relative flex-none w-[120px] h-12">
-              {/* Static placeholder ensures dimensions are always occupied */}
               <div className="absolute inset-0" aria-hidden="true" />
               <Image
                 src="/can-logo.png"
@@ -1053,6 +1051,15 @@ export default function Dashboard() {
           </div>
           <div className="text-sm text-black mb-2">{total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page</div>
 
+          <div className="flex gap-4 mb-2 text-xs font-semibold text-black">
+            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#B1FB17] rounded"></span>New Client</div>
+            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#728FCE] rounded"></span>Interested</div>
+            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#ADDFFF] rounded"></span>In-Progress</div>
+            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#C9BE62] rounded"></span>On Hold</div>
+            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#E6BF83] rounded"></span>Closed</div>
+            <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#3CB371] rounded"></span>Completed</div>
+          </div>
+
           {recordsVisible && (
             <>
               {loading ? (
@@ -1161,10 +1168,24 @@ function ProgressSummaryTable(
   ], []);
   const getW = (id: string, def: number) => widths[id] ?? def;
   const stickyLeftPx = (colIndex: number) => (colIndex <= 0 ? 0 : 0);
-  const sortIcon = (k?: ProgressSortKey) => { if (!k) return null; if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>; return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>; };
+  const sortIcon = (k?: ProgressSortKey) => {
+    if (!k) return null;
+    if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>;
+    return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
+  };
   const minWidth = cols.reduce((sum, c) => sum + getW(c.id, c.defaultW), 0);
-  const fmtDate = (v: any) => { if (!v) return "—"; const d = new Date(v); const t = d.getTime(); if (!Number.isFinite(t)) return "—"; return d.toLocaleString(); };
-  const fmtCount = (v: any) => { const n = Number(v); if (!Number.isFinite(n)) return "—"; return String(n); };
+  const fmtDate = (v: any) => {
+    if (!v) return "—";
+    const d = new Date(v);
+    const t = d.getTime();
+    if (!Number.isFinite(t)) return "—";
+    return d.toLocaleString();
+  };
+  const fmtCount = (v: any) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "—";
+    return String(n);
+  };
   return (
     <div className="overflow-auto border border-slate-500 bg-white max-h-[520px]">
       <table className="w-full table-fixed border-collapse" style={{ minWidth }}>
@@ -1174,10 +1195,13 @@ function ProgressSummaryTable(
               const w = getW(c.id, c.defaultW);
               const isSticky = idx === 0;
               const style: React.CSSProperties = {
-                width: w, minWidth: w, maxWidth: w,
+                width: w,
+                minWidth: w,
+                maxWidth: w,
                 position: isSticky ? "sticky" : undefined,
                 left: isSticky ? stickyLeftPx(idx) : undefined,
-                top: 0, zIndex: isSticky ? 40 : 20,
+                top: 0,
+                zIndex: isSticky ? 40 : 20,
                 background: isSticky ? "#f1f5f9" : undefined,
               };
               return (
@@ -1205,7 +1229,9 @@ function ProgressSummaryTable(
                 const w = getW(c.id, c.defaultW);
                 const isSticky = idx === 0;
                 const style: React.CSSProperties = {
-                  width: w, minWidth: w, maxWidth: w,
+                  width: w,
+                  minWidth: w,
+                  maxWidth: w,
                   position: isSticky ? "sticky" : undefined,
                   left: isSticky ? stickyLeftPx(idx) : undefined,
                   zIndex: isSticky ? 10 : 1,
@@ -1266,7 +1292,11 @@ function ExcelTableEditable({
   const [openCell, setOpenCell] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
-  const sortIcon = (k?: SortKey) => { if (!k) return null; if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>; return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>; };
+  const sortIcon = (k?: SortKey) => {
+    if (!k) return null;
+    if (sortState.key !== k) return <span className="ml-1 text-black">↕</span>;
+    return <span className="ml-1 text-black">{sortState.dir === "asc" ? "↑" : "↓"}</span>;
+  };
 
   const keys = useMemo(() => {
     if (!rows.length) return [] as string[];
@@ -1311,9 +1341,23 @@ function ExcelTableEditable({
   }, [extraLeftCols, keys]);
 
   const getW = (id: string, def: number) => widths[id] ?? def;
-  const stickyLeftPx = (colIndex: number) => { let left = 0; for (let i = 0; i < colIndex; i++) { const c: any = (columns as any)[i]; left += getW(c.id, c.defaultW ?? 160); } return left; };
+  const stickyLeftPx = (colIndex: number) => {
+    let left = 0;
+    for (let i = 0; i < colIndex; i++) {
+      const c: any = (columns as any)[i];
+      left += getW(c.id, c.defaultW ?? 160);
+    }
+    return left;
+  };
   const minWidth = (columns as any).reduce((sum: number, c: any) => sum + getW(c.id, c.defaultW ?? 160), 0);
-  const getCellValueForInput = (r: Row, k: string) => { const isDateTime = DATE_TIME_KEYS.has(k); const isDateOnly = DATE_ONLY_KEYS.has(k); const val = r[k]; if (isDateTime) return toLocalInput(val); if (isDateOnly) return toLocalDateInput(val); return val ?? ""; };
+  const getCellValueForInput = (r: Row, k: string) => {
+    const isDateTime = DATE_TIME_KEYS.has(k);
+    const isDateOnly = DATE_ONLY_KEYS.has(k);
+    const val = r[k];
+    if (isDateTime) return toLocalInput(val);
+    if (isDateOnly) return toLocalDateInput(val);
+    return val ?? "";
+  };
   const shouldHighlight = (k: string, r: Row) => HIGHLIGHT_DATE_KEYS.has(k) && dateOnOrAfterToday(r[k]);
 
   return (
@@ -1325,7 +1369,16 @@ function ExcelTableEditable({
               const w = getW(c.id, c.defaultW ?? 160);
               const isSticky = colIndex < stickyLeftCount;
               const isTopLeft = isSticky;
-              const style: React.CSSProperties = { width: w, minWidth: w, maxWidth: w, position: isSticky ? "sticky" : undefined, left: isSticky ? stickyLeftPx(colIndex) : undefined, top: 0, zIndex: isTopLeft ? 50 : 20, background: isSticky ? "#f1f5f9" : undefined };
+              const style: React.CSSProperties = {
+                width: w,
+                minWidth: w,
+                maxWidth: w,
+                position: isSticky ? "sticky" : undefined,
+                left: isSticky ? stickyLeftPx(colIndex) : undefined,
+                top: 0,
+                zIndex: isTopLeft ? 50 : 20,
+                background: isSticky ? "#f1f5f9" : undefined,
+              };
               const headerLabel = c.label;
               return (
                 <th key={c.id} className="border border-slate-500 px-2 py-2 whitespace-nowrap relative" style={style}>
@@ -1402,7 +1455,7 @@ function ExcelTableEditable({
                           <div className="absolute left-0 top-full mt-1 w-72 max-w-[70vw] bg-white border border-slate-500 shadow-lg z-30">
                             <div className="px-2 py-1 text-xs font-semibold text-black bg-slate-100 border-b border-slate-300">{labelFor(k)}</div>
                             <ul className="max-h-48 overflow-auto">
-                              {(items.length ? items : ["(empty)")).map((x, i) => (<li key={i} className="px-2 py-1 text-sm border-b border-slate-100">{x}</li>))}
+                              {(items.length ? items : ["(empty)"]).map((x, i) => (<li key={i} className="px-2 py-1 text-sm border-b border-slate-100">{x}</li>))}
                             </ul>
                             <div className="p-2"><Button type="button" variant="secondary" onClick={() => setOpenCell(null)}>Close</Button></div>
                           </div>
@@ -1435,7 +1488,9 @@ function ExcelTableEditable({
                 }
 
                 if (nonEditableKeys.has(k)) {
-                  const displayVal = DATE_ONLY_KEYS.has(k) ? (() => { const d = new Date(r[k]); return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString(); })() : String(getCellValueForInput(r, k)) || "—";
+                  const displayVal = DATE_ONLY_KEYS.has(k)
+                    ? (() => { const d = new Date(r[k]); return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString(); })()
+                    : String(getCellValueForInput(r, k)) || "—";
                   return (
                     <td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-normal break-words ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>{displayVal}</td>
                   );
@@ -1467,5 +1522,6 @@ function ExcelTableEditable({
     </div>
   );
 }
+
 
 
