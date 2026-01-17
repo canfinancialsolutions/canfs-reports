@@ -822,7 +822,9 @@ export default function Dashboard() {
             {/* Fixed-size logo container prevents layout shift (no shaking/jumping) */}
             <div className="relative shrink-0 w-[120px] h-12">
               {!logoError ? (
-                <img
+         // Prevent logo layout shift on load error
+            const [logoError, setLogoError] = useState(false);
+           <img
                   src="/can-logo.png"
                   width={120}
                   height={48}
@@ -830,6 +832,9 @@ export default function Dashboard() {
                   alt="CAN Logo"
                   onError={() => setLogoError(true)}
                 />
+            {/* Fixed-size logo container prevents layout shift (no shaking/jumping) */}  
+           <div className="relative shrink-0 w-[120px] h
+
               ) : (
                 <div className="absolute inset-0 h-12 w-[120px]" aria-label="CAN Logo placeholder" />
               )}
