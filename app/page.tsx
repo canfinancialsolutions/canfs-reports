@@ -98,7 +98,6 @@ const DATE_TIME_KEYS = new Set([
 const DATE_ONLY_KEYS = new Set(["date_of_birth"]); // calendar date (no time)
 
 /** ------- Helpers ------- */
-
 function dateOnOrAfterToday(dateVal: any): boolean {
   if (!dateVal) return false;
   const d = new Date(dateVal);
@@ -278,7 +277,6 @@ function useColumnResizer() {
 }
 
 /** ------- Dropdown options ------- */
-
 const US_STATE_OPTIONS: string[] = [
   "",
   "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware",
@@ -407,9 +405,7 @@ export default function Dashboard() {
 
   function applyBusinessSort(query: any, sort: { key: SortKey; dir: SortDir }) {
     const ascending = sort.dir === "asc";
-    // primary sort
     query = query.order(sort.key, { ascending });
-    // tie-breaker: created_at desc to show most recent
     return query.order("created_at", { ascending: false });
   }
 
@@ -777,10 +773,6 @@ export default function Dashboard() {
     XLSX.utils.book_append_sheet(wb, ws, "Upcoming_BOP");
     XLSX.writeFile(wb, `Upcoming_${rangeStart}_to_${rangeEnd}.xlsx`);
   };
-
-  const extraClientCol = useMemo(() => [
-    { label: "Client Name", sortable: "client" as SortKey, render: (r: Row) => clientName(r) },
-  ], []);
 
   const progressFilteredSorted = useMemo(() => {
     const needle = progressFilter.trim().toLowerCase();
@@ -1407,7 +1399,6 @@ function ExcelTableEditable({
                   );
                 }
 
-                const WRAP_KEYS = new Set(["referred_by", "Product", "Comment", "Remark", "product", "comment", "remark", "immigration_status", "work_details"]);
                 if (WRAP_KEYS.has(k) && viewOnlyPopupKeys.has(k)) {
                   const cellIdView = `${r.id}:${k}`;
                   const showPopup = openCell === cellIdView;
@@ -1417,4 +1408,50 @@ function ExcelTableEditable({
                       <div className="relative">
                         <button type="button" className="w-full text-left text-black whitespace-normal break-words" onClick={() => setOpenCell((cur) => (cur === cellIdView ? null : cellIdView))}>{baseVal || "—"}</button>
                         {showPopup && (
-                          <div className="absolute left-0 top-full mt-1 w-80 max-w-[80vw] bg-white border border-slate-500 shadow-...
+                          <div className="absolute left-0 top-full mt-1 w-80 max-w-[80vw] bg-white border border-slate-500 shadow-xl z-40">
+                            <div className="px-2 py-1 text-xs font-semibold text-black bg-slate-100 border-b border-slate-300">{labelFor(k)}</div>
+                            <div className="p-2">
+                              <textarea rows={5} readOnly className="w-full border border-slate-300 px-2 py-1 text-sm whitespace-pre-wrap break-words resize-none overflow-auto bg-slate-50" value={baseVal} />
+                              <div className="mt-2"><Button variant="secondary" onClick={() => setOpenCell(null)}>Close</Button></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  );
+                }
+
+                if (nonEditableKeys.has(k)) {
+                  const displayVal = DATE_ONLY_KEYS.has(k) ? (() => { const d = new Date(r[k]); return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString(); })() : String(getCellValueForInput(r, k)) || "—";
+                  return (
+                    <td key={c.id} className={`border border-slate-300 px-2 py-2 whitespace-normal break-words ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>{displayVal}</td>
+                  );
+                }
+
+                const cellIdInput = `${r.id}:${k}`;
+                const isDateTime = DATE_TIME_KEYS.has(k);
+                const isDateOnly = DATE_ONLY_KEYS.has(k);
+                const value = drafts[cellIdInput] !== undefined ? drafts[cellIdInput] : String(getCellValueForInput(r, k));
+                const inputType = isDateTime ? "datetime-local" : isDateOnly ? "date" : "text";
+                return (
+                  <td key={c.id} className={`border border-slate-300 px-2 py-2 ${shouldHighlight(k, r) ? "bg-yellow-200" : ""}`} style={style}>
+                    <input
+                      type={inputType}
+                      step={isDateTime ? 60 : undefined}
+                      className="w-full bg-transparent border-0 outline-none text-sm"
+                      value={value}
+                      onChange={(e) => setDrafts((prev) => ({ ...prev, [cellIdInput]: e.target.value }))}
+                      onBlur={() => { const v = drafts[cellIdInput] ?? value ?? ""; if (v !== undefined) onUpdate(String(r.id), k, String(v)); }}
+                      disabled={savingId != null && String(savingId) === String(r.id)}
+                    />
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
