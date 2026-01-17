@@ -812,32 +812,20 @@ export default function Dashboard() {
     setBusinessVisible(target);
   };
 
-  const hideZeroFormatter = (val: any) => { const n = Number(val); return Number.isFinite(n) && n === 0 ? "" : val; };
-
-  return (
-    <div className="min-h-screen">
-      <div className="max-w-[1600px] mx-auto p-4 space-y-4">
-        <header className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            {/* Fixed-size logo container; Next/Image reserves intrinsic box to prevent layout shift */}
-            <div className="relative flex-none w-[120px] h-12">
-              <div className="absolute inset-0" aria-hidden="true" />
-              <Image
-                src="/can-logo.png"
-                alt="CAN Logo"
-                width={120}
-                height={48}
-                priority
-                className={`absolute inset-0 h-12 w-[120px] object-contain transition-opacity ${logoError ? "opacity-0" : "opacity-100"}`}
-                onError={() => setLogoError(true)}
-              />
-            </div>
-            <div>
-              <div className="text-1x2 font-bold text-blue-800">CAN Financial Solutions Clients Report</div>
-              <div className="text-sm font-semibold text-yellow-500">Protecting Your Tomorrow</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+   const hideZeroFormatter = (val: any) => { const n = Number(val); return Number.isFinite(n) && n === 0 ? "" : val; }; 
+  return ( 
+    <div className="min-h-screen"> 
+      <div className="max-w-[1600px] mx-auto p-4 space-y-4"> 
+        <header className="flex items-center justify-between gap-2"> 
+          <div className="flex items-center gap-2"> 
+            <img src="/can-logo.png" className="h-12 w-auto" alt="CAN Logo" onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")} /> 
+            <div> 
+               <div className="text-1x2 font-bold text-blue-800">CAN Financial Solutions Clients Report</div>
+               <div className="text-sm font-semibold text-yellow-500">Protecting Your Tomorrow</div>
+            </div> 
+          </div> 
+          <div className="flex items-center gap-2"> 
+            
             <Button type="button" variant="secondary" onClick={toggleAllCards}>
               {allVisibleWithBusiness ? "Hide All" : "Show All"}
             </Button>
