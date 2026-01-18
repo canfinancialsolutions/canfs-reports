@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { createBrowserSupabase } from '/lib/'
+import { createBrowserSupabase } from '/lib/client'
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
