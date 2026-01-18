@@ -313,6 +313,23 @@ useEffect(() => {
       window.location.href = '/'
       return
     }
+import { fetchTrends } from '@/lib/your-utils'
+useEffect(() => {
+  (async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        window.location.href = '/';
+        return;
+      }
+      await Promise.all([fetchTrends(), fetchProgressSummary(), loadPage(0)]);
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to initialize');
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, [fetchTrends]); // add fetchTrends here
 
    
   useEffect(() => { 
