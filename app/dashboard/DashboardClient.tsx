@@ -14,7 +14,7 @@
 "use client"; 
 
 import { createBrowserSupabase } from '@/lib/supabase/client'
-const supabase = useMemo(() => createBrowserSupabase(), [])
+ 
 
 export const dynamic = "force-dynamic"; 
 import React, { useEffect, useMemo, useRef, useState } from "react"; 
@@ -39,9 +39,6 @@ import {
   Bar, 
   LabelList, 
 } from "recharts"; 
-
-import { createBrowserSupabase } from '@/lib/supabase/client'
-const supabase = useMemo(() => createBrowserSupabase(), [])
 
 import { Button, Card } from "@/components/ui"; 
 type Row = Record<string, any>; 
