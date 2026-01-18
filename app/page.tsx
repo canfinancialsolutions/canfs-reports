@@ -65,7 +65,7 @@ export default function LoginPage() {
                     className="w-full rounded-xl border border-slate-200 px-4 py-3"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="chidam.alagar@gmail.com"
+                    placeholder="your@email.com"
                     autoComplete="email"
                   />
                 </label>
