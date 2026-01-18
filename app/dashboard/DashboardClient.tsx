@@ -8,7 +8,7 @@
  * - Upcoming Meetings: Refresh resets to default 30-day range; Show Results active green label. 
  * - Status columns render dropdown lists (incl. State). 
  * - Word-wrap + scrollable popups for Referred By, Product, Comment, Remark (and immigration_status, work_details). 
- * 
+ *  292         const supabase = getSupabase(); 
  * No backend changes (schema, procedures, routes, auth, Supabase policies). 
  */ 
 "use client"; 
@@ -289,7 +289,7 @@ export default function Dashboard() {
   useEffect(() => { 
     (async () => { 
       try { 
-        const supabase = getSupabase(); 
+
        const supabase = useMemo(() => createBrowserSupabase(), [])
         const { data } = await supabase.auth.getSession(); 
         if (!data.session) { 
