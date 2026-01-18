@@ -12,6 +12,10 @@
  * No backend changes (schema, procedures, routes, auth, Supabase policies). 
  */ 
 "use client"; 
+
+import { createBrowserSupabase } from '@/lib/supabase/client'
+const supabase = useMemo(() => createBrowserSupabase(), [])
+
 export const dynamic = "force-dynamic"; 
 import React, { useEffect, useMemo, useRef, useState } from "react"; 
 import * as XLSX from "xlsx"; 
@@ -35,7 +39,10 @@ import {
   Bar, 
   LabelList, 
 } from "recharts"; 
-import { getSupabase } from "@/lib/supabaseClient"; 
+
+import { createBrowserSupabase } from '@/lib/supabase/client'
+const supabase = useMemo(() => createBrowserSupabase(), [])
+
 import { Button, Card } from "@/components/ui"; 
 type Row = Record<string, any>; 
 type SortKey = 
@@ -286,6 +293,7 @@ export default function Dashboard() {
     (async () => { 
       try { 
         const supabase = getSupabase(); 
+       const supabase = useMemo(() => createBrowserSupabase(), [])
         const { data } = await supabase.auth.getSession(); 
         if (!data.session) { 
           window.location.href = "/"; 
@@ -299,6 +307,17 @@ export default function Dashboard() {
       } 
     })(); 
   }, []); 
+
+ 
+useEffect(() => {
+  (async () => {
+    const { data } = await supabase.auth.getSession()
+    if (!data.session) {
+      window.location.href = '/'
+      return
+    }
+
+   
   useEffect(() => { 
     loadPage(0); 
   }, [sortAll.key, sortAll.dir]); 
