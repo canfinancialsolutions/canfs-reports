@@ -39,12 +39,13 @@ export default function LoginPage() {
       setMsg(e?.message || "Sign-in failed");
     }
   };
-
+ //alt="CAN Financial Solutions" />
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
-        <div className="flex items-center gap-3 mb-6 justify-center">
-          <img src="/can-logo.png" className="h-10" alt="CAN Financial Solutions" />
+        <div className="flex items-center gap-3 mb-6 justify-center"
+        <img src="/can-logo.png" className="h-10" />
+        <div className="text-1x2 font-bold text-blue-800">CAN Financial Solutions Clients Report</div>
         </div>
 
         <Card title="Admin Login">
