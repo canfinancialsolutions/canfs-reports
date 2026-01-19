@@ -41,17 +41,11 @@ export default function LoginPage() {
   };
 
   return (
-        <div className="flex items-center gap-2">
-          <img
-            src="/can-logo.png"
-            alt="CAN Financial Solutions"
-            className="h-10 w-auto"
-          />
-          <span className="font-bold text-blue-800">
-            CAN Financial Solutions
-          </span>
+       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        <div className="flex items-center gap-3 mb-6 justify-center">
+          <img src="public/can-logo.png" alt="CAN Financial Solutions"/>
         </div>
-
 
         <Card title="Admin Login">
           {checking ? (
