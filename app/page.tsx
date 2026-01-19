@@ -44,7 +44,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="flex items-center gap-3 mb-6 justify-center"
-        <img src="/can-logo.png" className="h-10" />
+        <img src="/can-logo.png" className="h-10" alt="CAN Financial Solutions" />
         <div className="text-1x2 font-bold text-blue-800">CAN Financial Solutions Clients Report</div>
         </div>
 
