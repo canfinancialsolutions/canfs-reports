@@ -9,11 +9,18 @@ import { Button, Card } from "@/components/ui";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [selectedDestination, setSelectedDestination] = useState("Dashboard"); // Default
   const [msg, setMsg] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
 
+  const destinations = [
+    { value: "Dashboard", label: "Dashboard", path: "/dashboard" },
+    { value: "Financial Need Analysis", label: "Financial Need Analysis", path: "/fna" },
+    { value: "Business", label: "Business", path: "/business" },
+  ];
+
   useEffect(() => {
-    // If already logged in, go to dashboard
+    // If already logged in, go to dashboard (keep existing behavior)
     (async () => {
       try {
         const supabase = getSupabase();
@@ -30,20 +37,27 @@ export default function LoginPage() {
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
+    
     try {
       const supabase = getSupabase();
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setMsg(error.message);
-      else window.location.href = "/dashboard";
+      
+      if (error) {
+        setMsg(error.message);
+      } else {
+        // Navigate to selected destination instead of hard-coded dashboard
+        const destinationPath = destinations.find(d => d.value === selectedDestination)?.path;
+        window.location.href = destinationPath || "/dashboard";
+      }
     } catch (e: any) {
       setMsg(e?.message || "Sign-in failed");
     }
   };
 
   return (
-       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
-        <div className="flex items-venter gap-3 mb-6 justify-center">
+        <div className="flex items-center gap-3 mb-6 justify-center">
           <img src="/can-logo.png" className="h-14 w-auto" alt="CAN Financial Solutions" />
         </div>
 
@@ -81,8 +95,24 @@ export default function LoginPage() {
                   />
                 </label>
 
+                {/* NEW: Destination dropdown */}
+                <label className="block">
+                  <div className="text-sm font-semibold text-slate-700 mb-1">Navigate to</div>
+                  <select
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                    value={selectedDestination}
+                    onChange={(e) => setSelectedDestination(e.target.value)}
+                  >
+                    {destinations.map((dest) => (
+                      <option key={dest.value} value={dest.value}>
+                        {dest.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
                 <Button type="submit" variant="primary">
-                  Sign in
+                  Sign in → {selectedDestination}
                 </Button>
               </form>
 
