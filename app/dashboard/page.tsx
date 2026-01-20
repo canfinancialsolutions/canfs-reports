@@ -243,7 +243,7 @@ const STATUS_OPTIONS: Record<string, string[]> = {
   status: ["", "Prospect Client", "New Client",  "Existing Client", "Referral Client", "Initiated", "In-Progress", "On-Hold", "Closed", "Completed"], 
   followup_status: ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Completed"], 
   "follow-up_status": ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Completed"], 
-  client_status: ["", "New Client", "Initiated", "Interested", "In-Progress", "Closed", "On Hold", "Purchased", "Re-Opened", "Completed"],
+  client_status: ["", "New Client", "Initiated", "Interested", "In-Progress", "Closed", "On Hold", "Purchased", "Re-Opened", "Completed"], 
   bop_status: ["", "Presented", "Business", "Client", "In-Progress", "On-Hold", "Clarification", "Not Interested", "Completed", "Closed"], 
   state: US_STATE_OPTIONS, 
   immigration_status: IMMIGRATION_STATUS_OPTIONS, 
@@ -387,7 +387,7 @@ export default function Dashboard() {
         supabase.from("client_registrations").select("CalledOn").gte("CalledOn", startMonth.toISOString()).lt("CalledOn", addMonths(endOfMonth(today), 1).toISOString()).order("CalledOn", { ascending: true }).limit(200000), 
         supabase.from("client_registrations").select("BOP_Date").gte("BOP_Date", startMonth.toISOString()).lt("BOP_Date", addMonths(endOfMonth(today), 1).toISOString()).order("BOP_Date", { ascending: true }).limit(200000), 
         supabase.from("client_registrations").select("Followup_Date").gte("Followup_Date", startMonth.toISOString()).lt("Followup_Date", addMonths(endOfMonth(today), 1).toISOString()).order("Followup_Date", { ascending: true }).limit(200000), 
-         ]); 
+      ]); 
       const bumpMonth = (dateVal: any, map: Map<string, number>) => { 
         if (!dateVal) return; 
         const d = parseISO(String(dateVal)); 
