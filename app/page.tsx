@@ -12,12 +12,11 @@ export default function LoginPage() {
   const [selectedDestination, setSelectedDestination] = useState("Dashboard"); // Default
   const [msg, setMsg] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
-
   const destinations = [
-    { value: "Dashboard", label: "Dashboard", path: "/dashboard" },
-    { value: "Financial Need Analysis", label: "Financial Need Analysis", path: "/fna" },
-    { value: "Business", label: "Business", path: "/business" },
-  ];
+  { value: "Dashboard", label: "Dashboard", path: "/dashboard" },
+  { value: "Financial Need Analysis", label: "Financial Need Analysis", path: "https://vercel.com/canfsonline/canfsfna/" },  // FULL URL
+  { value: "Business", label: "Business", path: "/business" },
+];
 
   useEffect(() => {
     // If already logged in, go to dashboard (keep existing behavior)
