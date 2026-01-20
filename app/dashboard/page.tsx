@@ -43,6 +43,7 @@ type SortKey =
   | "created_at" 
   | "BOP_Date" 
   | "BOP_Status" 
+  | "FNA_Status" 
   | "Followup_Date" 
   | "status" 
   | "CalledOn" 
@@ -83,7 +84,7 @@ function dateOnOrAfterToday(dateVal: any): boolean {
   const tOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate()); 
   return dOnly.getTime() >= tOnly.getTime(); 
 } 
-const HIGHLIGHT_DATE_KEYS = new Set(["BOP_Date", "Followup_Date", "FollowUp_Date"]); 
+const HIGHLIGHT_DATE_KEYS = new Set(["BOP_Date", "FNA_Date","Followup_Date", "FollowUp_Date"]); 
 const LABEL_OVERRIDES: Record<string, string> = { 
   client_name: "Client Name", 
   last_call_date: "Last Call On", 
@@ -106,6 +107,8 @@ const LABEL_OVERRIDES: Record<string, string> = {
   CalledOn: "Called On", 
   BOP_Date: "BOP Date", 
   BOP_Status: "BOP Status", 
+  FNA_Date: "FNA Date", 
+  FNA_Status: "FNA Status", 
   Followup_Date: "Follow-Up Date", 
   FollowUp_Status: "Follow-Up Status", 
   spouse_name: "Spouse Name", 
@@ -243,7 +246,8 @@ const STATUS_OPTIONS: Record<string, string[]> = {
   status: ["", "Prospect Client", "New Client",  "Existing Client", "Referral Client", "Initiated", "In-Progress", "On-Hold", "Closed", "Completed"], 
   followup_status: ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Completed"], 
   "follow-up_status": ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Completed"], 
-  client_status: ["", "New Client", "Initiated", "Interested", "In-Progress", "Closed", "On Hold", "Purchased", "Re-Opened", "Completed"], 
+  client_status: ["", "New Client", "Initiated", "Interested", "In-Progress", "Closed", "On Hold", "Purchased", "Re-Opened", "Completed"],
+  FNA_Status: ["", "Initiated", "In-Progress", "Closed", "On Hold","Completed"], 
   bop_status: ["", "Presented", "Business", "Client", "In-Progress", "On-Hold", "Clarification", "Not Interested", "Completed", "Closed"], 
   state: US_STATE_OPTIONS, 
   immigration_status: IMMIGRATION_STATUS_OPTIONS, 
@@ -345,6 +349,7 @@ export default function Dashboard() {
         supabase.from("client_registrations").select("CalledOn").gte("CalledOn", startDaily.toISOString()).order("CalledOn", { ascending: true }).limit(50000), 
         supabase.from("client_registrations").select("BOP_Date").gte("BOP_Date", startDaily.toISOString()).order("BOP_Date", { ascending: true }).limit(50000), 
         supabase.from("client_registrations").select("Followup_Date").gte("Followup_Date", startDaily.toISOString()).order("Followup_Date", { ascending: true }).limit(50000), 
+        supabase.from("client_registrations").select("FNA_Date").gte("FNA_Date", startDaily.toISOString()).order("FNA_Date", { ascending: true }).limit(50000), 
       ]); 
       const days: string[] = []; 
       const callsDay = new Map<string, number>(); 
@@ -368,6 +373,7 @@ export default function Dashboard() {
       (callsRows ?? []).forEach((r: any) => bumpDay(r.CalledOn, callsDay)); 
       (bopsRows ?? []).forEach((r: any) => bumpDay(r.BOP_Date, bopsDay)); 
       (fuRows ?? []).forEach((r: any) => bumpDay(r.Followup_Date, fuDay)); 
+      (fnRows ?? []).forEach((r: any) => bumpDay(r.FNA_Date, fuDay)); 
       const nz = (n: number | undefined) => (n && n !== 0 ? n : undefined); 
       setDaily60(days.map((day) => ({ day, calls: nz(callsDay.get(day) ?? 0), bops: nz(bopsDay.get(day) ?? 0), followups: nz(fuDay.get(day) ?? 0) }))); 
       const startMonth = startOfMonth(subMonths(today, 11)); 
@@ -387,6 +393,7 @@ export default function Dashboard() {
         supabase.from("client_registrations").select("CalledOn").gte("CalledOn", startMonth.toISOString()).lt("CalledOn", addMonths(endOfMonth(today), 1).toISOString()).order("CalledOn", { ascending: true }).limit(200000), 
         supabase.from("client_registrations").select("BOP_Date").gte("BOP_Date", startMonth.toISOString()).lt("BOP_Date", addMonths(endOfMonth(today), 1).toISOString()).order("BOP_Date", { ascending: true }).limit(200000), 
         supabase.from("client_registrations").select("Followup_Date").gte("Followup_Date", startMonth.toISOString()).lt("Followup_Date", addMonths(endOfMonth(today), 1).toISOString()).order("Followup_Date", { ascending: true }).limit(200000), 
+       supabase.from("client_registrations").select("FNA_Date").gte("FNA_Date", startMonth.toISOString()).lt("FNA_Date", addMonths(endOfMonth(today), 1).toISOString()).order("FNA_Date", { ascending: true }).limit(200000), 
       ]); 
       const bumpMonth = (dateVal: any, map: Map<string, number>) => { 
         if (!dateVal) return; 
