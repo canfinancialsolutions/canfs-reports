@@ -1,3 +1,4 @@
+ 
 /** 
  * CAN Financial Solutions — Dashboard (page_0 (2).tsx) 
  * 
@@ -71,7 +72,7 @@ const DATE_TIME_KEYS = new Set([
   "FollowUp_Date", 
   "Issued", 
 ]); 
-const DATE_ONLY_KEYS = new Set(["date_of_birth", "FNA_Date"]); // calendar date without time 
+const DATE_ONLY_KEYS = new Set(["date_of_birth"]); // calendar date without time 
 /** ------- Yellow highlight helper (ignore timestamp) ------- */ 
 function dateOnOrAfterToday(dateVal: any): boolean { 
   if (!dateVal) return false; 
@@ -242,7 +243,7 @@ const STATUS_OPTIONS: Record<string, string[]> = {
   status: ["", "Prospect Client", "New Client",  "Existing Client", "Referral Client", "Initiated", "In-Progress", "On-Hold", "Closed", "Completed"], 
   followup_status: ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Completed"], 
   "follow-up_status": ["", "Open", "In-Progress", "Follow-Up", "Follow-Up 2", "On Hold", "Completed"], 
-  client_status: ["", "New Client", "Initiated", "Interested", "In-Progress", "Closed", "On Hold", "Purchased", "Re-Opened", "Completed"], 
+  client_status: ["", "New Client", "Initiated", "Interested", "In-Progress", "Closed", "On Hold", "Purchased", "Re-Opened", "Completed"],
   bop_status: ["", "Presented", "Business", "Client", "In-Progress", "On-Hold", "Clarification", "Not Interested", "Completed", "Closed"], 
   state: US_STATE_OPTIONS, 
   immigration_status: IMMIGRATION_STATUS_OPTIONS, 
@@ -280,7 +281,7 @@ export default function Dashboard() {
   const [trendsVisible, setTrendsVisible] = useState(false);
   const [upcomingVisible, setUpcomingVisible] = useState(false);
   const [progressVisible, setProgressVisible] = useState(false);
-
+ 
   useEffect(() => { 
     (async () => { 
       try { 
@@ -386,7 +387,7 @@ export default function Dashboard() {
         supabase.from("client_registrations").select("CalledOn").gte("CalledOn", startMonth.toISOString()).lt("CalledOn", addMonths(endOfMonth(today), 1).toISOString()).order("CalledOn", { ascending: true }).limit(200000), 
         supabase.from("client_registrations").select("BOP_Date").gte("BOP_Date", startMonth.toISOString()).lt("BOP_Date", addMonths(endOfMonth(today), 1).toISOString()).order("BOP_Date", { ascending: true }).limit(200000), 
         supabase.from("client_registrations").select("Followup_Date").gte("Followup_Date", startMonth.toISOString()).lt("Followup_Date", addMonths(endOfMonth(today), 1).toISOString()).order("Followup_Date", { ascending: true }).limit(200000), 
-      ]); 
+         ]); 
       const bumpMonth = (dateVal: any, map: Map<string, number>) => { 
         if (!dateVal) return; 
         const d = parseISO(String(dateVal)); 
@@ -569,8 +570,6 @@ export default function Dashboard() {
           <div className="flex items-center gap-2"> 
             <img src="/can-logo.png" className="h-12 w-auto" alt="CAN Logo" onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")} /> 
             <div> 
-               <div className="text-1x2 font-bold text-#0000A5">CAN Financial Solutions Clients Report</div>
-               <div className="text-sm font-semibold text-yellow-400">Protecting Your Tomorrow</div>
                <div className="text-1x2 font-bold text-blue-800">CAN Financial Solutions Clients Report</div>
                <div className="text-sm font-semibold text-yellow-500">Protecting Your Tomorrow</div>
             </div> 
@@ -579,7 +578,7 @@ export default function Dashboard() {
   {(() => {
     const newClientsCount = records.filter(r => r.status === "New Client").length;
     const latestIssuedDate = records.map(r => r.Issued).filter(Boolean).map(d => new Date(d)).sort((a,b)=>b.getTime()-a.getTime())[0];
-
+     
     const cycleStart = latestIssuedDate ? latestIssuedDate.toLocaleDateString() : "—";
     const cycleEnd = latestIssuedDate ? new Date(latestIssuedDate.getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString() : "—";
 
@@ -587,7 +586,7 @@ export default function Dashboard() {
     const today = new Date().toISOString().split("T")[0];
     const meetingTodayCount = records.filter(r => r.BOP_Date?.startsWith(today) || r.Followup_Date?.startsWith(today)).length;
     const meetingTomorrowCount = records.filter(r => r.BOP_Date?.startsWith(today+1) || r.Followup_Date?.startsWith(today+1)).length;
-
+     
     return (<div className="flex gap-2 mr-4">
     <div className="px-3 py-1 bg-gray-200 text-xs font-semibold rounded text-center">
       New Clients✏️{newClientsCount}
@@ -739,7 +738,7 @@ export default function Dashboard() {
             </div> 
           </div> 
           <div className="text-sm text-black mb-2">{total.toLocaleString()} records • showing {ALL_PAGE_SIZE} per page</div> 
-
+   
 <div className="flex gap-4 mb-2 text-xs font-semibold text-black">
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#B1FB17] rounded"></span>New Client</div>
   <div className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-[#728FCE] rounded"></span>Interested</div>
@@ -1057,3 +1056,4 @@ function ExcelTableEditable({
       </table> 
     </div> 
   ); 
+}
