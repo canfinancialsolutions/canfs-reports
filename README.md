@@ -11,15 +11,16 @@ A clean admin reporting site for the `client_registrations` table:
 ## 1) Local run
 ```bash
 # 1. Replace package.json with above
-# 2. Clean & install
+# 2. Clean install
 rm -rf node_modules package-lock.json .next
 npm install
 
 # 3. Test build
 npm run build
 # 4. Commit & deploy
+# 4. Deploy
 git add package.json package-lock.json
-git commit -m "Complete deps fix - autoprefixer tailwind xlsx etc"
+git commit -m "Fix xlsx version + all Tailwind deps"
 git push origin main
 ```
 
