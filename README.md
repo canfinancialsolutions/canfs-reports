@@ -15,13 +15,11 @@ npm install                    # Creates package-lock.json
 npm install autoprefixer postcss tailwindcss xlsx date-fns recharts
 npm install xlsx date-fns recharts  # Dashboard deps
 
-git add package-lock.json
-git commit -m "Add package-lock.json"
-git push origin main
 # Fill Supabase values in .env.local
 npm run dev
 npm install xlsx date-fns recharts
 npm install --save-dev typescript @types/react @types/node
+npm run build
 ```
 
 ## 2) Supabase requirements
