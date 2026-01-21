@@ -28,18 +28,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-6">
+<div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="flex items-center gap-3 mb-6 justify-center">
-          <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">
-            <span className="text-2xl font-bold text-white">CAN</span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">CANFS</h1>
-            <p className="text-sm text-slate-600">Financial Solutions</p>
-          </div>
+          <img src="/can-logo.png" className="h-14 w-auto" alt="CAN Financial Solutions" />
+          <img
+            src="/can-logo.png"
+            className="h-14 w-auto"
+            alt="CAN Financial Solutions"
+          />
         </div>
-
         <div className="bg-white rounded-2xl shadow-xl p-8 border">
           <h2 className="text-2xl font-bold text-slate-900 mb-2 text-center">Admin Login</h2>
           <p className="text-slate-600 text-center mb-8">Protecting Your Tomorrow</p>
