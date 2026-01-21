@@ -15,6 +15,7 @@ cp .env.example .env.local
 # Fill Supabase values in .env.local
 npm run dev
 npm install xlsx date-fns recharts
+npm install --save-dev typescript @types/react @types/node
 ```
 
 ## 2) Supabase requirements
@@ -61,7 +62,7 @@ In both tables, click on these headers to sort: Client Name, Created Date, BOP D
 
 
 ## Latest 500
-There is a Latest 500 Records table with the same scroll + sort + edit behavior.
+There is a Latest 10 Records table with the same scroll + sort + edit behavior.
 
 
 ## Jump to Page
