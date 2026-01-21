@@ -10,16 +10,13 @@ A clean admin reporting site for the `client_registrations` table:
 
 ## 1) Local run
 ```bash
-rm -rf node_modules package-lock.json
-npm install                    # Creates package-lock.json
+# rm -rf node_modules package-lock.json
+# npm install                    # Creates package-lock.json
 npm install autoprefixer postcss tailwindcss xlsx date-fns recharts
 npm install xlsx date-fns recharts  # Dashboard deps
 
 # Fill Supabase values in .env.local
 npm run dev
-npm install xlsx date-fns recharts
-npm install --save-dev typescript @types/react @types/node
-npm run build
 ```
 
 ## 2) Supabase requirements
