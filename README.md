@@ -17,6 +17,10 @@ npm install
 
 # 3. Test build
 npm run build
+# 4. Commit & deploy
+git add package.json package-lock.json
+git commit -m "Complete deps fix - autoprefixer tailwind xlsx etc"
+git push origin main
 ```
 
 ## 2) Supabase requirements
