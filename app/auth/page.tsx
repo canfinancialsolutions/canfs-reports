@@ -32,11 +32,6 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="flex items-center gap-3 mb-6 justify-center">
           <img src="/can-logo.png" className="h-14 w-auto" alt="CAN Financial Solutions" />
-          <img
-            src="/can-logo.png"
-            className="h-14 w-auto"
-            alt="CAN Financial Solutions"
-          />
         </div>
         <div className="bg-white rounded-2xl shadow-xl p-8 border">
           <h2 className="text-2xl font-bold text-slate-900 mb-2 text-center">Admin Login</h2>
@@ -59,10 +54,10 @@ export default function LoginPage() {
                   </label>
                   <input
                     type="email"
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@canfs.com"
+                    placeholder="your@email.com"
                     required
                   />
                 </div>
@@ -73,7 +68,7 @@ export default function LoginPage() {
                   </label>
                   <input
                     type="password"
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
@@ -86,7 +81,7 @@ export default function LoginPage() {
                     Go to
                   </label>
                   <select
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     value={destination}
                     onChange={(e) => setDestination(e.target.value)}
                   >
@@ -100,7 +95,7 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 text-lg"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 text-lg"
                 >
                   Sign In → {DESTINATIONS.find(d => d.value === destination)?.label}
                 </button>
