@@ -1,4 +1,3 @@
-
 "use client";
 
 export const dynamic = "force-dynamic";
@@ -7,25 +6,28 @@ import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabaseClient";
 import { Button, Card } from "@/components/ui";
 
+const DESTINATIONS = [
+  { value: "dashboard", label: "Dashboard", path: "/dashboard" },
+  { value: "fna", label: "Financial Need Analysis", path: "/fna" },
+  { value: "business", label: "Business", path: "/business" }, // if you have it
+];
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedDestination, setSelectedDestination] = useState("Dashboard"); // Default
   const [msg, setMsg] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
-  const destinations = [
-  { value: "Dashboard", label: "Dashboard", path: "/dashboard" },
-  { value: "Financial Need Analysis", label: "Financial Need Analysis", path: "https://vercel.com/canfsonline/canfsfna/" },  // FULL URL
-  { value: "Business", label: "Business", path: "/business" },
-];
+  const [destination, setDestination] = useState<string>("dashboard"); // default
 
   useEffect(() => {
-    // If already logged in, go to dashboard (keep existing behavior)
     (async () => {
       try {
         const supabase = getSupabase();
         const { data } = await supabase.auth.getSession();
-        if (data.session) window.location.href = "/dashboard";
+        if (data.session) {
+          // already logged in → go to default page (dashboard)
+          window.location.href = "/dashboard";
+        }
       } catch (e: any) {
         setMsg(e?.message || "Supabase config error");
       } finally {
@@ -37,18 +39,20 @@ export default function LoginPage() {
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
-    
     try {
       const supabase = getSupabase();
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       if (error) {
         setMsg(error.message);
-      } else {
-        // Navigate to selected destination instead of hard-coded dashboard
-        const destinationPath = destinations.find(d => d.value === selectedDestination)?.path;
-        window.location.href = destinationPath || "/dashboard";
+        return;
       }
+
+      // redirect based on dropdown choice
+      const dest = DESTINATIONS.find((d) => d.value === destination);
+      window.location.href = dest?.path || "/dashboard";
     } catch (e: any) {
       setMsg(e?.message || "Sign-in failed");
     }
@@ -58,7 +62,11 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="flex items-center gap-3 mb-6 justify-center">
-          <img src="/can-logo.png" className="h-14 w-auto" alt="CAN Financial Solutions" />
+          <img
+            src="/can-logo.png"
+            className="h-14 w-auto"
+            alt="CAN Financial Solutions"
+          />
         </div>
 
         <Card title="Admin Login">
@@ -74,7 +82,9 @@ export default function LoginPage() {
 
               <form onSubmit={signIn} className="space-y-4">
                 <label className="block">
-                  <div className="text-sm font-semibold text-slate-700 mb-1">Email</div>
+                  <div className="text-sm font-semibold text-slate-700 mb-1">
+                    Email
+                  </div>
                   <input
                     className="w-full rounded-xl border border-slate-200 px-4 py-3"
                     value={email}
@@ -85,7 +95,9 @@ export default function LoginPage() {
                 </label>
 
                 <label className="block">
-                  <div className="text-sm font-semibold text-slate-700 mb-1">Password</div>
+                  <div className="text-sm font-semibold text-slate-700 mb-1">
+                    Password
+                  </div>
                   <input
                     type="password"
                     className="w-full rounded-xl border border-slate-200 px-4 py-3"
@@ -95,29 +107,34 @@ export default function LoginPage() {
                   />
                 </label>
 
-                {/* NEW: Destination dropdown */}
+                {/* destination dropdown */}
                 <label className="block">
-                  <div className="text-sm font-semibold text-slate-700 mb-1">Navigate to</div>
+                  <div className="text-sm font-semibold text-slate-700 mb-1">
+                    Navigate to
+                  </div>
                   <select
                     className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
-                    value={selectedDestination}
-                    onChange={(e) => setSelectedDestination(e.target.value)}
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
                   >
-                    {destinations.map((dest) => (
-                      <option key={dest.value} value={dest.value}>
-                        {dest.label}
+                    {DESTINATIONS.map((d) => (
+                      <option key={d.value} value={d.value}>
+                        {d.label}
                       </option>
                     ))}
                   </select>
                 </label>
 
                 <Button type="submit" variant="primary">
-                  Sign in → {selectedDestination}
+                  Sign in →{" "}
+                  {DESTINATIONS.find((d) => d.value === destination)?.label ??
+                    "Dashboard"}
                 </Button>
               </form>
 
               <div className="mt-4 text-xs text-slate-500">
-                Tip: In Supabase → Authentication → Users, create an admin user (email/password).
+                Tip: In Supabase → Authentication → Users, create an admin user
+                (email/password).
               </div>
             </>
           )}
@@ -126,4 +143,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
