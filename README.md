@@ -14,6 +14,7 @@ npm install
 cp .env.example .env.local
 # Fill Supabase values in .env.local
 npm run dev
+npm install xlsx date-fns recharts
 ```
 
 ## 2) Supabase requirements
