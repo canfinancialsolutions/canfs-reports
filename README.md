@@ -10,8 +10,12 @@ A clean admin reporting site for the `client_registrations` table:
 
 ## 1) Local run
 ```bash
-npm install
-cp .env.example .env.local
+rm -rf node_modules package-lock.json
+npm install                    # Creates package-lock.json
+npm install xlsx date-fns recharts  # Dashboard deps
+git add package-lock.json
+git commit -m "Add package-lock.json"
+git push origin main
 # Fill Supabase values in .env.local
 npm run dev
 npm install xlsx date-fns recharts
