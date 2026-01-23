@@ -11,24 +11,18 @@
  * 
  * No backend changes (schema, procedures, routes, auth, Supabase policies). 
  */ 
-"use client"; 
+"use client";
+
 // Add to your dashboard page (top section)
-
-import { useEffect } from 'react';
-
-export default function HomeRedirect() {
-  useEffect(() => {
-    window.location.href = '/auth';
-  }, []);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <p className="text-sm text-slate-600">
-        Redirecting to login...
-      </p>
-    </div>
-  );
-}
+<div className="flex justify-between items-center mb-6">
+  <h1 className="text-2xl font-bold">CAN Financial Solutions Dashboard</h1>
+  <button
+    onClick={() => window.location.href = '/auth'}
+    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+  >
+    ← Exit
+  </button>
+</div>
 
 export const dynamic = "force-dynamic"; 
 import React, { useEffect, useMemo, useRef, useState } from "react"; 
