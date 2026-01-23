@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 // If you are not using Supabase auth yet, comment this out or keep your own:
-// import { getSupabase } from "@/lib/supabaseClient";
+ import { getSupabase } from "@/lib/supabaseClient";
 
 const DESTINATIONS = [
   { value: "dashboard", label: "Dashboard", path: "/dashboard" },
