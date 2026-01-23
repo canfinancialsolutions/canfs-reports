@@ -15,19 +15,19 @@ export default function LoginPage() {
   const [destination, setDestination] = useState<string>("dashboard");
   const [msg, setMsg] = useState<string | null>(null);
   const [checking, setChecking] = useState(false); // simple version
-
+/*
   useEffect(() => {
     // If you want auto-redirect when already logged in, add it here later.
     setChecking(false);
   }, []);
-
+*/
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
 
     try {
       // If using Supabase auth, do it here; otherwise, skip to redirect.
-      /*
+      
       const supabase = getSupabase();
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -37,7 +37,7 @@ export default function LoginPage() {
         setMsg(error.message);
         return;
       }
-      */
+     
 
       // Find destination path from dropdown value
       const dest = DESTINATIONS.find((d) => d.value === destination);
