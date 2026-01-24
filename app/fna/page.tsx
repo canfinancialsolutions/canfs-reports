@@ -1033,7 +1033,7 @@ export default function Page() {
                 </div>
               )}
             </div> 
-            <TopButton variant="danger" onClick={logout}>
+            <TopButton  onClick={logout}>
               ← Logout
             </TopButton>
             
