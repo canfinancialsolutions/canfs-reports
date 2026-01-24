@@ -1,29 +1,8 @@
 'use client';
 
-
-import { useEffect, useState } from "react";
-import { hasCanfsAuthCookie } from "@/lib/canfsAuth";
-
-export function useRequireCanfsAuth() {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const ok = hasCanfsAuthCookie();
-    if (!ok) {
-      // send user to /auth and preserve where they wanted to go
-      const next = encodeURIComponent(window.location.pathname + window.location.search);
-      window.location.href = `/auth?next=${next}`;
-      return;
-    }
-    setReady(true);
-  }, []);
-
-  return ready;
-}
-
-
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { useRequireCanfsAuth, clearCanfsAuthCookie } from "@/lib/useRequireCanfsAuth";
 
 type Prospect = {
   id: number;
@@ -476,6 +455,15 @@ const LogoutIcon = ({ className }: { className?: string }) => (
 );
 
 export default function ProspectListPage() {
+  const ready = useRequireCanfsAuth();
+  if (!ready) {
+    return (
+      <div className="min-h-screen grid place-items-center text-slate-600">
+        Checking authentication…
+      </div>
+    );
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -891,7 +879,7 @@ export default function ProspectListPage() {
         <button
           type="button"
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
-          onClick={() => (window.location.href = '/auth')}
+          onClick={() => (clearCanfsAuthCookie(); window.location.href = '/auth')}
         >
           <LogoutIcon className="h-4 w-4" />
           Logout
