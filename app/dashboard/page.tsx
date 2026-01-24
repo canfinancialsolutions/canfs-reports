@@ -12,23 +12,6 @@
  * No backend changes (schema, procedures, routes, auth, Supabase policies). 
  */ 
 "use client";
-export default function Page() {
-  const { checking } = useRequireAuth();
-
-  if (checking) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {https://canfs-reports.vercel.app/dashboard}
-    </>
-  );
-}
  
 // Add to your dashboard page (top section)
 <div className="flex justify-between items-center mb-6">
