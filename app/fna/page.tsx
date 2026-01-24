@@ -1,30 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { getSupabase } from '@/lib/supabaseClient';
 
-// AUTH GUARD - Add this to EVERY protected page
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated
-
-export const dynamic = "force-dynamic";
-
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { getSupabase } from "@/lib/supabaseClient";
-
-/**
- * Financial Needs Analysis (FNA) — page.tsx
- *
- * Fixes included:
- * 1) Client search now queries public.client_registrations (via supabase.from("client_registrations"))
- *    using first_name / last_name / phone (ILIKE) and displays First, Last, Phone, Email.
- * 2) Selecting a client loads/creates an fna_header row, then fetches each tab’s data from the
- *    appropriate fna_* tables using fna_id.
- * 3) Minimal, practical CRUD for each fna_* table (add/edit/delete + save).
- *
- * Assumptions:
- * - Supabase auth is required; if no session, user is redirected to /auth.
- * - One “active” FNA per client is represented by the most recently updated fna_header for that client.
- */
+export const dynamic = 'force-dynamic';
 
 type UUID = string;
 
