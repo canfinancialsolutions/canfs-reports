@@ -405,10 +405,11 @@ export default function ProspectListPage() {
   const [resultFilter, setResultFilter] = useState<string>('ALL');
   const [page, setPage] = useState(1);
 
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [original, setOriginal] = useState<Prospect | null>(null);
+  const [activeId, setActiveId] = useState<number | null>(null); // highlighted row
+  const [original, setOriginal] = useState<Prospect | null>(null); // original selected row (edit mode)
   const [form, setForm] = useState<ProspectForm>(emptyForm());
-  const [mode, setMode] = useState<'new' | 'view' | 'edit'>('new');
+  const [mode, setMode] = useState<'new' | 'edit'>('new'); // card mode when visible
+  const [showCard, setShowCard] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const setToast = (kind: 'success' | 'error', msg: string) => {
@@ -425,7 +426,42 @@ export default function ProspectListPage() {
     }, 3500);
   };
 
-  const hasUnsaved = mode === 'edit' && original ? isDirtyVsOriginal(form, original) : false;
+  const selected = useMemo(() => {
+    if (activeId == null) return null;
+    return prospects.find((p) => p.id === activeId) || null;
+  }, [prospects, activeId]);
+
+  const requiredFilled =
+    form.first_name.trim().length > 0 && form.last_name.trim().length > 0 && form.phone.trim().length > 0;
+
+  const dirty = mode === 'edit' && original ? isDirtyVsOriginal(form, original) : false;
+
+  const isNewFormEmpty = (f: ProspectForm) => {
+    const check: (keyof ProspectForm)[] = [
+      'first_name',
+      'last_name',
+      'spouse_name',
+      'relation_type',
+      'phone',
+      'city',
+      'state',
+      'top25',
+      'immigration',
+      'age25plus',
+      'married',
+      'children',
+      'homeowner',
+      'good_career',
+      'income_60k',
+      'dissatisfied',
+      'ambitious',
+      'contact_date',
+      'result',
+      'next_steps',
+      'comments',
+    ];
+    return check.every((k) => (f[k] || '').toString().trim().length === 0);
+  };
 
   const loadProspects = async () => {
     if (!supabase) {
@@ -448,20 +484,20 @@ export default function ProspectListPage() {
     setProspects(rows);
     setLoading(false);
 
-    // Keep selection in sync after reload (do not clobber unsaved edits)
+    // Keep highlighted selection in sync after reload (do not clobber an open edit form)
     if (activeId != null) {
       const updated = rows.find((r) => r.id === activeId) || null;
       if (!updated) {
         setActiveId(null);
         setOriginal(null);
-        setForm(emptyForm());
-        setMode('new');
-      } else {
-        setOriginal(updated);
-        if (!(mode === 'edit' && hasUnsaved)) {
-          setForm(formFromProspect(updated));
-          setMode('view');
+        if (showCard && mode === 'edit') {
+          setShowCard(false);
+          setMode('new');
+          setForm(emptyForm());
         }
+      } else if (showCard && mode === 'edit' && original && !dirty) {
+        setOriginal(updated);
+        setForm(formFromProspect(updated));
       }
     }
   };
@@ -488,65 +524,6 @@ export default function ProspectListPage() {
   const currentPage = Math.min(page, totalPages);
   const start = (currentPage - 1) * PAGE_SIZE;
   const pageRows = filtered.slice(start, start + PAGE_SIZE);
-
-  const requiredFilled =
-    form.first_name.trim().length > 0 && form.last_name.trim().length > 0 && form.phone.trim().length > 0;
-
-  const editable = mode === 'new' || mode === 'edit';
-  const dirty = original ? isDirtyVsOriginal(form, original) : false;
-
-  const showSave = (mode === 'edit') || (mode === 'new' && requiredFilled);
-  const canSave =
-    (mode === 'new' && requiredFilled && !saving) ||
-    (mode === 'edit' && requiredFilled && dirty && !saving);
-
-  const actionLabel = activeId ? 'Edit Prospect' : 'Add New Prospect';
-
-  const resetToNew = () => {
-    setActiveId(null);
-    setOriginal(null);
-    setForm(emptyForm());
-    setMode('new');
-  };
-
-  const handleSelectRow = (p: Prospect) => {
-    if (saving) return;
-    if (mode === 'edit' && hasUnsaved && p.id !== activeId) {
-      setToast('error', 'You have unsaved changes. Please Save or Cancel before selecting another prospect.');
-      return;
-    }
-    setActiveId(p.id);
-    setOriginal(p);
-    setForm(formFromProspect(p));
-    setMode('view');
-  };
-
-  const handlePrimaryAction = () => {
-    if (saving) return;
-    if (mode === 'edit' && hasUnsaved) {
-      setToast('error', 'You have unsaved changes. Please Save or Cancel before switching.');
-      return;
-    }
-    if (activeId) {
-      setMode('edit');
-    } else {
-      // Add New Prospect flow
-      resetToNew();
-    }
-  };
-
-  const handleCancel = () => {
-    if (saving) return;
-
-    if (mode === 'edit' && original) {
-      setForm(formFromProspect(original));
-      setMode('view');
-      return;
-    }
-
-    // New mode: clear fields & hide save button (until required fields are filled)
-    resetToNew();
-  };
 
   const buildPayloadFromForm = (f: ProspectForm) => {
     const stateAbbr = (f.state || '').trim();
@@ -575,62 +552,131 @@ export default function ProspectListPage() {
     } as Omit<Prospect, 'id'>;
   };
 
-  const handleSave = async () => {
+  const beginNewProspect = () => {
+    if (saving) return;
+
+    // prevent losing an in-progress new entry
+    if (showCard && mode === 'new' && !isNewFormEmpty(form)) {
+      setToast('error', 'You have an in-progress New Prospect. Please Save or Cancel before starting over.');
+      return;
+    }
+    // prevent losing edits
+    if (showCard && mode === 'edit' && dirty) {
+      setToast('error', 'You have unsaved changes. Please Save before starting a new prospect.');
+      return;
+    }
+
+    setMode('new');
+    setShowCard(true);
+    setOriginal(null);
+    setActiveId(null);
+    setForm(emptyForm());
+  };
+
+  const handleSelectRow = (p: Prospect) => {
+    if (saving) return;
+
+    if (showCard && mode === 'new' && !isNewFormEmpty(form)) {
+      setToast('error', 'You have an in-progress New Prospect. Please Save or Cancel before selecting another row.');
+      return;
+    }
+    if (showCard && mode === 'edit' && dirty && p.id !== activeId) {
+      setToast('error', 'You have unsaved changes. Please Save before selecting another prospect.');
+      return;
+    }
+
+    setActiveId(p.id);
+    setOriginal(p);
+    setForm(formFromProspect(p));
+    setMode('edit');
+    setShowCard(true);
+  };
+
+  const openEditFromSelection = () => {
+    if (saving) return;
+
+    if (!selected) {
+      setToast('error', 'Please select a prospect row first.');
+      return;
+    }
+    if (showCard && mode === 'new' && !isNewFormEmpty(form)) {
+      setToast('error', 'You have an in-progress New Prospect. Please Save or Cancel before editing another prospect.');
+      return;
+    }
+
+    setOriginal(selected);
+    setForm(formFromProspect(selected));
+    setMode('edit');
+    setShowCard(true);
+  };
+
+  const saveNew = async () => {
     if (!supabase) {
       setToast('error', 'Missing Supabase environment variables.');
       return;
     }
-
     if (!requiredFilled) {
       setToast('error', 'First Name, Last Name, and Phone are required.');
       return;
     }
 
-    if (mode === 'edit' && (!activeId || !original)) {
-      setToast('error', 'Please select a prospect row first.');
+    setSaving(true);
+
+    const payload = {
+      ...buildPayloadFromForm(form),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase.from('prospects').insert(payload).select('*').single();
+
+    if (error) {
+      setToast('error', error.message);
+      setSaving(false);
       return;
     }
 
-    if (mode === 'edit' && !dirty) {
+    const inserted = data as Prospect;
+
+    setProspects((prev) => [inserted, ...prev.filter((x) => x.id !== inserted.id)]);
+    setActiveId(inserted.id);
+    setToast('success', `Added prospect #${inserted.id}`);
+
+    // Keep card open for rapid entry, but clear fields
+    setOriginal(null);
+    setForm(emptyForm());
+    setMode('new');
+    setShowCard(true);
+
+    setSaving(false);
+  };
+
+  const saveEdit = async () => {
+    if (!supabase) {
+      setToast('error', 'Missing Supabase environment variables.');
+      return;
+    }
+    if (!requiredFilled) {
+      setToast('error', 'First Name, Last Name, and Phone are required.');
+      return;
+    }
+    if (!activeId || !original) {
+      setToast('error', 'Please select a prospect row first.');
+      return;
+    }
+    if (!dirty) {
       setToast('error', 'No changes to save.');
       return;
     }
 
     setSaving(true);
 
-    if (mode === 'new') {
-      const payload = {
-        ...buildPayloadFromForm(form),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data, error } = await supabase.from('prospects').insert(payload).select('*').single();
-
-      if (error) {
-        setToast('error', error.message);
-        setSaving(false);
-        return;
-      }
-
-      const inserted = data as Prospect;
-      setProspects((prev) => [inserted, ...prev.filter((x) => x.id !== inserted.id)]);
-      setActiveId(inserted.id);
-      setOriginal(inserted);
-      setForm(formFromProspect(inserted));
-      setMode('view');
-      setToast('success', `Added prospect #${inserted.id}`);
-      setSaving(false);
-      return;
-    }
-
-    // Edit mode
     const payload = {
       ...buildPayloadFromForm(form),
       updated_at: new Date().toISOString(),
     } as Partial<Omit<Prospect, 'id'>>;
 
-    const { data, error } = await supabase.from('prospects').update(payload).eq('id', activeId!).select('*').single();
+    const { data, error } = await supabase.from('prospects').update(payload).eq('id', activeId).select('*').single();
 
     if (error) {
       setToast('error', error.message);
@@ -639,25 +685,86 @@ export default function ProspectListPage() {
     }
 
     const updated = data as Prospect;
+
     setProspects((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-    setOriginal(updated);
-    setForm(formFromProspect(updated));
-    setMode('view');
+    setActiveId(updated.id);
     setToast('success', `Saved prospect #${updated.id}`);
+
+    // After saving edits, stay highlighted and switch to "Save New Prospect" flow (per requested UX)
+    setOriginal(updated);
+    setMode('new');
+    setForm(emptyForm());
+    setShowCard(true);
+
     setSaving(false);
   };
 
-  const handleRefresh = async () => {
-    if (mode === 'edit' && hasUnsaved) {
-      setToast('error', 'You have unsaved changes. Please Save or Cancel before refreshing.');
+  const handleTopAction = () => {
+    if (saving) return;
+
+    // If currently editing with the card open, the top action is "Save"
+    if (showCard && mode === 'edit') {
+      void saveEdit();
       return;
     }
+
+    // Otherwise, top action is "Edit Prospect"
+    openEditFromSelection();
+  };
+
+  const handleBottomAction = () => {
+    if (saving) return;
+
+    if (!showCard) {
+      beginNewProspect();
+      return;
+    }
+
+    if (mode === 'new') {
+      void saveNew();
+    }
+  };
+
+  const handleCancelNew = () => {
+    if (saving) return;
+    setForm(emptyForm());
+    setOriginal(null);
+    setMode('new');
+    setShowCard(true);
+  };
+
+  const handleCloseEdit = () => {
+    if (saving) return;
+    if (mode === 'edit' && dirty) {
+      setToast('error', 'You have unsaved changes. Please Save before closing.');
+      return;
+    }
+    setShowCard(false);
+    setMode('new');
+    setOriginal(null);
+    setForm(emptyForm());
+  };
+
+  const handleRefresh = async () => {
+    if (saving) return;
+
+    // Hide card, clear filters, and reload table
     setSearch('');
     setResultFilter('ALL');
     setPage(1);
-    resetToNew();
+    setActiveId(null);
+    setOriginal(null);
+    setForm(emptyForm());
+    setMode('new');
+    setShowCard(false);
     await loadProspects();
   };
+
+  const topActionLabel = showCard && mode === 'edit' ? 'Save' : 'Edit Prospect';
+  const canTopAction = showCard && mode === 'edit' ? requiredFilled && dirty && !saving : !!activeId && !saving;
+
+  const bottomPrimaryLabel = !showCard ? 'New Prospect' : 'Save New Prospect';
+  const canBottomAction = !showCard ? !saving : mode === 'new' ? requiredFilled && !saving : false;
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6">
@@ -670,6 +777,7 @@ export default function ProspectListPage() {
             <p className="text-xs text-slate-600">Based on CAN Financial Solutions Prospect List</p>
           </div>
         </div>
+
         <button
           type="button"
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
@@ -724,147 +832,136 @@ export default function ProspectListPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Top-of-table action: Edit Prospect (or Save in edit mode) */}
             <button
               type="button"
-              className={`rounded-lg px-3 py-2 text-xs font-semibold shadow-sm ${
-                activeId
-                  ? 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
-              }`}
-              onClick={handlePrimaryAction}
+              className={`inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold ${
+                showCard && mode === 'edit'
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'border border-slate-200 bg-white text-slate-900 hover:bg-slate-50'
+              } ${!canTopAction ? 'opacity-60' : ''}`}
+              disabled={!canTopAction}
+              onClick={handleTopAction}
+              title={!canTopAction && !(showCard && mode === 'edit') ? 'Select a row to edit' : undefined}
             >
-              {actionLabel}
+              {saving && showCard && mode === 'edit' ? 'Saving…' : topActionLabel}
             </button>
 
             <button
               type="button"
-              className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50"
               onClick={handleRefresh}
+              disabled={saving}
             >
               Refresh
             </button>
 
-            <span className="text-xs text-slate-500">
-              Showing {pageRows.length} of {filtered.length} filtered prospects
-            </span>
+            <div className="text-sm text-slate-500">
+              Showing {filtered.length} of {prospects.length} {filtered.length === 1 ? 'prospect' : 'prospects'}
+            </div>
           </div>
         </div>
 
-        {/* Table (read-only list) */}
-        <div className="rounded-lg border">
-          <div className="max-h-[420px] overflow-auto">
-            <table className="min-w-full text-xs">
-              <thead className="sticky top-0 bg-slate-100">
-                <tr>
-                  {[
-                    '#',
-                    'First Name',
-                    'Last Name',
-                    'Spouse Name',
-                    'Relation Type',
-                    'Phone',
-                    'City',
-                    'State',
-                    'Top 25',
-                    'Immigration',
-                    'Age 25+',
-                    'Married',
-                    'Children',
-                    'Homeowner',
-                    'Good Career',
-                    'Income 60K',
-                    'Dissatisfied',
-                    'Ambitious',
-                    'Contact Date',
-                    'Result',
-                    'Next Steps',
-                    'Comments',
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="whitespace-nowrap px-2 py-2 text-left text-[11px] font-semibold tracking-wide text-slate-700"
-                    >
-                      {h}
-                    </th>
-                  ))}
+        {/* Table */}
+        <div className="rounded-xl border border-slate-200">
+          <div className="overflow-x-auto">
+            <table className="min-w-[1200px] w-full text-sm">
+              <thead className="bg-slate-100 text-slate-700">
+                <tr className="[&>th]:whitespace-nowrap [&>th]:px-3 [&>th]:py-2 [&>th]:text-left [&>th]:font-semibold">
+                  <th>#</th>
+                  <th>First Name</th>
+                  <th>Last Name</th>
+                  <th>Spouse Name</th>
+                  <th>Relation Type</th>
+                  <th>Phone</th>
+                  <th>City</th>
+                  <th>State</th>
+                  <th>Top 25</th>
+                  <th>Immigration</th>
+                  <th>Age 25+</th>
+                  <th>Married</th>
+                  <th>Children</th>
+                  <th>Homeowner</th>
+                  <th>Good Career</th>
+                  <th>Income 60K</th>
+                  <th>Dissatisfied</th>
+                  <th>Ambitious</th>
+                  <th>Contact Date</th>
+                  <th>Result</th>
+                  <th>Next Steps</th>
                 </tr>
               </thead>
-
               <tbody>
-                {loading && (
+                {loading ? (
                   <tr>
-                    <td colSpan={22} className="px-3 py-4 text-center text-xs text-slate-500">
-                      Loading prospects...
+                    <td colSpan={21} className="px-3 py-6 text-center text-slate-500">
+                      Loading…
                     </td>
                   </tr>
-                )}
-
-                {!loading && pageRows.length === 0 && (
+                ) : pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={22} className="px-3 py-4 text-center text-xs text-slate-500">
+                    <td colSpan={21} className="px-3 py-6 text-center text-slate-500">
                       No prospects found.
                     </td>
                   </tr>
-                )}
-
-                {!loading &&
-                  pageRows.map((p) => {
-                    const selected = p.id === activeId;
+                ) : (
+                  pageRows.map((p, idx) => {
+                    const isActive = p.id === activeId;
                     return (
                       <tr
                         key={p.id}
-                        className={`border-t cursor-pointer hover:bg-slate-50 ${selected ? 'bg-emerald-50' : ''}`}
                         onClick={() => handleSelectRow(p)}
-                        title="Click to view this prospect"
+                        className={`cursor-pointer border-t ${
+                          isActive ? 'bg-emerald-50' : 'hover:bg-slate-50'
+                        }`}
                       >
-                        <td className="px-2 py-2 align-top text-slate-700">{p.id}</td>
-                        <td className="px-2 py-2 align-top min-w-[120px]">{p.first_name}</td>
-                        <td className="px-2 py-2 align-top min-w-[120px]">{p.last_name || ''}</td>
-                        <td className="px-2 py-2 align-top min-w-[120px]">{p.spouse_name || ''}</td>
-                        <td className="px-2 py-2 align-top min-w-[150px]">{p.relation_type || ''}</td>
-                        <td className="px-2 py-2 align-top min-w-[120px]">{p.phone || ''}</td>
-                        <td className="px-2 py-2 align-top min-w-[120px]">{p.city || ''}</td>
-                        <td className="px-2 py-2 align-top min-w-[90px]">{(p.state || '').toUpperCase()}</td>
-                        <td className="px-2 py-2 align-top min-w-[70px]">{ynNormalize(p.top25)}</td>
-                        <td className="px-2 py-2 align-top min-w-[160px]">{p.immigration || ''}</td>
-                        <td className="px-2 py-2 align-top min-w-[80px]">{ynNormalize(p.age25plus)}</td>
-                        <td className="px-2 py-2 align-top min-w-[70px]">{ynNormalize(p.married)}</td>
-                        <td className="px-2 py-2 align-top min-w-[70px]">{ynNormalize(p.children)}</td>
-                        <td className="px-2 py-2 align-top min-w-[80px]">{ynNormalize(p.homeowner)}</td>
-                        <td className="px-2 py-2 align-top min-w-[90px]">{ynNormalize(p.good_career)}</td>
-                        <td className="px-2 py-2 align-top min-w-[90px]">{ynNormalize(p.income_60k)}</td>
-                        <td className="px-2 py-2 align-top min-w-[90px]">{ynNormalize(p.dissatisfied)}</td>
-                        <td className="px-2 py-2 align-top min-w-[90px]">{ynNormalize(p.ambitious)}</td>
-                        <td className="px-2 py-2 align-top min-w-[110px]">{(p.contact_date || '').slice(0, 10)}</td>
-                        <td className="px-2 py-2 align-top min-w-[140px]">{p.result || ''}</td>
-                        <td className="px-2 py-2 align-top min-w-[120px]">{p.next_steps || ''}</td>
-                        <td className="px-2 py-2 align-top min-w-[220px]">{p.comments || ''}</td>
+                        <td className="px-3 py-2">{start + idx + 1}</td>
+                        <td className="px-3 py-2">{p.first_name}</td>
+                        <td className="px-3 py-2">{p.last_name || ''}</td>
+                        <td className="px-3 py-2">{p.spouse_name || ''}</td>
+                        <td className="px-3 py-2">{p.relation_type || ''}</td>
+                        <td className="px-3 py-2">{p.phone || ''}</td>
+                        <td className="px-3 py-2">{p.city || ''}</td>
+                        <td className="px-3 py-2">{p.state || ''}</td>
+                        <td className="px-3 py-2">{p.top25 || ''}</td>
+                        <td className="px-3 py-2">{p.immigration || ''}</td>
+                        <td className="px-3 py-2">{p.age25plus || ''}</td>
+                        <td className="px-3 py-2">{p.married || ''}</td>
+                        <td className="px-3 py-2">{p.children || ''}</td>
+                        <td className="px-3 py-2">{p.homeowner || ''}</td>
+                        <td className="px-3 py-2">{p.good_career || ''}</td>
+                        <td className="px-3 py-2">{p.income_60k || ''}</td>
+                        <td className="px-3 py-2">{p.dissatisfied || ''}</td>
+                        <td className="px-3 py-2">{p.ambitious || ''}</td>
+                        <td className="px-3 py-2">{p.contact_date || ''}</td>
+                        <td className="px-3 py-2">{p.result || ''}</td>
+                        <td className="px-3 py-2">{p.next_steps || ''}</td>
                       </tr>
                     );
-                  })}
+                  })
+                )}
               </tbody>
             </table>
           </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between px-3 py-2 text-xs text-slate-600">
-            <span>
+          <div className="flex items-center justify-between px-3 py-3">
+            <div className="text-sm text-slate-600">
               Page {currentPage} of {totalPages}
-            </span>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                disabled={currentPage === 1}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="rounded-md border border-slate-300 px-2 py-1 disabled:opacity-40"
+                disabled={currentPage <= 1}
               >
                 Prev
               </button>
               <button
                 type="button"
-                disabled={currentPage === totalPages}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="rounded-md border border-slate-300 px-2 py-1 disabled:opacity-40"
+                disabled={currentPage >= totalPages}
               >
                 Next
               </button>
@@ -872,229 +969,246 @@ export default function ProspectListPage() {
           </div>
         </div>
 
-        {/* Single Card: New/Edit Prospect */}
-        <div className="rounded-lg border bg-slate-50 p-4">
-          <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900">
-                {mode === 'new' ? 'Add New Prospect' : mode === 'edit' ? 'Edit Prospect' : 'Prospect Details'}
-              </h2>
-              <p className="text-xs text-slate-600">
-                {mode === 'new'
-                  ? 'Enter details below. First Name, Last Name, and Phone are required.'
-                  : original
-                    ? `#${original.id} — ${original.first_name}${original.last_name ? ' ' + original.last_name : ''}`
-                    : 'Select a row above to view details, then click Edit Prospect to update.'}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {showSave && (
+        {/* Below-table action: New Prospect (or Save New Prospect / Add Prospect in new mode) */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {/* Hide below-table button during edit mode */}
+            {!(showCard && mode === 'edit') && (
+              <>
                 <button
                   type="button"
-                  onClick={handleSave}
-                  disabled={!canSave}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-40"
+                  className={`inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold ${
+                    showCard ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-slate-200 bg-white text-slate-900 hover:bg-slate-50'
+                  } ${!canBottomAction ? 'opacity-60' : ''}`}
+                  onClick={handleBottomAction}
+                  disabled={!canBottomAction}
                 >
-                  {saving ? 'Saving...' : 'Save'}
+                  {saving && showCard ? 'Saving…' : bottomPrimaryLabel}
                 </button>
-              )}
 
-              {(mode === 'edit' || (mode === 'new' && (form.first_name || form.last_name || form.phone || form.city || form.state || form.spouse_name))) && (
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  disabled={saving}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40"
-                >
-                  {mode === 'edit' ? 'Cancel' : 'Clear'}
-                </button>
-              )}
-            </div>
+                {showCard && mode === 'new' && (
+                  <button
+                    type="button"
+                    className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                    onClick={handleCancelNew}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </>
+            )}
           </div>
 
-          <div className="space-y-4">
-            {/* Name row */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="text-xs text-slate-500">
+            {showCard && mode === 'new' ? 'Fill First Name, Last Name, and Phone to enable Save.' : ''}
+          </div>
+        </div>
+
+        {/* Single Card (hidden by default) */}
+        {showCard && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">{mode === 'edit' ? 'Selected Prospect' : 'New Prospect'}</h2>
+                <p className="text-sm text-slate-600">
+                  {mode === 'edit' && selected
+                    ? `Editing #${selected.id} — ${selected.first_name}${selected.last_name ? ' ' + selected.last_name : ''}`
+                    : 'Enter details below, then use the button under the table to save.'}
+                </p>
+              </div>
+
+              {mode === 'edit' && (
+                <button
+                  type="button"
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-50"
+                  onClick={handleCloseEdit}
+                  disabled={saving}
+                >
+                  Close
+                </button>
+              )}
+            </div>
+
+            {/* Form layout */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Field label="First Name *">
                 <TextInput
+                  placeholder="First Name"
                   value={form.first_name}
                   onChange={(v) => setForm((p) => ({ ...p, first_name: v }))}
-                  disabled={!editable || saving}
+                  disabled={saving}
                 />
               </Field>
 
               <Field label="Last Name *">
                 <TextInput
+                  placeholder="Last Name"
                   value={form.last_name}
                   onChange={(v) => setForm((p) => ({ ...p, last_name: v }))}
-                  disabled={!editable || saving}
+                  disabled={saving}
                 />
               </Field>
-            </div>
 
-            {/* Spouse / Relation */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Spouse Name">
                 <TextInput
+                  placeholder="Spouse Name"
                   value={form.spouse_name}
                   onChange={(v) => setForm((p) => ({ ...p, spouse_name: v }))}
-                  disabled={!editable || saving}
+                  disabled={saving}
                 />
               </Field>
 
               <Field label="Relation Type">
                 <select
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 disabled:opacity-60"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
                   value={form.relation_type}
-                  disabled={!editable || saving}
                   onChange={(e) => setForm((p) => ({ ...p, relation_type: e.target.value }))}
+                  disabled={saving}
                 >
-                  <option value=""></option>
-                  {RELATION_OPTIONS.map((o) => (
+                  {RELATION_TYPE_OPTIONS.map((o) => (
                     <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-
-            {/* Phone / City / State in one row */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <Field label="Phone *">
-                <TextInput
-                  value={form.phone}
-                  onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
-                  disabled={!editable || saving}
-                />
-              </Field>
-
-              <Field label="City">
-                <TextInput
-                  value={form.city}
-                  onChange={(v) => setForm((p) => ({ ...p, city: v }))}
-                  disabled={!editable || saving}
-                />
-              </Field>
-
-              <Field label="State">
-                <select
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 disabled:opacity-60"
-                  value={form.state}
-                  disabled={!editable || saving}
-                  onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))}
-                >
-                  <option value=""></option>
-                  {STATES.map((s) => (
-                    <option key={s.abbr} value={s.abbr}>
-                      {s.abbr} - {s.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-
-            {/* Immigration -> Next Steps in compact 4 columns */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <Field label="Immigration">
-                <select
-                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 disabled:opacity-60"
-                  value={form.immigration}
-                  disabled={!editable || saving}
-                  onChange={(e) => setForm((p) => ({ ...p, immigration: e.target.value }))}
-                >
-                  {IMMIGRATION_STATUS_OPTIONS.map((o) => (
-                    <option key={o || '__EMPTY__'} value={o}>
-                      {o}
+                      {o || 'Select...'}
                     </option>
                   ))}
                 </select>
               </Field>
 
-              <Field label="Contact Date">
-                <DateInput
-                  value={form.contact_date}
-                  onChange={(v) => setForm((p) => ({ ...p, contact_date: v }))}
-                  disabled={!editable || saving}
-                  compact
-                />
-              </Field>
+              {/* Phone / City / State in a single row (3 columns on md+) */}
+              <div className="grid grid-cols-1 gap-3 md:col-span-2 md:grid-cols-3">
+                <Field label="Phone *">
+                  <TextInput
+                    placeholder="Phone"
+                    value={form.phone}
+                    onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
+                    disabled={saving}
+                  />
+                </Field>
 
-              <Field label="Result">
-                <select
-                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 disabled:opacity-60"
-                  value={form.result}
-                  disabled={!editable || saving}
-                  onChange={(e) => setForm((p) => ({ ...p, result: e.target.value }))}
-                >
-                  <option value=""></option>
-                  {RESULT_OPTIONS.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+                <Field label="City">
+                  <TextInput
+                    placeholder="City"
+                    value={form.city}
+                    onChange={(v) => setForm((p) => ({ ...p, city: v }))}
+                    disabled={saving}
+                  />
+                </Field>
 
-              <Field label="Next Steps">
-                <TextInput
-                  value={form.next_steps}
-                  onChange={(v) => setForm((p) => ({ ...p, next_steps: v }))}
-                  disabled={!editable || saving}
-                  compact
-                  placeholder="Next steps..."
-                />
-              </Field>
-            </div>
+                <Field label="State">
+                  <select
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                    value={form.state}
+                    onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))}
+                    disabled={saving}
+                  >
+                    {US_STATE_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o || 'Select...'}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
 
-            {/* Y/N flags compact */}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-              <Field label="Top 25">
-                <YesNoSelect value={form.top25} onChange={(v) => setForm((p) => ({ ...p, top25: v }))} disabled={!editable || saving} compact />
-              </Field>
-              <Field label="Age 25+">
-                <YesNoSelect value={form.age25plus} onChange={(v) => setForm((p) => ({ ...p, age25plus: v }))} disabled={!editable || saving} compact />
-              </Field>
-              <Field label="Married">
-                <YesNoSelect value={form.married} onChange={(v) => setForm((p) => ({ ...p, married: v }))} disabled={!editable || saving} compact />
-              </Field>
-              <Field label="Children">
-                <YesNoSelect value={form.children} onChange={(v) => setForm((p) => ({ ...p, children: v }))} disabled={!editable || saving} compact />
-              </Field>
-              <Field label="Homeowner">
-                <YesNoSelect value={form.homeowner} onChange={(v) => setForm((p) => ({ ...p, homeowner: v }))} disabled={!editable || saving} compact />
-              </Field>
-              <Field label="Good Career">
-                <YesNoSelect value={form.good_career} onChange={(v) => setForm((p) => ({ ...p, good_career: v }))} disabled={!editable || saving} compact />
-              </Field>
-              <Field label="Income 60K">
-                <YesNoSelect value={form.income_60k} onChange={(v) => setForm((p) => ({ ...p, income_60k: v }))} disabled={!editable || saving} compact />
-              </Field>
-              <Field label="Dissatisfied">
-                <YesNoSelect value={form.dissatisfied} onChange={(v) => setForm((p) => ({ ...p, dissatisfied: v }))} disabled={!editable || saving} compact />
-              </Field>
-              <Field label="Ambitious">
-                <YesNoSelect value={form.ambitious} onChange={(v) => setForm((p) => ({ ...p, ambitious: v }))} disabled={!editable || saving} compact />
-              </Field>
-            </div>
+              {/* Immigration → Next Steps in a compact row (4–5 columns on md+) */}
+              <div className="grid grid-cols-1 gap-3 md:col-span-2 md:grid-cols-5">
+                <Field label="Immigration">
+                  <select
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm"
+                    value={form.immigration}
+                    onChange={(e) => setForm((p) => ({ ...p, immigration: e.target.value }))}
+                    disabled={saving}
+                  >
+                    {IMMIGRATION_STATUS_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o || 'Select...'}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-            {/* Comments with toolbar */}
-            <div className="grid grid-cols-1">
-              <Field label="Comments">
+                <Field label="Contact Date">
+                  <DateInput
+                    value={form.contact_date}
+                    onChange={(v) => setForm((p) => ({ ...p, contact_date: v }))}
+                    disabled={saving}
+                  />
+                </Field>
+
+                <Field label="Result">
+                  <select
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm"
+                    value={form.result}
+                    onChange={(e) => setForm((p) => ({ ...p, result: e.target.value }))}
+                    disabled={saving}
+                  >
+                    {RESULT_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o || 'Select...'}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Next Steps" className="md:col-span-2">
+                  <TextInput
+                    placeholder="Next Steps"
+                    value={form.next_steps}
+                    onChange={(v) => setForm((p) => ({ ...p, next_steps: v }))}
+                    disabled={saving}
+                  />
+                </Field>
+              </div>
+
+              {/* Yes/No fields in compact rows */}
+              <div className="grid grid-cols-1 gap-3 md:col-span-2 md:grid-cols-5">
+                <Field label="Top 25">
+                  <YesNoSelect value={form.top25} onChange={(v) => setForm((p) => ({ ...p, top25: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Age 25+">
+                  <YesNoSelect value={form.age25plus} onChange={(v) => setForm((p) => ({ ...p, age25plus: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Married">
+                  <YesNoSelect value={form.married} onChange={(v) => setForm((p) => ({ ...p, married: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Children">
+                  <YesNoSelect value={form.children} onChange={(v) => setForm((p) => ({ ...p, children: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Homeowner">
+                  <YesNoSelect value={form.homeowner} onChange={(v) => setForm((p) => ({ ...p, homeowner: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Good Career">
+                  <YesNoSelect value={form.good_career} onChange={(v) => setForm((p) => ({ ...p, good_career: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Income 60K">
+                  <YesNoSelect value={form.income_60k} onChange={(v) => setForm((p) => ({ ...p, income_60k: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Dissatisfied">
+                  <YesNoSelect value={form.dissatisfied} onChange={(v) => setForm((p) => ({ ...p, dissatisfied: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Ambitious">
+                  <YesNoSelect value={form.ambitious} onChange={(v) => setForm((p) => ({ ...p, ambitious: v }))} disabled={saving} />
+                </Field>
+              </div>
+
+              <Field label="Comments" className="md:col-span-2">
                 <CommentsEditor
                   value={form.comments}
                   onChange={(v) => setForm((p) => ({ ...p, comments: v }))}
-                  disabled={!editable || saving}
+                  disabled={saving}
                 />
               </Field>
             </div>
-
-            <p className="text-[11px] text-slate-500">
-              Yes/No dropdowns store values as <span className="font-semibold">Y</span> / <span className="font-semibold">N</span>.
-            </p>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
