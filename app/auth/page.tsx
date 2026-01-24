@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { setCanfsAuthCookie, hasCanfsAuthCookie } from "@/lib/canfsAuth";
+import { hasCanfsAuthCookie, setCanfsAuthCookie } from "@/lib/useRequireCanfsAuth";
 
 const DESTINATIONS = [
   { value: "dashboard", label: "Dashboard", path: "/dashboard" },
@@ -22,7 +21,6 @@ export default function LoginPage() {
     return params.get("next") ?? "";
   }, []);
 
-  // If already authenticated, redirect away from /auth
   useEffect(() => {
     if (hasCanfsAuthCookie()) {
       window.location.href = nextFromQuery || "/dashboard";
@@ -33,15 +31,13 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-    // TODO: replace with real auth; for now, accept any non-empty credentials
     if (!email || !password) {
       setError("Please enter email and password");
       return;
     }
 
-    setCanfsAuthCookie();
+    setCanfsAuthCookie(1);
 
-    // Prefer explicit next= target if present
     if (nextFromQuery) {
       window.location.href = nextFromQuery;
       return;
@@ -53,10 +49,14 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 grid place-items-center p-6">
-      <form onSubmit={signIn} className="w-full max-w-md bg-white border rounded-2xl p-6 shadow-sm space-y-4">
+      <form
+        onSubmit={signIn}
+        className="w-full max-w-md bg-white border rounded-2xl p-6 shadow-sm space-y-4"
+      >
         <div>
           <div className="text-2xl font-extrabold">CAN Financial Solutions</div>
           <div className="text-slate-600 mt-1">Admin Login</div>
+          <div className="text-slate-500 text-sm mt-1">Protecting Your Tomorrow</div>
         </div>
 
         {error && (
