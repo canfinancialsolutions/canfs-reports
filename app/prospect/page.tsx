@@ -60,6 +60,24 @@ const PAGE_SIZE = 10;
 const RELATION_OPTIONS = ['Friend', 'Relative', 'Acquaintance', 'Referral/Others'] as const;
 const RESULT_OPTIONS = ['Business', 'Both', 'Client Solution', 'In-Progress', 'Called', 'Not Interested', 'Others'] as const;
 
+const IMMIGRATION_STATUS_OPTIONS: string[] = [
+  \"\",
+  \"U.S. Citizen\",
+  \"U.S.Green Card\",
+  \"H-1B\",
+  \"H-1B/I-140 Approved\",
+  \"L-1A\",
+  \"L-1B\",
+  \"F-1 Student\",
+  \"F-1 OPT\",
+  \"F-1 STEM OPT\",
+  \"H-4 EAD\",
+  \"E-3\",
+  \"I-485 Pending\",
+  \"I-485 EAD/AP\",
+  \"Other Visa Status\",
+];
+
 const STATES = [
   { abbr: 'AL', name: 'Alabama' },
   { abbr: 'AK', name: 'Alaska' },
@@ -264,6 +282,24 @@ const YesNoSelect = ({
     <option value="Y">Yes</option>
     <option value="N">No</option>
   </select>
+
+const LogoutIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    className={className || 'h-4 w-4'}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
 );
 
 export default function ProspectListPage() {
@@ -533,10 +569,12 @@ export default function ProspectListPage() {
           </div>
         </div>
         <button
-          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-red-700"
+          type="button"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
           onClick={() => (window.location.href = '/auth')}
         >
-          ← Logout
+          <LogoutIcon className="h-4 w-4" />
+          Logout
         </button>
       </div>
 
@@ -794,7 +832,7 @@ export default function ProspectListPage() {
               >
                 <option value=""></option>
                 {RELATION_OPTIONS.map((o) => (
-                  <option key={o} value={o}>
+                  <option key={o || '__EMPTY__'} value={o}>
                     {o}
                   </option>
                 ))}
@@ -834,11 +872,18 @@ export default function ProspectListPage() {
             </Field>
 
             <Field label="Immigration">
-              <TextInput
+              <select
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
                 value={selectedForm.immigration}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, immigration: v }))}
                 disabled={!selectedOriginal || savingSelected}
-              />
+                onChange={(e) => setSelectedForm((p) => ({ ...p, immigration: e.target.value }))}
+              >
+                {IMMIGRATION_STATUS_OPTIONS.map((o) => (
+                  <option key={o || '__EMPTY__'} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
             </Field>
 
             <Field label="Top 25">
@@ -930,7 +975,7 @@ export default function ProspectListPage() {
               >
                 <option value=""></option>
                 {RESULT_OPTIONS.map((o) => (
-                  <option key={o} value={o}>
+                  <option key={o || '__EMPTY__'} value={o}>
                     {o}
                   </option>
                 ))}
@@ -995,7 +1040,7 @@ export default function ProspectListPage() {
                 >
                   <option value=""></option>
                   {RELATION_OPTIONS.map((o) => (
-                    <option key={o} value={o}>
+                    <option key={o || '__EMPTY__'} value={o}>
                       {o}
                     </option>
                   ))}
@@ -1025,7 +1070,17 @@ export default function ProspectListPage() {
               </Field>
 
               <Field label="Immigration">
-                <TextInput value={newProspect.immigration} onChange={(v) => setNewProspect((p) => ({ ...p, immigration: v }))} />
+                <select
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
+                  value={newProspect.immigration}
+                  onChange={(e) => setNewProspect((p) => ({ ...p, immigration: e.target.value }))}
+                >
+                  {IMMIGRATION_STATUS_OPTIONS.map((o) => (
+                    <option key={o || '__EMPTY__'} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
               </Field>
 
               <Field label="Top 25">
@@ -1076,7 +1131,7 @@ export default function ProspectListPage() {
                 >
                   <option value=""></option>
                   {RESULT_OPTIONS.map((o) => (
-                    <option key={o} value={o}>
+                    <option key={o || '__EMPTY__'} value={o}>
                       {o}
                     </option>
                   ))}
