@@ -866,15 +866,7 @@ export default function ProspectListPage() {
             <p className="text-xs text-slate-600">Based on CAN Financial Solutions Prospect List</p>
           </div>
         </div>
-         <Button variant="secondary" onClick={logout}> 
-              <span className="inline-flex items-center gap-2"> 
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> 
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" /> 
-                </svg> 
-                Logout 
-              </span> 
-            </Button> 
-/*
+
         <button
           type="button"
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
@@ -883,7 +875,6 @@ export default function ProspectListPage() {
           <LogoutIcon className="h-4 w-4" />
           Logout
         </button>
-    */
       </div>
 
       <div className="mx-auto max-w-6xl space-y-4 rounded-xl border bg-white p-4 shadow-sm">
