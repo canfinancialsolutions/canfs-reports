@@ -1,7 +1,7 @@
 // app/prospect/page.tsx
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 type Prospect = {
@@ -14,7 +14,7 @@ type Prospect = {
   city: string | null;
   state: string | null; // two-letter abbreviation
   top25: string | null; // Y / N
-  immigration: string | null; // H1B / GC / C / EAD etc.
+  immigration: string | null;
   age25plus: string | null; // Y / N
   married: string | null; // Y / N
   children: string | null; // Y / N
@@ -61,21 +61,21 @@ const RELATION_OPTIONS = ['Friend', 'Relative', 'Acquaintance', 'Referral/Others
 const RESULT_OPTIONS = ['Business', 'Both', 'Client Solution', 'In-Progress', 'Called', 'Not Interested', 'Others'] as const;
 
 const IMMIGRATION_STATUS_OPTIONS: string[] = [
-  "",
-  "U.S. Citizen",
-  "U.S.Green Card",
-  "H-1B",
-  "H-1B/I-140 Approved",
-  "L-1A",
-  "L-1B",
-  "F-1 Student",
-  "F-1 OPT",
-  "F-1 STEM OPT",
-  "H-4 EAD",
-  "E-3",
-  "I-485 Pending",
-  "I-485 EAD/AP",
-  "Other Visa Status",
+  '',
+  'U.S. Citizen',
+  'U.S.Green Card',
+  'H-1B',
+  'H-1B/I-140 Approved',
+  'L-1A',
+  'L-1B',
+  'F-1 Student',
+  'F-1 OPT',
+  'F-1 STEM OPT',
+  'H-4 EAD',
+  'E-3',
+  'I-485 Pending',
+  'I-485 EAD/AP',
+  'Other Visa Status',
 ];
 
 const STATES = [
@@ -144,7 +144,7 @@ const normText = (s: string) =>
   s
     .trim()
     .toLowerCase()
-    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
+    .replace(/[‐‑‒–—―−]/g, '-');
 
 const toNull = (s: string | null | undefined) => {
   const v = (s ?? '').trim();
@@ -201,7 +201,6 @@ const formFromProspect = (p: Prospect): ProspectForm => ({
 
 const isDirtyVsOriginal = (form: ProspectForm, original: Prospect) => {
   const o = formFromProspect(original);
-  // Compare normalized form values to avoid false positives from casing.
   const keys = Object.keys(form) as (keyof ProspectForm)[];
   return keys.some((k) => {
     const a = String(form[k] ?? '').trim();
@@ -211,13 +210,7 @@ const isDirtyVsOriginal = (form: ProspectForm, original: Prospect) => {
   });
 };
 
-const Field = ({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) => (
+const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <div className="flex flex-col gap-1">
     <label className="text-xs font-semibold text-slate-700">{label}</label>
     {children}
@@ -229,15 +222,17 @@ const TextInput = ({
   onChange,
   placeholder,
   disabled,
+  compact,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  compact?: boolean;
 }) => (
   <input
     type="text"
-    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
+    className={`${compact ? 'h-9 text-xs' : 'h-10 text-sm'} w-full rounded-lg border border-slate-200 bg-white px-3 text-slate-900`}
     value={value}
     disabled={disabled}
     placeholder={placeholder}
@@ -249,14 +244,16 @@ const DateInput = ({
   value,
   onChange,
   disabled,
+  compact,
 }: {
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
+  compact?: boolean;
 }) => (
   <input
     type="date"
-    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
+    className={`${compact ? 'h-9 text-xs' : 'h-10 text-sm'} w-full rounded-lg border border-slate-200 bg-white px-3 text-slate-900`}
     value={(value || '').slice(0, 10)}
     disabled={disabled}
     onChange={(e) => onChange(e.target.value)}
@@ -267,13 +264,15 @@ const YesNoSelect = ({
   value,
   onChange,
   disabled,
+  compact,
 }: {
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
+  compact?: boolean;
 }) => (
   <select
-    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
+    className={`${compact ? 'h-9 text-xs' : 'h-10 text-sm'} w-full rounded-lg border border-slate-200 bg-white px-3 text-slate-900`}
     value={ynNormalize(value)}
     disabled={disabled}
     onChange={(e) => onChange(e.target.value)}
@@ -283,6 +282,93 @@ const YesNoSelect = ({
     <option value="N">No</option>
   </select>
 );
+
+const ToolbarButton = ({
+  label,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) => (
+  <button
+    type="button"
+    disabled={disabled}
+    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+    onClick={onClick}
+  >
+    {label}
+  </button>
+);
+
+const CommentsEditor = ({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) => {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+
+  const wrapSelection = (before: string, after: string) => {
+    const el = ref.current;
+    if (!el) return;
+    const start = el.selectionStart ?? value.length;
+    const end = el.selectionEnd ?? value.length;
+    const selected = value.slice(start, end);
+    const next = value.slice(0, start) + before + selected + after + value.slice(end);
+    onChange(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const cursor = start + before.length + selected.length + after.length;
+      el.setSelectionRange(cursor, cursor);
+    });
+  };
+
+  const prefixLines = (prefix: string) => {
+    const el = ref.current;
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const before = value.slice(0, start);
+    const sel = value.slice(start, end) || '';
+    const after = value.slice(end);
+
+    const lines = sel.length ? sel.split('\n') : [''];
+    const nextSel = lines.map((l) => (l.startsWith(prefix) ? l : prefix + l)).join('\n');
+    const next = before + nextSel + after;
+    onChange(next);
+
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start, start + nextSel.length);
+    });
+  };
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-2 py-2">
+        <span className="text-[11px] font-semibold text-slate-600">Format</span>
+        <ToolbarButton label="Bold" disabled={disabled} onClick={() => wrapSelection('**', '**')} />
+        <ToolbarButton label="Italic" disabled={disabled} onClick={() => wrapSelection('*', '*')} />
+        <ToolbarButton label="Bullets" disabled={disabled} onClick={() => prefixLines('- ')} />
+        <ToolbarButton label="Numbered" disabled={disabled} onClick={() => prefixLines('1. ')} />
+        <ToolbarButton label="Clear" disabled={disabled} onClick={() => onChange('')} />
+      </div>
+      <textarea
+        ref={ref}
+        className="min-h-[120px] w-full resize-y px-3 py-2 text-sm text-slate-900 outline-none whitespace-pre-wrap break-words"
+        value={value}
+        disabled={disabled}
+        placeholder="Enter notes..."
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+};
 
 const LogoutIcon = ({ className }: { className?: string }) => (
   <svg
@@ -319,14 +405,11 @@ export default function ProspectListPage() {
   const [resultFilter, setResultFilter] = useState<string>('ALL');
   const [page, setPage] = useState(1);
 
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [selectedOriginal, setSelectedOriginal] = useState<Prospect | null>(null);
-  const [selectedForm, setSelectedForm] = useState<ProspectForm>(emptyForm());
-  const [savingSelected, setSavingSelected] = useState(false);
-
-  const [showNew, setShowNew] = useState(false);
-  const [newProspect, setNewProspect] = useState<ProspectForm>(emptyForm());
-  const [inserting, setInserting] = useState(false);
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const [original, setOriginal] = useState<Prospect | null>(null);
+  const [form, setForm] = useState<ProspectForm>(emptyForm());
+  const [mode, setMode] = useState<'new' | 'view' | 'edit'>('new');
+  const [saving, setSaving] = useState(false);
 
   const setToast = (kind: 'success' | 'error', msg: string) => {
     if (kind === 'success') {
@@ -342,6 +425,8 @@ export default function ProspectListPage() {
     }, 3500);
   };
 
+  const hasUnsaved = mode === 'edit' && original ? isDirtyVsOriginal(form, original) : false;
+
   const loadProspects = async () => {
     if (!supabase) {
       setToast('error', 'Missing Supabase environment variables (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY).');
@@ -351,7 +436,7 @@ export default function ProspectListPage() {
     setLoading(true);
     setErrorMsg('');
 
-    const { data, error } = await supabase.from('prospects').select('*').order('id', { ascending: true });
+    const { data, error } = await supabase.from('prospects').select('*').order('id', { ascending: false });
 
     if (error) {
       setToast('error', error.message);
@@ -363,18 +448,20 @@ export default function ProspectListPage() {
     setProspects(rows);
     setLoading(false);
 
-    // Keep selection in sync after reload
-    if (selectedId != null) {
-      const updated = rows.find((r) => r.id === selectedId) || null;
+    // Keep selection in sync after reload (do not clobber unsaved edits)
+    if (activeId != null) {
+      const updated = rows.find((r) => r.id === activeId) || null;
       if (!updated) {
-        setSelectedId(null);
-        setSelectedOriginal(null);
-        setSelectedForm(emptyForm());
-      } else if (selectedOriginal && !isDirtyVsOriginal(selectedForm, selectedOriginal)) {
-        setSelectedOriginal(updated);
-        setSelectedForm(formFromProspect(updated));
+        setActiveId(null);
+        setOriginal(null);
+        setForm(emptyForm());
+        setMode('new');
       } else {
-        setSelectedOriginal(updated);
+        setOriginal(updated);
+        if (!(mode === 'edit' && hasUnsaved)) {
+          setForm(formFromProspect(updated));
+          setMode('view');
+        }
       }
     }
   };
@@ -394,7 +481,6 @@ export default function ProspectListPage() {
       (p.phone || '').toLowerCase().includes(q);
 
     const matchResult = resultFilter === 'ALL' || normText(p.result || '') === normText(resultFilter);
-
     return matchSearch && matchResult;
   });
 
@@ -403,156 +489,173 @@ export default function ProspectListPage() {
   const start = (currentPage - 1) * PAGE_SIZE;
   const pageRows = filtered.slice(start, start + PAGE_SIZE);
 
-  const selectedDirty = selectedOriginal ? isDirtyVsOriginal(selectedForm, selectedOriginal) : false;
+  const requiredFilled =
+    form.first_name.trim().length > 0 && form.last_name.trim().length > 0 && form.phone.trim().length > 0;
+
+  const editable = mode === 'new' || mode === 'edit';
+  const dirty = original ? isDirtyVsOriginal(form, original) : false;
+
+  const showSave = (mode === 'edit') || (mode === 'new' && requiredFilled);
+  const canSave =
+    (mode === 'new' && requiredFilled && !saving) ||
+    (mode === 'edit' && requiredFilled && dirty && !saving);
+
+  const actionLabel = activeId ? 'Edit Prospect' : 'Add New Prospect';
+
+  const resetToNew = () => {
+    setActiveId(null);
+    setOriginal(null);
+    setForm(emptyForm());
+    setMode('new');
+  };
 
   const handleSelectRow = (p: Prospect) => {
-    if (savingSelected) return;
-    if (selectedOriginal && selectedDirty && p.id !== selectedId) {
+    if (saving) return;
+    if (mode === 'edit' && hasUnsaved && p.id !== activeId) {
       setToast('error', 'You have unsaved changes. Please Save or Cancel before selecting another prospect.');
       return;
     }
-
-    setSelectedId(p.id);
-    setSelectedOriginal(p);
-    setSelectedForm(formFromProspect(p));
+    setActiveId(p.id);
+    setOriginal(p);
+    setForm(formFromProspect(p));
+    setMode('view');
   };
 
-  const handleCancelSelected = () => {
-    if (!selectedOriginal) return;
-    setSelectedForm(formFromProspect(selectedOriginal));
+  const handlePrimaryAction = () => {
+    if (saving) return;
+    if (mode === 'edit' && hasUnsaved) {
+      setToast('error', 'You have unsaved changes. Please Save or Cancel before switching.');
+      return;
+    }
+    if (activeId) {
+      setMode('edit');
+    } else {
+      // Add New Prospect flow
+      resetToNew();
+    }
   };
 
-  const saveSelected = async () => {
+  const handleCancel = () => {
+    if (saving) return;
+
+    if (mode === 'edit' && original) {
+      setForm(formFromProspect(original));
+      setMode('view');
+      return;
+    }
+
+    // New mode: clear fields & hide save button (until required fields are filled)
+    resetToNew();
+  };
+
+  const buildPayloadFromForm = (f: ProspectForm) => {
+    const stateAbbr = (f.state || '').trim();
+    return {
+      first_name: f.first_name.trim(),
+      last_name: f.last_name.trim() || null,
+      spouse_name: toNull(f.spouse_name),
+      relation_type: toNull(f.relation_type),
+      phone: f.phone.trim() || null,
+      city: toNull(f.city),
+      state: stateAbbr ? stateAbbr.toUpperCase() : null,
+      top25: ynNormalize(f.top25) || null,
+      immigration: toNull(f.immigration),
+      age25plus: ynNormalize(f.age25plus) || null,
+      married: ynNormalize(f.married) || null,
+      children: ynNormalize(f.children) || null,
+      homeowner: ynNormalize(f.homeowner) || null,
+      good_career: ynNormalize(f.good_career) || null,
+      income_60k: ynNormalize(f.income_60k) || null,
+      dissatisfied: ynNormalize(f.dissatisfied) || null,
+      ambitious: ynNormalize(f.ambitious) || null,
+      contact_date: toNull(f.contact_date),
+      result: toNull(f.result),
+      next_steps: toNull(f.next_steps),
+      comments: toNull(f.comments),
+    } as Omit<Prospect, 'id'>;
+  };
+
+  const handleSave = async () => {
     if (!supabase) {
       setToast('error', 'Missing Supabase environment variables.');
       return;
     }
-    if (!selectedOriginal || selectedId == null) {
+
+    if (!requiredFilled) {
+      setToast('error', 'First Name, Last Name, and Phone are required.');
+      return;
+    }
+
+    if (mode === 'edit' && (!activeId || !original)) {
       setToast('error', 'Please select a prospect row first.');
       return;
     }
 
-    const first = selectedForm.first_name.trim();
-    if (!first) {
-      setToast('error', 'First Name is required.');
+    if (mode === 'edit' && !dirty) {
+      setToast('error', 'No changes to save.');
       return;
     }
 
-    setSavingSelected(true);
+    setSaving(true);
 
-    const payload: Partial<Omit<Prospect, 'id'>> = {
-      first_name: first,
-      last_name: toNull(selectedForm.last_name),
-      spouse_name: toNull(selectedForm.spouse_name),
-      relation_type: toNull(selectedForm.relation_type),
-      phone: toNull(selectedForm.phone),
-      city: toNull(selectedForm.city),
-      state: (() => {
-        const s = (selectedForm.state || '').trim();
-        return s ? s.toUpperCase() : null;
-      })(),
-      top25: ynNormalize(selectedForm.top25) || null,
-      immigration: toNull(selectedForm.immigration),
-      age25plus: ynNormalize(selectedForm.age25plus) || null,
-      married: ynNormalize(selectedForm.married) || null,
-      children: ynNormalize(selectedForm.children) || null,
-      homeowner: ynNormalize(selectedForm.homeowner) || null,
-      good_career: ynNormalize(selectedForm.good_career) || null,
-      income_60k: ynNormalize(selectedForm.income_60k) || null,
-      dissatisfied: ynNormalize(selectedForm.dissatisfied) || null,
-      ambitious: ynNormalize(selectedForm.ambitious) || null,
-      contact_date: toNull(selectedForm.contact_date),
-      result: toNull(selectedForm.result),
-      next_steps: toNull(selectedForm.next_steps),
-      comments: toNull(selectedForm.comments),
+    if (mode === 'new') {
+      const payload = {
+        ...buildPayloadFromForm(form),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabase.from('prospects').insert(payload).select('*').single();
+
+      if (error) {
+        setToast('error', error.message);
+        setSaving(false);
+        return;
+      }
+
+      const inserted = data as Prospect;
+      setProspects((prev) => [inserted, ...prev.filter((x) => x.id !== inserted.id)]);
+      setActiveId(inserted.id);
+      setOriginal(inserted);
+      setForm(formFromProspect(inserted));
+      setMode('view');
+      setToast('success', `Added prospect #${inserted.id}`);
+      setSaving(false);
+      return;
+    }
+
+    // Edit mode
+    const payload = {
+      ...buildPayloadFromForm(form),
       updated_at: new Date().toISOString(),
-    };
+    } as Partial<Omit<Prospect, 'id'>>;
 
-    const { error } = await supabase.from('prospects').update(payload).eq('id', selectedId);
+    const { data, error } = await supabase.from('prospects').update(payload).eq('id', activeId!).select('*').single();
 
     if (error) {
       setToast('error', error.message);
-      setSavingSelected(false);
+      setSaving(false);
       return;
     }
 
-    setToast('success', `Saved prospect #${selectedId}`);
-    setSavingSelected(false);
-    await loadProspects();
-  };
-
-  const insertNew = async () => {
-    if (!supabase) {
-      setToast('error', 'Missing Supabase environment variables.');
-      return;
-    }
-
-    const first_name = newProspect.first_name.trim();
-    if (!first_name) {
-      setToast('error', 'First Name is required.');
-      return;
-    }
-
-    setInserting(true);
-
-    const payload: Omit<Prospect, 'id'> = {
-      first_name,
-      last_name: toNull(newProspect.last_name),
-      spouse_name: toNull(newProspect.spouse_name),
-      relation_type: toNull(newProspect.relation_type),
-      phone: toNull(newProspect.phone),
-      city: toNull(newProspect.city),
-      state: (() => {
-        const s = (newProspect.state || '').trim();
-        return s ? s.toUpperCase() : null;
-      })(),
-      top25: ynNormalize(newProspect.top25) || null,
-      immigration: toNull(newProspect.immigration),
-      age25plus: ynNormalize(newProspect.age25plus) || null,
-      married: ynNormalize(newProspect.married) || null,
-      children: ynNormalize(newProspect.children) || null,
-      homeowner: ynNormalize(newProspect.homeowner) || null,
-      good_career: ynNormalize(newProspect.good_career) || null,
-      income_60k: ynNormalize(newProspect.income_60k) || null,
-      dissatisfied: ynNormalize(newProspect.dissatisfied) || null,
-      ambitious: ynNormalize(newProspect.ambitious) || null,
-      contact_date: toNull(newProspect.contact_date),
-      result: toNull(newProspect.result),
-      next_steps: toNull(newProspect.next_steps),
-      comments: toNull(newProspect.comments),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase.from('prospects').insert(payload);
-
-    if (error) {
-      setToast('error', error.message);
-      setInserting(false);
-      return;
-    }
-
-    setToast('success', 'Prospect added.');
-    setNewProspect(emptyForm());
-    setInserting(false);
-    setShowNew(false);
-    setPage(1);
-    await loadProspects();
+    const updated = data as Prospect;
+    setProspects((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+    setOriginal(updated);
+    setForm(formFromProspect(updated));
+    setMode('view');
+    setToast('success', `Saved prospect #${updated.id}`);
+    setSaving(false);
   };
 
   const handleRefresh = async () => {
-    if (selectedOriginal && selectedDirty) {
+    if (mode === 'edit' && hasUnsaved) {
       setToast('error', 'You have unsaved changes. Please Save or Cancel before refreshing.');
       return;
     }
     setSearch('');
     setResultFilter('ALL');
     setPage(1);
-    setShowNew(false);
-    setNewProspect(emptyForm());
-    setSelectedId(null);
-    setSelectedOriginal(null);
-    setSelectedForm(emptyForm());
+    resetToNew();
     await loadProspects();
   };
 
@@ -623,10 +726,14 @@ export default function ProspectListPage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              onClick={() => setShowNew((v) => !v)}
+              className={`rounded-lg px-3 py-2 text-xs font-semibold shadow-sm ${
+                activeId
+                  ? 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+              }`}
+              onClick={handlePrimaryAction}
             >
-              {showNew ? 'Hide New Prospect' : 'Add New Prospect'}
+              {actionLabel}
             </button>
 
             <button
@@ -645,7 +752,7 @@ export default function ProspectListPage() {
 
         {/* Table (read-only list) */}
         <div className="rounded-lg border">
-          <div className="max-h-[520px] overflow-auto">
+          <div className="max-h-[420px] overflow-auto">
             <table className="min-w-full text-xs">
               <thead className="sticky top-0 bg-slate-100">
                 <tr>
@@ -702,13 +809,13 @@ export default function ProspectListPage() {
 
                 {!loading &&
                   pageRows.map((p) => {
-                    const selected = p.id === selectedId;
+                    const selected = p.id === activeId;
                     return (
                       <tr
                         key={p.id}
                         className={`border-t cursor-pointer hover:bg-slate-50 ${selected ? 'bg-emerald-50' : ''}`}
                         onClick={() => handleSelectRow(p)}
-                        title="Click to view / edit this prospect"
+                        title="Click to view this prospect"
                       >
                         <td className="px-2 py-2 align-top text-slate-700">{p.id}</td>
                         <td className="px-2 py-2 align-top min-w-[120px]">{p.first_name}</td>
@@ -719,7 +826,7 @@ export default function ProspectListPage() {
                         <td className="px-2 py-2 align-top min-w-[120px]">{p.city || ''}</td>
                         <td className="px-2 py-2 align-top min-w-[90px]">{(p.state || '').toUpperCase()}</td>
                         <td className="px-2 py-2 align-top min-w-[70px]">{ynNormalize(p.top25)}</td>
-                        <td className="px-2 py-2 align-top min-w-[120px]">{p.immigration || ''}</td>
+                        <td className="px-2 py-2 align-top min-w-[160px]">{p.immigration || ''}</td>
                         <td className="px-2 py-2 align-top min-w-[80px]">{ynNormalize(p.age25plus)}</td>
                         <td className="px-2 py-2 align-top min-w-[70px]">{ynNormalize(p.married)}</td>
                         <td className="px-2 py-2 align-top min-w-[70px]">{ynNormalize(p.children)}</td>
@@ -730,8 +837,8 @@ export default function ProspectListPage() {
                         <td className="px-2 py-2 align-top min-w-[90px]">{ynNormalize(p.ambitious)}</td>
                         <td className="px-2 py-2 align-top min-w-[110px]">{(p.contact_date || '').slice(0, 10)}</td>
                         <td className="px-2 py-2 align-top min-w-[140px]">{p.result || ''}</td>
-                        <td className="px-2 py-2 align-top min-w-[90px]">{p.next_steps || ''}</td>
-                        <td className="px-2 py-2 align-top min-w-[160px]">{p.comments || ''}</td>
+                        <td className="px-2 py-2 align-top min-w-[120px]">{p.next_steps || ''}</td>
+                        <td className="px-2 py-2 align-top min-w-[220px]">{p.comments || ''}</td>
                       </tr>
                     );
                   })}
@@ -765,299 +872,118 @@ export default function ProspectListPage() {
           </div>
         </div>
 
-        {/* Selected Prospect (detail editor) */}
+        {/* Single Card: New/Edit Prospect */}
         <div className="rounded-lg border bg-slate-50 p-4">
           <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-sm font-bold text-slate-900">Selected Prospect</h2>
+              <h2 className="text-sm font-bold text-slate-900">
+                {mode === 'new' ? 'Add New Prospect' : mode === 'edit' ? 'Edit Prospect' : 'Prospect Details'}
+              </h2>
               <p className="text-xs text-slate-600">
-                {selectedOriginal
-                  ? `Editing #${selectedOriginal.id} — ${selectedOriginal.first_name}${selectedOriginal.last_name ? ' ' + selectedOriginal.last_name : ''}`
-                  : 'Click a row in the table above to view and update a single record.'}
+                {mode === 'new'
+                  ? 'Enter details below. First Name, Last Name, and Phone are required.'
+                  : original
+                    ? `#${original.id} — ${original.first_name}${original.last_name ? ' ' + original.last_name : ''}`
+                    : 'Select a row above to view details, then click Edit Prospect to update.'}
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={!selectedOriginal || !selectedDirty || savingSelected}
-                onClick={saveSelected}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-40"
-              >
-                {savingSelected ? 'Saving...' : 'Save Changes'}
-              </button>
-              <button
-                type="button"
-                disabled={!selectedOriginal || !selectedDirty || savingSelected}
-                onClick={handleCancelSelected}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40"
-              >
-                Cancel
-              </button>
+              {showSave && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={!canSave}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-40"
+                >
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              )}
+
+              {(mode === 'edit' || (mode === 'new' && (form.first_name || form.last_name || form.phone || form.city || form.state || form.spouse_name))) && (
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  disabled={saving}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                >
+                  {mode === 'edit' ? 'Cancel' : 'Clear'}
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="First Name *">
-              <TextInput
-                value={selectedForm.first_name}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, first_name: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Last Name">
-              <TextInput
-                value={selectedForm.last_name}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, last_name: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Spouse Name">
-              <TextInput
-                value={selectedForm.spouse_name}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, spouse_name: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Relation Type">
-              <select
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
-                value={selectedForm.relation_type}
-                disabled={!selectedOriginal || savingSelected}
-                onChange={(e) => setSelectedForm((p) => ({ ...p, relation_type: e.target.value }))}
-              >
-                <option value=""></option>
-                {RELATION_OPTIONS.map((o) => (
-                  <option key={o || '__EMPTY__'} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Phone">
-              <TextInput
-                value={selectedForm.phone}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, phone: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="City">
-              <TextInput
-                value={selectedForm.city}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, city: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="State">
-              <select
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
-                value={selectedForm.state}
-                disabled={!selectedOriginal || savingSelected}
-                onChange={(e) => setSelectedForm((p) => ({ ...p, state: e.target.value }))}
-              >
-                <option value=""></option>
-                {STATES.map((s) => (
-                  <option key={s.abbr} value={s.abbr}>
-                    {s.abbr} - {s.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Immigration">
-              <select
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
-                value={selectedForm.immigration}
-                disabled={!selectedOriginal || savingSelected}
-                onChange={(e) => setSelectedForm((p) => ({ ...p, immigration: e.target.value }))}
-              >
-                {IMMIGRATION_STATUS_OPTIONS.map((o) => (
-                  <option key={o || '__EMPTY__'} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Top 25">
-              <YesNoSelect
-                value={selectedForm.top25}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, top25: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Age 25+">
-              <YesNoSelect
-                value={selectedForm.age25plus}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, age25plus: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Married">
-              <YesNoSelect
-                value={selectedForm.married}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, married: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Children">
-              <YesNoSelect
-                value={selectedForm.children}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, children: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Homeowner">
-              <YesNoSelect
-                value={selectedForm.homeowner}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, homeowner: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Good Career">
-              <YesNoSelect
-                value={selectedForm.good_career}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, good_career: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Income 60K">
-              <YesNoSelect
-                value={selectedForm.income_60k}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, income_60k: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Dissatisfied">
-              <YesNoSelect
-                value={selectedForm.dissatisfied}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, dissatisfied: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Ambitious">
-              <YesNoSelect
-                value={selectedForm.ambitious}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, ambitious: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Contact Date">
-              <DateInput
-                value={selectedForm.contact_date}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, contact_date: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Result">
-              <select
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
-                value={selectedForm.result}
-                disabled={!selectedOriginal || savingSelected}
-                onChange={(e) => setSelectedForm((p) => ({ ...p, result: e.target.value }))}
-              >
-                <option value=""></option>
-                {RESULT_OPTIONS.map((o) => (
-                  <option key={o || '__EMPTY__'} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Next Steps">
-              <TextInput
-                value={selectedForm.next_steps}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, next_steps: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-
-            <Field label="Comments">
-              <TextInput
-                value={selectedForm.comments}
-                onChange={(v) => setSelectedForm((p) => ({ ...p, comments: v }))}
-                disabled={!selectedOriginal || savingSelected}
-              />
-            </Field>
-          </div>
-
-          <p className="mt-3 text-[11px] text-slate-500">
-            Yes/No dropdowns store values as <span className="font-semibold">Y</span> / <span className="font-semibold">N</span>.
-          </p>
-        </div>
-
-        {/* New Prospect (collapsed by default so the main UI shows the table first) */}
-        {showNew && (
-          <div className="rounded-lg border bg-white p-4">
-            <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900">New Prospect</h2>
-                <p className="text-xs text-slate-600">Add a new record to the prospects table.</p>
-              </div>
-              <button
-                type="button"
-                onClick={insertNew}
-                disabled={inserting}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-50"
-              >
-                {inserting ? 'Saving...' : 'Save Prospect'}
-              </button>
-            </div>
-
+          <div className="space-y-4">
+            {/* Name row */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="First Name *">
-                <TextInput value={newProspect.first_name} onChange={(v) => setNewProspect((p) => ({ ...p, first_name: v }))} />
+                <TextInput
+                  value={form.first_name}
+                  onChange={(v) => setForm((p) => ({ ...p, first_name: v }))}
+                  disabled={!editable || saving}
+                />
               </Field>
-              <Field label="Last Name">
-                <TextInput value={newProspect.last_name} onChange={(v) => setNewProspect((p) => ({ ...p, last_name: v }))} />
+
+              <Field label="Last Name *">
+                <TextInput
+                  value={form.last_name}
+                  onChange={(v) => setForm((p) => ({ ...p, last_name: v }))}
+                  disabled={!editable || saving}
+                />
               </Field>
+            </div>
+
+            {/* Spouse / Relation */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Spouse Name">
-                <TextInput value={newProspect.spouse_name} onChange={(v) => setNewProspect((p) => ({ ...p, spouse_name: v }))} />
+                <TextInput
+                  value={form.spouse_name}
+                  onChange={(v) => setForm((p) => ({ ...p, spouse_name: v }))}
+                  disabled={!editable || saving}
+                />
               </Field>
+
               <Field label="Relation Type">
                 <select
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
-                  value={newProspect.relation_type}
-                  onChange={(e) => setNewProspect((p) => ({ ...p, relation_type: e.target.value }))}
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 disabled:opacity-60"
+                  value={form.relation_type}
+                  disabled={!editable || saving}
+                  onChange={(e) => setForm((p) => ({ ...p, relation_type: e.target.value }))}
                 >
                   <option value=""></option>
                   {RELATION_OPTIONS.map((o) => (
-                    <option key={o || '__EMPTY__'} value={o}>
+                    <option key={o} value={o}>
                       {o}
                     </option>
                   ))}
                 </select>
               </Field>
+            </div>
 
-              <Field label="Phone">
-                <TextInput value={newProspect.phone} onChange={(v) => setNewProspect((p) => ({ ...p, phone: v }))} />
+            {/* Phone / City / State in one row */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Field label="Phone *">
+                <TextInput
+                  value={form.phone}
+                  onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
+                  disabled={!editable || saving}
+                />
               </Field>
+
               <Field label="City">
-                <TextInput value={newProspect.city} onChange={(v) => setNewProspect((p) => ({ ...p, city: v }))} />
+                <TextInput
+                  value={form.city}
+                  onChange={(v) => setForm((p) => ({ ...p, city: v }))}
+                  disabled={!editable || saving}
+                />
               </Field>
 
               <Field label="State">
                 <select
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
-                  value={newProspect.state}
-                  onChange={(e) => setNewProspect((p) => ({ ...p, state: e.target.value }))}
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 disabled:opacity-60"
+                  value={form.state}
+                  disabled={!editable || saving}
+                  onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))}
                 >
                   <option value=""></option>
                   {STATES.map((s) => (
@@ -1067,12 +993,16 @@ export default function ProspectListPage() {
                   ))}
                 </select>
               </Field>
+            </div>
 
+            {/* Immigration -> Next Steps in compact 4 columns */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
               <Field label="Immigration">
                 <select
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
-                  value={newProspect.immigration}
-                  onChange={(e) => setNewProspect((p) => ({ ...p, immigration: e.target.value }))}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 disabled:opacity-60"
+                  value={form.immigration}
+                  disabled={!editable || saving}
+                  onChange={(e) => setForm((p) => ({ ...p, immigration: e.target.value }))}
                 >
                   {IMMIGRATION_STATUS_OPTIONS.map((o) => (
                     <option key={o || '__EMPTY__'} value={o}>
@@ -1082,55 +1012,25 @@ export default function ProspectListPage() {
                 </select>
               </Field>
 
-              <Field label="Top 25">
-                <YesNoSelect value={newProspect.top25} onChange={(v) => setNewProspect((p) => ({ ...p, top25: v }))} />
-              </Field>
-
-              <Field label="Age 25+">
-                <YesNoSelect value={newProspect.age25plus} onChange={(v) => setNewProspect((p) => ({ ...p, age25plus: v }))} />
-              </Field>
-
-              <Field label="Married">
-                <YesNoSelect value={newProspect.married} onChange={(v) => setNewProspect((p) => ({ ...p, married: v }))} />
-              </Field>
-
-              <Field label="Children">
-                <YesNoSelect value={newProspect.children} onChange={(v) => setNewProspect((p) => ({ ...p, children: v }))} />
-              </Field>
-
-              <Field label="Homeowner">
-                <YesNoSelect value={newProspect.homeowner} onChange={(v) => setNewProspect((p) => ({ ...p, homeowner: v }))} />
-              </Field>
-
-              <Field label="Good Career">
-                <YesNoSelect value={newProspect.good_career} onChange={(v) => setNewProspect((p) => ({ ...p, good_career: v }))} />
-              </Field>
-
-              <Field label="Income 60K">
-                <YesNoSelect value={newProspect.income_60k} onChange={(v) => setNewProspect((p) => ({ ...p, income_60k: v }))} />
-              </Field>
-
-              <Field label="Dissatisfied">
-                <YesNoSelect value={newProspect.dissatisfied} onChange={(v) => setNewProspect((p) => ({ ...p, dissatisfied: v }))} />
-              </Field>
-
-              <Field label="Ambitious">
-                <YesNoSelect value={newProspect.ambitious} onChange={(v) => setNewProspect((p) => ({ ...p, ambitious: v }))} />
-              </Field>
-
               <Field label="Contact Date">
-                <DateInput value={newProspect.contact_date} onChange={(v) => setNewProspect((p) => ({ ...p, contact_date: v }))} />
+                <DateInput
+                  value={form.contact_date}
+                  onChange={(v) => setForm((p) => ({ ...p, contact_date: v }))}
+                  disabled={!editable || saving}
+                  compact
+                />
               </Field>
 
               <Field label="Result">
                 <select
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900"
-                  value={newProspect.result}
-                  onChange={(e) => setNewProspect((p) => ({ ...p, result: e.target.value }))}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 disabled:opacity-60"
+                  value={form.result}
+                  disabled={!editable || saving}
+                  onChange={(e) => setForm((p) => ({ ...p, result: e.target.value }))}
                 >
                   <option value=""></option>
                   {RESULT_OPTIONS.map((o) => (
-                    <option key={o || '__EMPTY__'} value={o}>
+                    <option key={o} value={o}>
                       {o}
                     </option>
                   ))}
@@ -1138,19 +1038,63 @@ export default function ProspectListPage() {
               </Field>
 
               <Field label="Next Steps">
-                <TextInput value={newProspect.next_steps} onChange={(v) => setNewProspect((p) => ({ ...p, next_steps: v }))} />
-              </Field>
-
-              <Field label="Comments">
-                <TextInput value={newProspect.comments} onChange={(v) => setNewProspect((p) => ({ ...p, comments: v }))} />
+                <TextInput
+                  value={form.next_steps}
+                  onChange={(v) => setForm((p) => ({ ...p, next_steps: v }))}
+                  disabled={!editable || saving}
+                  compact
+                  placeholder="Next steps..."
+                />
               </Field>
             </div>
 
-            <p className="mt-3 text-[11px] text-slate-500">
+            {/* Y/N flags compact */}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+              <Field label="Top 25">
+                <YesNoSelect value={form.top25} onChange={(v) => setForm((p) => ({ ...p, top25: v }))} disabled={!editable || saving} compact />
+              </Field>
+              <Field label="Age 25+">
+                <YesNoSelect value={form.age25plus} onChange={(v) => setForm((p) => ({ ...p, age25plus: v }))} disabled={!editable || saving} compact />
+              </Field>
+              <Field label="Married">
+                <YesNoSelect value={form.married} onChange={(v) => setForm((p) => ({ ...p, married: v }))} disabled={!editable || saving} compact />
+              </Field>
+              <Field label="Children">
+                <YesNoSelect value={form.children} onChange={(v) => setForm((p) => ({ ...p, children: v }))} disabled={!editable || saving} compact />
+              </Field>
+              <Field label="Homeowner">
+                <YesNoSelect value={form.homeowner} onChange={(v) => setForm((p) => ({ ...p, homeowner: v }))} disabled={!editable || saving} compact />
+              </Field>
+              <Field label="Good Career">
+                <YesNoSelect value={form.good_career} onChange={(v) => setForm((p) => ({ ...p, good_career: v }))} disabled={!editable || saving} compact />
+              </Field>
+              <Field label="Income 60K">
+                <YesNoSelect value={form.income_60k} onChange={(v) => setForm((p) => ({ ...p, income_60k: v }))} disabled={!editable || saving} compact />
+              </Field>
+              <Field label="Dissatisfied">
+                <YesNoSelect value={form.dissatisfied} onChange={(v) => setForm((p) => ({ ...p, dissatisfied: v }))} disabled={!editable || saving} compact />
+              </Field>
+              <Field label="Ambitious">
+                <YesNoSelect value={form.ambitious} onChange={(v) => setForm((p) => ({ ...p, ambitious: v }))} disabled={!editable || saving} compact />
+              </Field>
+            </div>
+
+            {/* Comments with toolbar */}
+            <div className="grid grid-cols-1">
+              <Field label="Comments">
+                <CommentsEditor
+                  value={form.comments}
+                  onChange={(v) => setForm((p) => ({ ...p, comments: v }))}
+                  disabled={!editable || saving}
+                />
+              </Field>
+            </div>
+
+            <p className="text-[11px] text-slate-500">
               Yes/No dropdowns store values as <span className="font-semibold">Y</span> / <span className="font-semibold">N</span>.
             </p>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
