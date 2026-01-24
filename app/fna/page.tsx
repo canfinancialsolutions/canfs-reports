@@ -1,29 +1,8 @@
 'use client';
 
-
-import { useEffect, useState } from "react";
-import { hasCanfsAuthCookie } from "@/lib/canfsAuth";
-
-export function useRequireCanfsAuth() {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const ok = hasCanfsAuthCookie();
-    if (!ok) {
-      // send user to /auth and preserve where they wanted to go
-      const next = encodeURIComponent(window.location.pathname + window.location.search);
-      window.location.href = `/auth?next=${next}`;
-      return;
-    }
-    setReady(true);
-  }, []);
-
-  return ready;
-}
-
-
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
+import { useRequireCanfsAuth, clearCanfsAuthCookie } from "@/lib/useRequireCanfsAuth";
 
 export const dynamic = 'force-dynamic';
 
@@ -554,6 +533,15 @@ function EditableTable({
 }
 
 export default function Page() {
+  const ready = useRequireCanfsAuth();
+  if (!ready) {
+    return (
+      <div className="min-h-screen grid place-items-center text-slate-600">
+        Checking authentication…
+      </div>
+    );
+  }
+
   const supabaseRef = useRef<ReturnType<typeof getSupabase> | null>(null);
   if (!supabaseRef.current) supabaseRef.current = getSupabase();
   const supabase = supabaseRef.current;
@@ -588,20 +576,8 @@ export default function Page() {
 
   // ---------- Auth gate ----------
   useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          window.location.href = "/auth";
-          return;
-        }
-      } catch {
-        // ignore; page will show error on subsequent calls
-      } finally {
-        setAuthChecked(true);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Cookie-auth is enforced by useRequireCanfsAuth(); we mark authChecked as true for legacy logic.
+    setAuthChecked(true);
   }, []);
 
   async function logout() {
