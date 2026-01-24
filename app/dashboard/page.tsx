@@ -12,7 +12,23 @@
  * No backend changes (schema, procedures, routes, auth, Supabase policies). 
  */ 
 "use client";
+export default function Page() {
+  const { checking } = useRequireAuth();
 
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Your existing page UI stays exactly the same here */}
+    </>
+  );
+}
  
 // Add to your dashboard page (top section)
 <div className="flex justify-between items-center mb-6">
