@@ -1310,7 +1310,6 @@ export default function ProspectListPage() {
               </SubCard>
             </div>
             </div>
-          </div>
         )}
       </div>
     </div>
