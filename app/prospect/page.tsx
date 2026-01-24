@@ -57,8 +57,8 @@ type ProspectForm = {
 
 const PAGE_SIZE = 10;
 
-const RELATION_OPTIONS = ['Friend', 'Relative', 'Acquaintance', 'Referral/Others'] as const;
-const RESULT_OPTIONS = ['Business', 'Both', 'Client Solution', 'In-Progress', 'Called', 'Not Interested', 'Others'] as const;
+const RELATION_OPTIONS = ['', 'Friend', 'Relative', 'Acquaintance', 'Referral/Others'] as const;
+const RESULT_OPTIONS = ['', 'Business', 'Both', 'Client Solution', 'In-Progress', 'Called', 'Not Interested', 'Others'] as const;
 
 const IMMIGRATION_STATUS_OPTIONS: string[] = [
   '',
@@ -360,7 +360,7 @@ const CommentsEditor = ({
       </div>
       <textarea
         ref={ref}
-        className="min-h-[120px] w-full resize-y px-3 py-2 text-sm text-slate-900 outline-none whitespace-pre-wrap break-words"
+        className="min-h-[96px] w-full resize-y px-3 py-2 text-sm text-slate-900 outline-none whitespace-pre-wrap break-words"
         value={value}
         disabled={disabled}
         placeholder="Enter notes..."
@@ -1007,8 +1007,8 @@ export default function ProspectListPage() {
 
         {/* Single Card (hidden by default) */}
         {showCard && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="mb-3 flex items-center justify-between">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-2 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">{mode === 'edit' ? 'Selected Prospect' : 'New Prospect'}</h2>
                 <p className="text-sm text-slate-600">
@@ -1030,54 +1030,61 @@ export default function ProspectListPage() {
               )}
             </div>
 
-            {/* Form layout */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <Field label="First Name *">
-                <TextInput
-                  placeholder="First Name"
-                  value={form.first_name}
-                  onChange={(v) => setForm((p) => ({ ...p, first_name: v }))}
-                  disabled={saving}
-                />
-              </Field>
+                        {/* Form layout */}
+            <div className="space-y-3">
+              {/* Line 1: Name + Relation */}
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+                <Field label="First Name *">
+                  <TextInput
+                    compact
+                    placeholder="First Name"
+                    value={form.first_name}
+                    onChange={(v) => setForm((p) => ({ ...p, first_name: v }))}
+                    disabled={saving}
+                  />
+                </Field>
 
-              <Field label="Last Name *">
-                <TextInput
-                  placeholder="Last Name"
-                  value={form.last_name}
-                  onChange={(v) => setForm((p) => ({ ...p, last_name: v }))}
-                  disabled={saving}
-                />
-              </Field>
+                <Field label="Last Name *">
+                  <TextInput
+                    compact
+                    placeholder="Last Name"
+                    value={form.last_name}
+                    onChange={(v) => setForm((p) => ({ ...p, last_name: v }))}
+                    disabled={saving}
+                  />
+                </Field>
 
-              <Field label="Spouse Name">
-                <TextInput
-                  placeholder="Spouse Name"
-                  value={form.spouse_name}
-                  onChange={(v) => setForm((p) => ({ ...p, spouse_name: v }))}
-                  disabled={saving}
-                />
-              </Field>
+                <Field label="Spouse Name">
+                  <TextInput
+                    compact
+                    placeholder="Spouse Name"
+                    value={form.spouse_name}
+                    onChange={(v) => setForm((p) => ({ ...p, spouse_name: v }))}
+                    disabled={saving}
+                  />
+                </Field>
 
-              <Field label="Relation Type">
-                <select
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
-                  value={form.relation_type}
-                  onChange={(e) => setForm((p) => ({ ...p, relation_type: e.target.value }))}
-                  disabled={saving}
-                >
-                  {RELATION_TYPE_OPTIONS.map((o) => (
-                    <option key={o} value={o}>
-                      {o || 'Select...'}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+                <Field label="Relation Type">
+                  <select
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
+                    value={form.relation_type}
+                    onChange={(e) => setForm((p) => ({ ...p, relation_type: e.target.value }))}
+                    disabled={saving}
+                  >
+                    {RELATION_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o || 'Select...'}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
 
-              {/* Phone / City / State in a single row (3 columns on md+) */}
-              <div className="grid grid-cols-1 gap-3 md:col-span-2 md:grid-cols-3">
+              {/* Line 2: Contact + Location + Immigration */}
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
                 <Field label="Phone *">
                   <TextInput
+                    compact
                     placeholder="Phone"
                     value={form.phone}
                     onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
@@ -1087,6 +1094,7 @@ export default function ProspectListPage() {
 
                 <Field label="City">
                   <TextInput
+                    compact
                     placeholder="City"
                     value={form.city}
                     onChange={(v) => setForm((p) => ({ ...p, city: v }))}
@@ -1096,25 +1104,23 @@ export default function ProspectListPage() {
 
                 <Field label="State">
                   <select
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
                     value={form.state}
                     onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))}
                     disabled={saving}
                   >
-                    {US_STATE_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o || 'Select...'}
+                    <option value=""></option>
+                    {STATES.map((s) => (
+                      <option key={s.abbr} value={s.abbr}>
+                        {s.abbr} - {s.name}
                       </option>
                     ))}
                   </select>
                 </Field>
-              </div>
 
-              {/* Immigration → Next Steps in a compact row (4–5 columns on md+) */}
-              <div className="grid grid-cols-1 gap-3 md:col-span-2 md:grid-cols-5">
                 <Field label="Immigration">
                   <select
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm"
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
                     value={form.immigration}
                     onChange={(e) => setForm((p) => ({ ...p, immigration: e.target.value }))}
                     disabled={saving}
@@ -1126,9 +1132,52 @@ export default function ProspectListPage() {
                     ))}
                   </select>
                 </Field>
+              </div>
 
+              {/* Line 3: Top25 → Ambitious (compact single line on large screens) */}
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-9">
+                <Field label="Top 25">
+                  <YesNoSelect compact value={form.top25} onChange={(v) => setForm((p) => ({ ...p, top25: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Age 25+">
+                  <YesNoSelect compact value={form.age25plus} onChange={(v) => setForm((p) => ({ ...p, age25plus: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Married">
+                  <YesNoSelect compact value={form.married} onChange={(v) => setForm((p) => ({ ...p, married: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Children">
+                  <YesNoSelect compact value={form.children} onChange={(v) => setForm((p) => ({ ...p, children: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Homeowner">
+                  <YesNoSelect compact value={form.homeowner} onChange={(v) => setForm((p) => ({ ...p, homeowner: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Good Career">
+                  <YesNoSelect compact value={form.good_career} onChange={(v) => setForm((p) => ({ ...p, good_career: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Income 60K">
+                  <YesNoSelect compact value={form.income_60k} onChange={(v) => setForm((p) => ({ ...p, income_60k: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Dissatisfied">
+                  <YesNoSelect compact value={form.dissatisfied} onChange={(v) => setForm((p) => ({ ...p, dissatisfied: v }))} disabled={saving} />
+                </Field>
+
+                <Field label="Ambitious">
+                  <YesNoSelect compact value={form.ambitious} onChange={(v) => setForm((p) => ({ ...p, ambitious: v }))} disabled={saving} />
+                </Field>
+              </div>
+
+              {/* Line 4: Contact Date → Next Steps (after Ambitious, above Comments) */}
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                 <Field label="Contact Date">
                   <DateInput
+                    compact
                     value={form.contact_date}
                     onChange={(v) => setForm((p) => ({ ...p, contact_date: v }))}
                     disabled={saving}
@@ -1137,7 +1186,7 @@ export default function ProspectListPage() {
 
                 <Field label="Result">
                   <select
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm"
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
                     value={form.result}
                     onChange={(e) => setForm((p) => ({ ...p, result: e.target.value }))}
                     disabled={saving}
@@ -1150,8 +1199,9 @@ export default function ProspectListPage() {
                   </select>
                 </Field>
 
-                <Field label="Next Steps" className="md:col-span-2">
+                <Field label="Next Steps">
                   <TextInput
+                    compact
                     placeholder="Next Steps"
                     value={form.next_steps}
                     onChange={(v) => setForm((p) => ({ ...p, next_steps: v }))}
@@ -1160,51 +1210,8 @@ export default function ProspectListPage() {
                 </Field>
               </div>
 
-              {/* Yes/No fields in compact rows */}
-              <div className="grid grid-cols-1 gap-3 md:col-span-2 md:grid-cols-5">
-                <Field label="Top 25">
-                  <YesNoSelect value={form.top25} onChange={(v) => setForm((p) => ({ ...p, top25: v }))} disabled={saving} />
-                </Field>
-
-                <Field label="Age 25+">
-                  <YesNoSelect value={form.age25plus} onChange={(v) => setForm((p) => ({ ...p, age25plus: v }))} disabled={saving} />
-                </Field>
-
-                <Field label="Married">
-                  <YesNoSelect value={form.married} onChange={(v) => setForm((p) => ({ ...p, married: v }))} disabled={saving} />
-                </Field>
-
-                <Field label="Children">
-                  <YesNoSelect value={form.children} onChange={(v) => setForm((p) => ({ ...p, children: v }))} disabled={saving} />
-                </Field>
-
-                <Field label="Homeowner">
-                  <YesNoSelect value={form.homeowner} onChange={(v) => setForm((p) => ({ ...p, homeowner: v }))} disabled={saving} />
-                </Field>
-
-                <Field label="Good Career">
-                  <YesNoSelect value={form.good_career} onChange={(v) => setForm((p) => ({ ...p, good_career: v }))} disabled={saving} />
-                </Field>
-
-                <Field label="Income 60K">
-                  <YesNoSelect value={form.income_60k} onChange={(v) => setForm((p) => ({ ...p, income_60k: v }))} disabled={saving} />
-                </Field>
-
-                <Field label="Dissatisfied">
-                  <YesNoSelect value={form.dissatisfied} onChange={(v) => setForm((p) => ({ ...p, dissatisfied: v }))} disabled={saving} />
-                </Field>
-
-                <Field label="Ambitious">
-                  <YesNoSelect value={form.ambitious} onChange={(v) => setForm((p) => ({ ...p, ambitious: v }))} disabled={saving} />
-                </Field>
-              </div>
-
-              <Field label="Comments" className="md:col-span-2">
-                <CommentsEditor
-                  value={form.comments}
-                  onChange={(v) => setForm((p) => ({ ...p, comments: v }))}
-                  disabled={saving}
-                />
+              <Field label="Comments">
+                <CommentsEditor value={form.comments} onChange={(v) => setForm((p) => ({ ...p, comments: v }))} disabled={saving} />
               </Field>
             </div>
           </div>
