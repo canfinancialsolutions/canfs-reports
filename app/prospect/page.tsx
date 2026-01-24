@@ -61,21 +61,21 @@ const RELATION_OPTIONS = ['Friend', 'Relative', 'Acquaintance', 'Referral/Others
 const RESULT_OPTIONS = ['Business', 'Both', 'Client Solution', 'In-Progress', 'Called', 'Not Interested', 'Others'] as const;
 
 const IMMIGRATION_STATUS_OPTIONS: string[] = [
-  \"\",
-  \"U.S. Citizen\",
-  \"U.S.Green Card\",
-  \"H-1B\",
-  \"H-1B/I-140 Approved\",
-  \"L-1A\",
-  \"L-1B\",
-  \"F-1 Student\",
-  \"F-1 OPT\",
-  \"F-1 STEM OPT\",
-  \"H-4 EAD\",
-  \"E-3\",
-  \"I-485 Pending\",
-  \"I-485 EAD/AP\",
-  \"Other Visa Status\",
+  "",
+  "U.S. Citizen",
+  "U.S.Green Card",
+  "H-1B",
+  "H-1B/I-140 Approved",
+  "L-1A",
+  "L-1B",
+  "F-1 Student",
+  "F-1 OPT",
+  "F-1 STEM OPT",
+  "H-4 EAD",
+  "E-3",
+  "I-485 Pending",
+  "I-485 EAD/AP",
+  "Other Visa Status",
 ];
 
 const STATES = [
