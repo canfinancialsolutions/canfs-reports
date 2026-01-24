@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useMemo, useState } from "react";
 import { hasCanfsAuthCookie, setCanfsAuthCookie } from "@/lib/useRequireCanfsAuth";
 
