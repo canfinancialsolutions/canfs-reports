@@ -1,5 +1,27 @@
 'use client';
 
+
+import { useEffect, useState } from "react";
+import { hasCanfsAuthCookie } from "@/lib/canfsAuth";
+
+export function useRequireCanfsAuth() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const ok = hasCanfsAuthCookie();
+    if (!ok) {
+      // send user to /auth and preserve where they wanted to go
+      const next = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.href = `/auth?next=${next}`;
+      return;
+    }
+    setReady(true);
+  }, []);
+
+  return ready;
+}
+
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { addDays, addMonths, format, isValid, parseISO, startOfMonth, subMonths, subDays, endOfMonth } from 'date-fns';
