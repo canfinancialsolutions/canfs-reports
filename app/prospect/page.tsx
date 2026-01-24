@@ -11,9 +11,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
  
->
-
-
 type Prospect = {
   id: number;
   first_name: string; // NOT NULL
