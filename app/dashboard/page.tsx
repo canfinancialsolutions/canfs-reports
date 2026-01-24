@@ -25,7 +25,7 @@ export default function Page() {
 
   return (
     <>
-      {/* Your existing page UI stays exactly the same here */}
+      {https://canfs-reports.vercel.app/dashboard}
     </>
   );
 }
