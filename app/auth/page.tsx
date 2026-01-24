@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 const DESTINATIONS = [
   { value: "dashboard", label: "Dashboard", path: "/dashboard" },
   { value: "fna", label: "Financial Need Analysis", path: "/fna" },
+  { value: "prospect", label: "Prospect List", path: "/prospect" },
 ];
 
 export default function LoginPage() {
