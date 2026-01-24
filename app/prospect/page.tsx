@@ -1,16 +1,8 @@
-// app/prospect/page.tsx
 'use client';
 
-
-import { useEffect, useState } from 'react';
-
-// AUTH GUARD - Add this to EVERY protected page
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated
-         
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
- 
+
 type Prospect = {
   id: number;
   first_name: string; // NOT NULL
