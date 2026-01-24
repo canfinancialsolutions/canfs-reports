@@ -8,10 +8,11 @@ type Prospect = {
   id: number;
   first_name: string;
   last_name: string;
-  spouse: string | null;
+  spouse_name: string | null;
   relation_type: string | null; // Friend / Relative / Acquaintance / Referral/Others
   phone: string | null;
-  city_state: string | null; // stored as "City, ST" (or just "City" / "ST")
+  city: string | null; // stored as "City, ST" (or just "City" / "ST")
+  state: string | null; // stored as "City, ST" (or just "City" / "ST")
   top25: string | null; // Y / N
   immigration: string | null;
   age25plus: string | null; // Y / N
@@ -164,10 +165,11 @@ export default function ProspectListPage() {
   const [newProspect, setNewProspect] = useState<Omit<Prospect, 'id'>>({
     first_name: '',
     last_name: '',
-    spouse: '',
+    spouse_name: '',
     relation_type: '',
     phone: '',
-    city_state: '',
+    city: '',
+    state: '',
     top25: '',
     immigration: '',
     age25plus: '',
@@ -227,16 +229,16 @@ export default function ProspectListPage() {
     setPage(1);
     setDrafts({});
     setShowNew(true);
-    setNewCity('');
     setNewState('');
     setNewProspect((p) => ({
       ...p,
       first_name: '',
       last_name: '',
-      spouse: '',
+      spouse_name: '',
       relation_type: '',
       phone: '',
-      city_state: '',
+      city: '',
+      state: '',
       top25: '',
       immigration: '',
       age25plus: '',
@@ -261,7 +263,7 @@ export default function ProspectListPage() {
       !q ||
       (p.first_name || '').toLowerCase().includes(q) ||
       (p.last_name || '').toLowerCase().includes(q) ||
-      (p.spouse || '').toLowerCase().includes(q) ||
+      (p.spouse_name || '').toLowerCase().includes(q) ||
       (p.phone || '').toLowerCase().includes(q);
 
     const matchResult =
@@ -386,7 +388,8 @@ export default function ProspectListPage() {
       ...newProspect,
       first_name,
       last_name,
-      city_state: joinCityState(newCity, newState) || null,
+      city,
+      state: joinCityState(newCity, newState) || null,
       top25: ynDisplay(newProspect.top25) || null,
       age25plus: ynDisplay(newProspect.age25plus) || null,
       married: ynDisplay(newProspect.married) || null,
@@ -400,7 +403,7 @@ export default function ProspectListPage() {
       relation_type: (newProspect.relation_type || '').trim() || null,
       result: (newProspect.result || '').trim() || null,
       phone: (newProspect.phone || '').trim() || null,
-      spouse: (newProspect.spouse || '').trim() || null,
+      spouse_name: (newProspect.spouse_name || '').trim() || null,
       immigration: (newProspect.immigration || '').trim() || null,
       next_steps: (newProspect.next_steps || '').trim() || null,
       comments: (newProspect.comments || '').trim() || null,
@@ -429,10 +432,11 @@ export default function ProspectListPage() {
       ...p,
       first_name: '',
       last_name: '',
-      spouse: '',
+      spouse_name: '',
       relation_type: '',
       phone: '',
-      city_state: '',
+      city: '',
+      state: '',
       top25: '',
       immigration: '',
       age25plus: '',
@@ -553,7 +557,7 @@ export default function ProspectListPage() {
           <div className="flex flex-1 flex-col gap-2 md:flex-row md:items-center">
             <input
               type="text"
-              placeholder="Search by first name, last name, spouse, or phone..."
+              placeholder="Search by first name, last name, spouse name, or phone..."
               className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm md:w-96"
               value={search}
               onChange={(e) => {
@@ -628,9 +632,9 @@ export default function ProspectListPage() {
                 placeholder="Last Name *"
               />
               <TextInput
-                value={newProspect.spouse}
-                onChange={(v) => setNewProspect((p) => ({ ...p, spouse: v }))}
-                placeholder="Spouse"
+                value={newProspect.spouse_name}
+                onChange={(v) => setNewProspect((p) => ({ ...p, spouse_name: v }))}
+                placeholder="Spouse Name"
               />
               <select
                 className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900"
@@ -752,7 +756,7 @@ export default function ProspectListPage() {
                   '#',
                   'First Name',
                   'Last Name',
-                  'Spouse',
+                  'Spouse Name',
                   'Relation Type',
                   'Phone',
                   'City',
@@ -833,8 +837,8 @@ export default function ProspectListPage() {
 
                       <td className="px-2 py-2 align-top">
                         <TextInput
-                          value={valueFor(p, id, 'spouse') as string | null}
-                          onChange={(v) => updateDraft(id, { spouse: v })}
+                          value={valueFor(p, id, 'spouse_name') as string | null}
+                          onChange={(v) => updateDraft(id, { spouse_name: v })}
                           disabled={saving}
                           minW="min-w-[140px]"
                         />
