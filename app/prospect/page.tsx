@@ -308,19 +308,33 @@ export default function ProspectListPage() {
 
     setSavingIds((p) => ({ ...p, [id]: true }));
 
-    // Normalize Yes/No fields (store 'Y' / 'N' or NULL)
-    payload.top25 = ynNormalize(payload.top25) || null;
-    payload.age25plus = ynNormalize(payload.age25plus) || null;
-    payload.married = ynNormalize(payload.married) || null;
-    payload.children = ynNormalize(payload.children) || null;
-    payload.homeowner = ynNormalize(payload.homeowner) || null;
-    payload.good_career = ynNormalize(payload.good_career) || null;
-    payload.income_60k = ynNormalize(payload.income_60k) || null;
-    payload.dissatisfied = ynNormalize(payload.dissatisfied) || null;
-    payload.ambitious = ynNormalize(payload.ambitious) || null;
-
-
-    payload.updated_at = new Date().toISOString();
+    const payload: Partial<Omit<Prospect, 'id'>> = {
+      first_name: finalFirst,
+      last_name: toNull(draft.last_name ?? row.last_name),
+      spouse_name: toNull(draft.spouse_name ?? row.spouse_name),
+      relation_type: toNull(draft.relation_type ?? row.relation_type),
+      phone: toNull(draft.phone ?? row.phone),
+      city: toNull(draft.city ?? row.city),
+      state: (() => {
+        const s = (draft.state ?? row.state ?? '').trim();
+        return s ? s.toUpperCase() : null;
+      })(),
+      top25: ynNormalize(draft.top25 ?? row.top25) || null,
+      immigration: toNull(draft.immigration ?? row.immigration),
+      age25plus: ynNormalize(draft.age25plus ?? row.age25plus) || null,
+      married: ynNormalize(draft.married ?? row.married) || null,
+      children: ynNormalize(draft.children ?? row.children) || null,
+      homeowner: ynNormalize(draft.homeowner ?? row.homeowner) || null,
+      good_career: ynNormalize(draft.good_career ?? row.good_career) || null,
+      income_60k: ynNormalize(draft.income_60k ?? row.income_60k) || null,
+      dissatisfied: ynNormalize(draft.dissatisfied ?? row.dissatisfied) || null,
+      ambitious: ynNormalize(draft.ambitious ?? row.ambitious) || null,
+      contact_date: toNull(draft.contact_date ?? row.contact_date),
+      result: toNull(draft.result ?? row.result),
+      next_steps: toNull(draft.next_steps ?? row.next_steps),
+      comments: toNull(draft.comments ?? row.comments),
+      updated_at: new Date().toISOString(),
+    };
 
     const { error } = await supabase.from('prospects').update(payload).eq('id', id);
 
