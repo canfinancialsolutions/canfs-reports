@@ -1,24 +1,35 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-let _client: SupabaseClient | null = null;
+  import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient"; // adjust path if needed
 
-/**
- * Lazy Supabase client initializer.
- * This prevents build-time crashes if env vars are missing.
- * The UI will show a helpful message instead.
- */
-export function getSupabase(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+function useRequireAuth() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [checking, setChecking] = useState(true);
 
-  if (!url || !key) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel Environment Variables."
-    );
-  }
+  useEffect(() => {
+    let alive = true;
 
-  if (!_client) {
-    _client = createClient(url, key);
-  }
-  return _client;
+    const goAuth = () =>
+      router.replace(`/auth?redirectedFrom=${encodeURIComponent(pathname)}`);
+
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!alive) return;
+      if (!data.session) return goAuth();
+      setChecking(false);
+    })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      if (!session) goAuth();
+    });
+
+    return () => {
+      alive = false;
+      sub?.subscription?.unsubscribe();
+    };
+  }, [router, pathname]);
+
+  return { checking };
 }
