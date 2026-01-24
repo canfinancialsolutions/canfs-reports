@@ -12,7 +12,6 @@
  * No backend changes (schema, procedures, routes, auth, Supabase policies). 
  */ 
 "use client";
- 
 // Add to your dashboard page (top section)
 <div className="flex justify-between items-center mb-6">
   <h1 className="text-2xl font-bold">CAN Financial Solutions Dashboard</h1>
@@ -23,6 +22,7 @@
     ← Exit
   </button>
 </div>
+
 
 export const dynamic = "force-dynamic"; 
 import React, { useEffect, useMemo, useRef, useState } from "react"; 
