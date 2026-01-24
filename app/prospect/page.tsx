@@ -6,15 +6,15 @@ import { createClient } from '@supabase/supabase-js';
 
 type Prospect = {
   id: number;
-  first_name: string;
-  last_name: string;
+  first_name: string; // NOT NULL
+  last_name: string | null;
   spouse_name: string | null;
   relation_type: string | null; // Friend / Relative / Acquaintance / Referral/Others
   phone: string | null;
-  city: string | null; // stored as "City, ST" (or just "City" / "ST")
-  state: string | null; // stored as "City, ST" (or just "City" / "ST")
+  city: string | null;
+  state: string | null; // two-letter abbreviation (recommended)
   top25: string | null; // Y / N
-  immigration: string | null;
+  immigration: string | null; // H1B / GC / C / EAD etc.
   age25plus: string | null; // Y / N
   married: string | null; // Y / N
   children: string | null; // Y / N
@@ -29,6 +29,30 @@ type Prospect = {
   comments: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+type NewProspectForm = {
+  first_name: string;
+  last_name: string;
+  spouse_name: string;
+  relation_type: string;
+  phone: string;
+  city: string;
+  state: string;
+  top25: string;
+  immigration: string;
+  age25plus: string;
+  married: string;
+  children: string;
+  homeowner: string;
+  good_career: string;
+  income_60k: string;
+  dissatisfied: string;
+  ambitious: string;
+  contact_date: string;
+  result: string;
+  next_steps: string;
+  comments: string;
 };
 
 const PAGE_SIZE = 10;
@@ -98,7 +122,7 @@ const STATES = [
   { abbr: 'WY', name: 'Wyoming' },
 ] as const;
 
-const ynDisplay = (v?: string | null) => {
+const ynNormalize = (v?: string | null) => {
   const s = (v || '').trim().toLowerCase();
   if (!s) return '';
   if (s === 'y' || s === 'yes' || s === 'true') return 'Y';
@@ -106,35 +130,15 @@ const ynDisplay = (v?: string | null) => {
   return v || '';
 };
 
-
 const normText = (s: string) =>
   s
     .trim()
     .toLowerCase()
     .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
 
-const splitCityState = (cityState: string | null | undefined) => {
-  const raw = (cityState || '').trim();
-  if (!raw) return { city: '', state: '' };
-  const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
-  if (parts.length === 1) {
-    // Heuristic: if it looks like a state abbreviation, treat as state
-    const one = parts[0];
-    if (/^[A-Za-z]{2}$/.test(one)) return { city: '', state: one.toUpperCase() };
-    return { city: one, state: '' };
-  }
-  const state = parts[parts.length - 1];
-  const city = parts.slice(0, -1).join(', ');
-  return { city, state: state.toUpperCase() };
-};
-
-const joinCityState = (city: string, state: string) => {
-  const c = city.trim();
-  const s = state.trim();
-  if (c && s) return `${c}, ${s}`;
-  if (c) return c;
-  if (s) return s;
-  return '';
+const toNull = (s: string | null | undefined) => {
+  const v = (s ?? '').trim();
+  return v.length ? v : null;
 };
 
 type DraftMap = Record<number, Partial<Prospect>>;
@@ -160,9 +164,7 @@ export default function ProspectListPage() {
   const [drafts, setDrafts] = useState<DraftMap>({});
 
   const [showNew, setShowNew] = useState(true);
-  const [newCity, setNewCity] = useState('');
-  const [newState, setNewState] = useState('');
-  const [newProspect, setNewProspect] = useState<Omit<Prospect, 'id'>>({
+  const [newProspect, setNewProspect] = useState<NewProspectForm>({
     first_name: '',
     last_name: '',
     spouse_name: '',
@@ -184,8 +186,6 @@ export default function ProspectListPage() {
     result: '',
     next_steps: '',
     comments: '',
-    created_at: null,
-    updated_at: null,
   });
 
   const setToast = (kind: 'success' | 'error', msg: string) => {
@@ -229,9 +229,7 @@ export default function ProspectListPage() {
     setPage(1);
     setDrafts({});
     setShowNew(true);
-    setNewState('');
-    setNewProspect((p) => ({
-      ...p,
+    setNewProspect({
       first_name: '',
       last_name: '',
       spouse_name: '',
@@ -253,7 +251,7 @@ export default function ProspectListPage() {
       result: '',
       next_steps: '',
       comments: '',
-    }));
+    });
     loadProspects();
   };
 
@@ -266,9 +264,7 @@ export default function ProspectListPage() {
       (p.spouse_name || '').toLowerCase().includes(q) ||
       (p.phone || '').toLowerCase().includes(q);
 
-    const matchResult =
-      resultFilter === 'ALL' ||
-      normText(p.result || '') === normText(resultFilter);
+    const matchResult = resultFilter === 'ALL' || normText(p.result || '') === normText(resultFilter);
 
     return matchSearch && matchResult;
   });
@@ -299,36 +295,19 @@ export default function ProspectListPage() {
     return row[key];
   };
 
-  const saveRow = async (id: number) => {
+  const saveRow = async (row: Prospect) => {
+    const id = row.id;
     const draft = drafts[id];
     if (!draft || Object.keys(draft).length === 0) return;
 
+    const finalFirst = String((draft.first_name ?? row.first_name) || '').trim();
+    if (!finalFirst) {
+      setToast('error', 'First Name is required.');
+      return;
+    }
+
     setSavingIds((p) => ({ ...p, [id]: true }));
 
-    const payload: Partial<Prospect> = { ...draft };
-
-    // Validate required fields (DB columns are NOT NULL)
-    if ('first_name' in payload) {
-      const v = String(payload.first_name ?? '').trim();
-      if (!v) {
-        setToast('error', 'First Name is required.');
-        setSavingIds((p) => ({ ...p, [id]: false }));
-        return;
-      }
-      payload.first_name = v;
-    }
-    if ('last_name' in payload) {
-      const v = String(payload.last_name ?? '').trim();
-      if (!v) {
-        setToast('error', 'Last Name is required.');
-        setSavingIds((p) => ({ ...p, [id]: false }));
-        return;
-      }
-      payload.last_name = v;
-    }
-
-
-    // Normalize Yes/No fields to Y/N, and convert empty strings to null
     const ynFields: Array<keyof Prospect> = [
       'top25',
       'age25plus',
@@ -341,21 +320,36 @@ export default function ProspectListPage() {
       'ambitious',
     ];
 
+    const payload: Partial<Prospect> = { ...draft };
+
+    // Normalize fields
+    payload.first_name = finalFirst;
+
+    if ('last_name' in payload) payload.last_name = toNull(String(payload.last_name ?? ''));
+    if ('spouse_name' in payload) payload.spouse_name = toNull(String(payload.spouse_name ?? ''));
+    if ('relation_type' in payload) payload.relation_type = toNull(String(payload.relation_type ?? ''));
+    if ('phone' in payload) payload.phone = toNull(String(payload.phone ?? ''));
+    if ('city' in payload) payload.city = toNull(String(payload.city ?? ''));
+    if ('state' in payload) payload.state = toNull(String(payload.state ?? '').toUpperCase());
+    if ('immigration' in payload) payload.immigration = toNull(String(payload.immigration ?? ''));
+    if ('result' in payload) payload.result = toNull(String(payload.result ?? ''));
+    if ('next_steps' in payload) payload.next_steps = toNull(String(payload.next_steps ?? ''));
+    if ('comments' in payload) payload.comments = toNull(String(payload.comments ?? ''));
+
+    if ('contact_date' in payload) {
+      const v = String(payload.contact_date ?? '').trim();
+      payload.contact_date = v.length ? v : null;
+    }
+
     ynFields.forEach((k) => {
+      if (!(k in payload)) return;
       const v = payload[k];
-      if (typeof v === 'string') {
-        const norm = ynDisplay(v);
-        payload[k] = (norm || null) as any;
+      if (typeof v === 'string' || v == null) {
+        const norm = ynNormalize(v);
+        payload[k] = (norm || null) as Prospect[typeof k];
       }
     });
 
-    (Object.keys(payload) as Array<keyof Prospect>).forEach((k) => {
-      if (k === 'first_name' || k === 'last_name') return;
-      const v = payload[k];
-      if (v === '') payload[k] = null as any;
-    });
-
-    if (payload.contact_date === '') payload.contact_date = null;
     payload.updated_at = new Date().toISOString();
 
     const { error } = await supabase.from('prospects').update(payload).eq('id', id);
@@ -375,47 +369,38 @@ export default function ProspectListPage() {
   const insertNew = async () => {
     setInserting(true);
 
-    const first_name = newProspect.first_name?.trim();
-    const last_name = newProspect.last_name?.trim();
-
-    if (!first_name || !last_name) {
-      setToast('error', 'First Name and Last Name are required.');
+    const first_name = newProspect.first_name.trim();
+    if (!first_name) {
+      setToast('error', 'First Name is required.');
       setInserting(false);
       return;
     }
 
     const payload: Omit<Prospect, 'id'> = {
-      ...newProspect,
       first_name,
-      last_name,
-      city,
-      state: joinCityState(newCity, newState) || null,
-      top25: ynDisplay(newProspect.top25) || null,
-      age25plus: ynDisplay(newProspect.age25plus) || null,
-      married: ynDisplay(newProspect.married) || null,
-      children: ynDisplay(newProspect.children) || null,
-      homeowner: ynDisplay(newProspect.homeowner) || null,
-      good_career: ynDisplay(newProspect.good_career) || null,
-      income_60k: ynDisplay(newProspect.income_60k) || null,
-      dissatisfied: ynDisplay(newProspect.dissatisfied) || null,
-      ambitious: ynDisplay(newProspect.ambitious) || null,
-      contact_date: (newProspect.contact_date || '').trim() || null,
-      relation_type: (newProspect.relation_type || '').trim() || null,
-      result: (newProspect.result || '').trim() || null,
-      phone: (newProspect.phone || '').trim() || null,
-      spouse_name: (newProspect.spouse_name || '').trim() || null,
-      immigration: (newProspect.immigration || '').trim() || null,
-      next_steps: (newProspect.next_steps || '').trim() || null,
-      comments: (newProspect.comments || '').trim() || null,
+      last_name: toNull(newProspect.last_name),
+      spouse_name: toNull(newProspect.spouse_name),
+      relation_type: toNull(newProspect.relation_type),
+      phone: toNull(newProspect.phone),
+      city: toNull(newProspect.city),
+      state: toNull(newProspect.state.toUpperCase()),
+      top25: ynNormalize(newProspect.top25) || null,
+      immigration: toNull(newProspect.immigration),
+      age25plus: ynNormalize(newProspect.age25plus) || null,
+      married: ynNormalize(newProspect.married) || null,
+      children: ynNormalize(newProspect.children) || null,
+      homeowner: ynNormalize(newProspect.homeowner) || null,
+      good_career: ynNormalize(newProspect.good_career) || null,
+      income_60k: ynNormalize(newProspect.income_60k) || null,
+      dissatisfied: ynNormalize(newProspect.dissatisfied) || null,
+      ambitious: ynNormalize(newProspect.ambitious) || null,
+      contact_date: toNull(newProspect.contact_date),
+      result: toNull(newProspect.result),
+      next_steps: toNull(newProspect.next_steps),
+      comments: toNull(newProspect.comments),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-
-    // Convert any remaining empty strings to null
-    (Object.keys(payload) as Array<keyof typeof payload>).forEach((k) => {
-      const v = payload[k];
-      if (v === '') payload[k] = null as any;
-    });
 
     const { error } = await supabase.from('prospects').insert(payload);
 
@@ -426,10 +411,7 @@ export default function ProspectListPage() {
     }
 
     setToast('success', 'Prospect added.');
-    setNewCity('');
-    setNewState('');
-    setNewProspect((p) => ({
-      ...p,
+    setNewProspect({
       first_name: '',
       last_name: '',
       spouse_name: '',
@@ -451,7 +433,7 @@ export default function ProspectListPage() {
       result: '',
       next_steps: '',
       comments: '',
-    }));
+    });
     setInserting(false);
     setPage(1);
     loadProspects();
@@ -468,7 +450,7 @@ export default function ProspectListPage() {
   }) => (
     <select
       className="h-8 w-full min-w-[86px] rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900"
-      value={ynDisplay(value)}
+      value={ynNormalize(value)}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
     >
@@ -521,7 +503,7 @@ export default function ProspectListPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6">
-      {/* Header with logo + exit */}
+      {/* Header */}
       <div className="mx-auto mb-6 flex max-w-6xl items-center justify-between rounded-xl border bg-white px-6 py-4 shadow-sm">
         <div className="flex items-center gap-3">
           <img src="/can-logo.png" alt="CAN Financial Solutions" className="h-10 w-auto" />
@@ -543,9 +525,7 @@ export default function ProspectListPage() {
         {(errorMsg || successMsg) && (
           <div
             className={`rounded-lg border px-3 py-2 text-sm ${
-              errorMsg
-                ? 'border-red-200 bg-red-50 text-red-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              errorMsg ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
             }`}
           >
             {errorMsg || successMsg}
@@ -629,7 +609,7 @@ export default function ProspectListPage() {
               <TextInput
                 value={newProspect.last_name}
                 onChange={(v) => setNewProspect((p) => ({ ...p, last_name: v }))}
-                placeholder="Last Name *"
+                placeholder="Last Name"
               />
               <TextInput
                 value={newProspect.spouse_name}
@@ -638,7 +618,7 @@ export default function ProspectListPage() {
               />
               <select
                 className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900"
-                value={newProspect.relation_type || ''}
+                value={newProspect.relation_type}
                 onChange={(e) => setNewProspect((p) => ({ ...p, relation_type: e.target.value }))}
               >
                 <option value=""></option>
@@ -654,11 +634,11 @@ export default function ProspectListPage() {
                 onChange={(v) => setNewProspect((p) => ({ ...p, phone: v }))}
                 placeholder="Phone"
               />
-              <TextInput value={newCity} onChange={setNewCity} placeholder="City" />
+              <TextInput value={newProspect.city} onChange={(v) => setNewProspect((p) => ({ ...p, city: v }))} placeholder="City" />
               <select
                 className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900"
-                value={newState}
-                onChange={(e) => setNewState(e.target.value)}
+                value={newProspect.state}
+                onChange={(e) => setNewProspect((p) => ({ ...p, state: e.target.value }))}
               >
                 <option value="">State</option>
                 {STATES.map((s) => (
@@ -673,51 +653,21 @@ export default function ProspectListPage() {
                 placeholder="Immigration"
               />
 
-              <YesNoSelect
-                value={newProspect.top25}
-                onChange={(v) => setNewProspect((p) => ({ ...p, top25: v }))}
-              />
-              <YesNoSelect
-                value={newProspect.age25plus}
-                onChange={(v) => setNewProspect((p) => ({ ...p, age25plus: v }))}
-              />
-              <YesNoSelect
-                value={newProspect.married}
-                onChange={(v) => setNewProspect((p) => ({ ...p, married: v }))}
-              />
-              <YesNoSelect
-                value={newProspect.children}
-                onChange={(v) => setNewProspect((p) => ({ ...p, children: v }))}
-              />
+              <YesNoSelect value={newProspect.top25} onChange={(v) => setNewProspect((p) => ({ ...p, top25: v }))} />
+              <YesNoSelect value={newProspect.age25plus} onChange={(v) => setNewProspect((p) => ({ ...p, age25plus: v }))} />
+              <YesNoSelect value={newProspect.married} onChange={(v) => setNewProspect((p) => ({ ...p, married: v }))} />
+              <YesNoSelect value={newProspect.children} onChange={(v) => setNewProspect((p) => ({ ...p, children: v }))} />
 
-              <YesNoSelect
-                value={newProspect.homeowner}
-                onChange={(v) => setNewProspect((p) => ({ ...p, homeowner: v }))}
-              />
-              <YesNoSelect
-                value={newProspect.good_career}
-                onChange={(v) => setNewProspect((p) => ({ ...p, good_career: v }))}
-              />
-              <YesNoSelect
-                value={newProspect.income_60k}
-                onChange={(v) => setNewProspect((p) => ({ ...p, income_60k: v }))}
-              />
-              <YesNoSelect
-                value={newProspect.dissatisfied}
-                onChange={(v) => setNewProspect((p) => ({ ...p, dissatisfied: v }))}
-              />
+              <YesNoSelect value={newProspect.homeowner} onChange={(v) => setNewProspect((p) => ({ ...p, homeowner: v }))} />
+              <YesNoSelect value={newProspect.good_career} onChange={(v) => setNewProspect((p) => ({ ...p, good_career: v }))} />
+              <YesNoSelect value={newProspect.income_60k} onChange={(v) => setNewProspect((p) => ({ ...p, income_60k: v }))} />
+              <YesNoSelect value={newProspect.dissatisfied} onChange={(v) => setNewProspect((p) => ({ ...p, dissatisfied: v }))} />
 
-              <YesNoSelect
-                value={newProspect.ambitious}
-                onChange={(v) => setNewProspect((p) => ({ ...p, ambitious: v }))}
-              />
-              <DateInput
-                value={newProspect.contact_date}
-                onChange={(v) => setNewProspect((p) => ({ ...p, contact_date: v }))}
-              />
+              <YesNoSelect value={newProspect.ambitious} onChange={(v) => setNewProspect((p) => ({ ...p, ambitious: v }))} />
+              <DateInput value={newProspect.contact_date} onChange={(v) => setNewProspect((p) => ({ ...p, contact_date: v }))} />
               <select
                 className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900"
-                value={newProspect.result || ''}
+                value={newProspect.result}
                 onChange={(e) => setNewProspect((p) => ({ ...p, result: e.target.value }))}
               >
                 <option value=""></option>
@@ -741,8 +691,7 @@ export default function ProspectListPage() {
             </div>
 
             <p className="mt-2 text-[11px] text-slate-500">
-              Yes/No dropdowns store values as <span className="font-semibold">Y</span> /{' '}
-              <span className="font-semibold">N</span>.
+              Yes/No dropdowns store values as <span className="font-semibold">Y</span> / <span className="font-semibold">N</span>.
             </p>
           </div>
         )}
@@ -786,6 +735,7 @@ export default function ProspectListPage() {
                 ))}
               </tr>
             </thead>
+
             <tbody>
               {loading && (
                 <tr>
@@ -810,9 +760,6 @@ export default function ProspectListPage() {
                   const dirty = !!draft && Object.keys(draft).length > 0;
                   const saving = !!savingIds[id];
 
-                  const currentCityState = (valueFor(p, id, 'city_state') as string | null) || '';
-                  const { city, state } = splitCityState(currentCityState);
-
                   return (
                     <tr key={id} className={`border-t hover:bg-slate-50 ${dirty ? 'bg-amber-50/40' : ''}`}>
                       <td className="px-2 py-2 align-top text-slate-700">{id}</td>
@@ -828,7 +775,7 @@ export default function ProspectListPage() {
 
                       <td className="px-2 py-2 align-top">
                         <TextInput
-                          value={valueFor(p, id, 'last_name') as string}
+                          value={valueFor(p, id, 'last_name') as string | null}
                           onChange={(v) => updateDraft(id, { last_name: v })}
                           disabled={saving}
                           minW="min-w-[140px]"
@@ -871,8 +818,8 @@ export default function ProspectListPage() {
 
                       <td className="px-2 py-2 align-top">
                         <TextInput
-                          value={city}
-                          onChange={(v) => updateDraft(id, { city_state: joinCityState(v, state) })}
+                          value={valueFor(p, id, 'city') as string | null}
+                          onChange={(v) => updateDraft(id, { city: v })}
                           disabled={saving}
                           minW="min-w-[160px]"
                         />
@@ -881,9 +828,9 @@ export default function ProspectListPage() {
                       <td className="px-2 py-2 align-top">
                         <select
                           className="h-8 w-full min-w-[180px] rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900"
-                          value={state}
+                          value={(valueFor(p, id, 'state') as string | null) || ''}
                           disabled={saving}
-                          onChange={(e) => updateDraft(id, { city_state: joinCityState(city, e.target.value) })}
+                          onChange={(e) => updateDraft(id, { state: e.target.value })}
                         >
                           <option value=""></option>
                           {STATES.map((s) => (
@@ -895,11 +842,7 @@ export default function ProspectListPage() {
                       </td>
 
                       <td className="px-2 py-2 align-top">
-                        <YesNoSelect
-                          value={valueFor(p, id, 'top25') as string | null}
-                          onChange={(v) => updateDraft(id, { top25: v })}
-                          disabled={saving}
-                        />
+                        <YesNoSelect value={valueFor(p, id, 'top25') as string | null} onChange={(v) => updateDraft(id, { top25: v })} disabled={saving} />
                       </td>
 
                       <td className="px-2 py-2 align-top">
@@ -912,75 +855,39 @@ export default function ProspectListPage() {
                       </td>
 
                       <td className="px-2 py-2 align-top">
-                        <YesNoSelect
-                          value={valueFor(p, id, 'age25plus') as string | null}
-                          onChange={(v) => updateDraft(id, { age25plus: v })}
-                          disabled={saving}
-                        />
+                        <YesNoSelect value={valueFor(p, id, 'age25plus') as string | null} onChange={(v) => updateDraft(id, { age25plus: v })} disabled={saving} />
                       </td>
 
                       <td className="px-2 py-2 align-top">
-                        <YesNoSelect
-                          value={valueFor(p, id, 'married') as string | null}
-                          onChange={(v) => updateDraft(id, { married: v })}
-                          disabled={saving}
-                        />
+                        <YesNoSelect value={valueFor(p, id, 'married') as string | null} onChange={(v) => updateDraft(id, { married: v })} disabled={saving} />
                       </td>
 
                       <td className="px-2 py-2 align-top">
-                        <YesNoSelect
-                          value={valueFor(p, id, 'children') as string | null}
-                          onChange={(v) => updateDraft(id, { children: v })}
-                          disabled={saving}
-                        />
+                        <YesNoSelect value={valueFor(p, id, 'children') as string | null} onChange={(v) => updateDraft(id, { children: v })} disabled={saving} />
                       </td>
 
                       <td className="px-2 py-2 align-top">
-                        <YesNoSelect
-                          value={valueFor(p, id, 'homeowner') as string | null}
-                          onChange={(v) => updateDraft(id, { homeowner: v })}
-                          disabled={saving}
-                        />
+                        <YesNoSelect value={valueFor(p, id, 'homeowner') as string | null} onChange={(v) => updateDraft(id, { homeowner: v })} disabled={saving} />
                       </td>
 
                       <td className="px-2 py-2 align-top">
-                        <YesNoSelect
-                          value={valueFor(p, id, 'good_career') as string | null}
-                          onChange={(v) => updateDraft(id, { good_career: v })}
-                          disabled={saving}
-                        />
+                        <YesNoSelect value={valueFor(p, id, 'good_career') as string | null} onChange={(v) => updateDraft(id, { good_career: v })} disabled={saving} />
                       </td>
 
                       <td className="px-2 py-2 align-top">
-                        <YesNoSelect
-                          value={valueFor(p, id, 'income_60k') as string | null}
-                          onChange={(v) => updateDraft(id, { income_60k: v })}
-                          disabled={saving}
-                        />
+                        <YesNoSelect value={valueFor(p, id, 'income_60k') as string | null} onChange={(v) => updateDraft(id, { income_60k: v })} disabled={saving} />
                       </td>
 
                       <td className="px-2 py-2 align-top">
-                        <YesNoSelect
-                          value={valueFor(p, id, 'dissatisfied') as string | null}
-                          onChange={(v) => updateDraft(id, { dissatisfied: v })}
-                          disabled={saving}
-                        />
+                        <YesNoSelect value={valueFor(p, id, 'dissatisfied') as string | null} onChange={(v) => updateDraft(id, { dissatisfied: v })} disabled={saving} />
                       </td>
 
                       <td className="px-2 py-2 align-top">
-                        <YesNoSelect
-                          value={valueFor(p, id, 'ambitious') as string | null}
-                          onChange={(v) => updateDraft(id, { ambitious: v })}
-                          disabled={saving}
-                        />
+                        <YesNoSelect value={valueFor(p, id, 'ambitious') as string | null} onChange={(v) => updateDraft(id, { ambitious: v })} disabled={saving} />
                       </td>
 
                       <td className="px-2 py-2 align-top">
-                        <DateInput
-                          value={valueFor(p, id, 'contact_date') as string | null}
-                          onChange={(v) => updateDraft(id, { contact_date: v })}
-                          disabled={saving}
-                        />
+                        <DateInput value={valueFor(p, id, 'contact_date') as string | null} onChange={(v) => updateDraft(id, { contact_date: v })} disabled={saving} />
                       </td>
 
                       <td className="px-2 py-2 align-top">
@@ -1022,7 +929,7 @@ export default function ProspectListPage() {
                           <button
                             type="button"
                             disabled={!dirty || saving}
-                            onClick={() => saveRow(id)}
+                            onClick={() => saveRow(p)}
                             className="rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-40"
                           >
                             {saving ? 'Saving...' : 'Save'}
