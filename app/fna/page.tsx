@@ -1032,20 +1032,11 @@ export default function Page() {
                   <span className="text-slate-500">({selectedClient.email})</span>
                 </div>
               )}
-            </div>
-          /*  
+            </div> 
             <TopButton variant="danger" onClick={logout}>
-              ← Exit to Login
+              ← Logout
             </TopButton>
-            */
-             <Button variant="secondary" onClick={logout}> 
-              <span className="inline-flex items-center gap-2"> 
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> 
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" /> 
-                </svg> 
-                Logout 
-              </span> 
-            </Button> 
+            
           </div>
           {error && (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
