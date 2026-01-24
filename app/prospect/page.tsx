@@ -282,6 +282,7 @@ const YesNoSelect = ({
     <option value="Y">Yes</option>
     <option value="N">No</option>
   </select>
+);
 
 const LogoutIcon = ({ className }: { className?: string }) => (
   <svg
@@ -298,8 +299,6 @@ const LogoutIcon = ({ className }: { className?: string }) => (
     <polyline points="16 17 21 12 16 7" />
     <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
-);
-
 );
 
 export default function ProspectListPage() {
