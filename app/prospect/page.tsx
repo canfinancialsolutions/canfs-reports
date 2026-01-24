@@ -1,22 +1,6 @@
 // app/prospect/page.tsx
 'use client';
-export default function Page() {
-  const { checking } = useRequireAuth();
 
-  if (checking) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {/* Your existing page UI stays exactly the same here */}
-    </>
-  );
-}
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
  
