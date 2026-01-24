@@ -465,14 +465,20 @@ export default function ProspectListPage() {
 
   const loadProspects = async () => {
     if (!supabase) {
-      setToast('error', 'Missing Supabase environment variables (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY).');
+      setProspects([]);
+      setLoading(false);
+      setToast(
+        'error',
+        'Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables.'
+      );
       return;
     }
 
     setLoading(true);
     setErrorMsg('');
 
-    const { data, error } = await supabase.from('prospects').select('*').order('id', { ascending: false });
+    const db: any = (supabase as any).schema ? (supabase as any).schema('public') : supabase;
+    const { data, error } = await db.from('prospects').select('*').order('id', { ascending: false });
 
     if (error) {
       setToast('error', error.message);
@@ -508,13 +514,29 @@ export default function ProspectListPage() {
   }, [supabase]);
 
   const filtered = prospects.filter((p) => {
-    const q = search.trim().toLowerCase();
-    const matchSearch =
-      !q ||
-      (p.first_name || '').toLowerCase().includes(q) ||
-      (p.last_name || '').toLowerCase().includes(q) ||
-      (p.spouse_name || '').toLowerCase().includes(q) ||
-      (p.phone || '').toLowerCase().includes(q);
+    const qRaw = search.trim();
+    const q = qRaw.toLowerCase();
+    const qDigits = qRaw.replace(/\D/g, '');
+
+    const haystack = [
+      p.first_name,
+      p.last_name,
+      p.spouse_name,
+      p.relation_type,
+      p.phone,
+      p.city,
+      p.state,
+      p.immigration,
+      p.result,
+      p.next_steps,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    const phoneDigits = (p.phone || '').replace(/\D/g, '');
+
+    const matchSearch = !q || haystack.includes(q) || (!!qDigits && phoneDigits.includes(qDigits));
 
     const matchResult = resultFilter === 'ALL' || normText(p.result || '') === normText(resultFilter);
     return matchSearch && matchResult;
