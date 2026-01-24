@@ -132,12 +132,37 @@ const STATES = [
   { abbr: 'WY', name: 'Wyoming' },
 ] as const;
 
-const ynNormalize = (v?: string | null) => {
-  const s = (v || '').trim().toLowerCase();
+const STATE_NAME_OPTIONS = STATES.map((s) => s.name);
+
+const stateToName = (v?: string | null) => {
+  const raw = (v || '').trim();
+  if (!raw) return '';
+
+  // Handles legacy values like "TX - Texas" or "TX-Texas"
+  if (raw.includes('-')) {
+    const part = raw.split('-').slice(-1)[0]?.trim();
+    if (part) return part;
+  }
+
+  const abbr = raw.toUpperCase();
+  const found = STATES.find((s) => s.abbr === abbr);
+  if (found) return found.name;
+
+  // Assume it is already a state name
+  return raw;
+};
+
+
+const yesNoNormalize = (v?: string | null) => {
+  const raw = (v || '').trim();
+  const s = raw.toLowerCase();
   if (!s) return '';
-  if (s === 'y' || s === 'yes' || s === 'true') return 'Y';
-  if (s === 'n' || s === 'no' || s === 'false') return 'N';
-  return v || '';
+  if (s === 'y' || s === 'yes' || s === 'true') return 'Yes';
+  if (s === 'n' || s === 'no' || s === 'false') return 'No';
+  // If already stored as 'Yes' / 'No' (any case), normalize capitalization
+  if (s === 'yes') return 'Yes';
+  if (s === 'no') return 'No';
+  return raw;
 };
 
 const normText = (s: string) =>
@@ -182,17 +207,17 @@ const formFromProspect = (p: Prospect): ProspectForm => ({
   relation_type: p.relation_type || '',
   phone: p.phone || '',
   city: p.city || '',
-  state: (p.state || '').toUpperCase(),
-  top25: ynNormalize(p.top25),
+  state: stateToName(p.state),
+  top25: yesNoNormalize(p.top25),
   immigration: p.immigration || '',
-  age25plus: ynNormalize(p.age25plus),
-  married: ynNormalize(p.married),
-  children: ynNormalize(p.children),
-  homeowner: ynNormalize(p.homeowner),
-  good_career: ynNormalize(p.good_career),
-  income_60k: ynNormalize(p.income_60k),
-  dissatisfied: ynNormalize(p.dissatisfied),
-  ambitious: ynNormalize(p.ambitious),
+  age25plus: yesNoNormalize(p.age25plus),
+  married: yesNoNormalize(p.married),
+  children: yesNoNormalize(p.children),
+  homeowner: yesNoNormalize(p.homeowner),
+  good_career: yesNoNormalize(p.good_career),
+  income_60k: yesNoNormalize(p.income_60k),
+  dissatisfied: yesNoNormalize(p.dissatisfied),
+  ambitious: yesNoNormalize(p.ambitious),
   contact_date: (p.contact_date || '').slice(0, 10),
   result: p.result || '',
   next_steps: p.next_steps || '',
@@ -210,11 +235,33 @@ const isDirtyVsOriginal = (form: ProspectForm, original: Prospect) => {
   });
 };
 
+
+const normalizeProspectRow = (p: Prospect): Prospect => ({
+  ...p,
+  state: stateToName(p.state) || null,
+  top25: yesNoNormalize(p.top25) || null,
+  age25plus: yesNoNormalize(p.age25plus) || null,
+  married: yesNoNormalize(p.married) || null,
+  children: yesNoNormalize(p.children) || null,
+  homeowner: yesNoNormalize(p.homeowner) || null,
+  good_career: yesNoNormalize(p.good_career) || null,
+  income_60k: yesNoNormalize(p.income_60k) || null,
+  dissatisfied: yesNoNormalize(p.dissatisfied) || null,
+  ambitious: yesNoNormalize(p.ambitious) || null,
+});
+
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <div className="flex flex-col gap-1">
     <label className="text-xs font-semibold text-slate-700">{label}</label>
     {children}
   </div>
+
+
+const SubCard = ({ children }: { children: ReactNode }) => (
+  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    {children}
+  </div>
+);
 );
 
 const TextInput = ({
@@ -260,7 +307,7 @@ const DateInput = ({
   />
 );
 
-const YesNoSelect = ({
+const YesNoCheckbox = ({
   value,
   onChange,
   disabled,
@@ -270,18 +317,38 @@ const YesNoSelect = ({
   onChange: (v: string) => void;
   disabled?: boolean;
   compact?: boolean;
-}) => (
-  <select
-    className={`${compact ? 'h-9 text-xs' : 'h-10 text-sm'} w-full rounded-lg border border-slate-200 bg-white px-3 text-slate-900`}
-    value={ynNormalize(value)}
-    disabled={disabled}
-    onChange={(e) => onChange(e.target.value)}
-  >
-    <option value=""></option>
-    <option value="Y">Yes</option>
-    <option value="N">No</option>
-  </select>
-);
+}) => {
+  const v = yesNoNormalize(value);
+
+  const setYes = () => onChange(v === 'Yes' ? '' : 'Yes');
+  const setNo = () => onChange(v === 'No' ? '' : 'No');
+
+  return (
+    <div className={`flex items-center ${compact ? 'gap-2' : 'gap-3'}`}>
+      <label className={`inline-flex items-center ${compact ? 'gap-1 text-xs' : 'gap-2 text-sm'} text-slate-700`}>
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-slate-300"
+          checked={v === 'Yes'}
+          onChange={() => setYes()}
+          disabled={disabled}
+        />
+        <span>Yes</span>
+      </label>
+
+      <label className={`inline-flex items-center ${compact ? 'gap-1 text-xs' : 'gap-2 text-sm'} text-slate-700`}>
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-slate-300"
+          checked={v === 'No'}
+          onChange={() => setNo()}
+          disabled={disabled}
+        />
+        <span>No</span>
+      </label>
+    </div>
+  );
+};
 
 const ToolbarButton = ({
   label,
@@ -486,7 +553,7 @@ export default function ProspectListPage() {
       return;
     }
 
-    const rows = (data || []) as Prospect[];
+    const rows = ((data || []) as Prospect[]).map(normalizeProspectRow);
     setProspects(rows);
     setLoading(false);
 
@@ -548,7 +615,7 @@ export default function ProspectListPage() {
   const pageRows = filtered.slice(start, start + PAGE_SIZE);
 
   const buildPayloadFromForm = (f: ProspectForm) => {
-    const stateAbbr = (f.state || '').trim();
+    const stateName = stateToName(f.state);
     return {
       first_name: f.first_name.trim(),
       last_name: f.last_name.trim() || null,
@@ -556,17 +623,17 @@ export default function ProspectListPage() {
       relation_type: toNull(f.relation_type),
       phone: f.phone.trim() || null,
       city: toNull(f.city),
-      state: stateAbbr ? stateAbbr.toUpperCase() : null,
-      top25: ynNormalize(f.top25) || null,
+      state: stateName ? stateName : null,
+      top25: yesNoNormalize(f.top25) || null,
       immigration: toNull(f.immigration),
-      age25plus: ynNormalize(f.age25plus) || null,
-      married: ynNormalize(f.married) || null,
-      children: ynNormalize(f.children) || null,
-      homeowner: ynNormalize(f.homeowner) || null,
-      good_career: ynNormalize(f.good_career) || null,
-      income_60k: ynNormalize(f.income_60k) || null,
-      dissatisfied: ynNormalize(f.dissatisfied) || null,
-      ambitious: ynNormalize(f.ambitious) || null,
+      age25plus: yesNoNormalize(f.age25plus) || null,
+      married: yesNoNormalize(f.married) || null,
+      children: yesNoNormalize(f.children) || null,
+      homeowner: yesNoNormalize(f.homeowner) || null,
+      good_career: yesNoNormalize(f.good_career) || null,
+      income_60k: yesNoNormalize(f.income_60k) || null,
+      dissatisfied: yesNoNormalize(f.dissatisfied) || null,
+      ambitious: yesNoNormalize(f.ambitious) || null,
       contact_date: toNull(f.contact_date),
       result: toNull(f.result),
       next_steps: toNull(f.next_steps),
@@ -658,7 +725,7 @@ export default function ProspectListPage() {
       return;
     }
 
-    const inserted = data as Prospect;
+    const inserted = normalizeProspectRow(data as Prospect);
 
     setProspects((prev) => [inserted, ...prev.filter((x) => x.id !== inserted.id)]);
     setActiveId(inserted.id);
@@ -706,7 +773,7 @@ export default function ProspectListPage() {
       return;
     }
 
-    const updated = data as Prospect;
+    const updated = normalizeProspectRow(data as Prospect);
 
     setProspects((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
     setActiveId(updated.id);
@@ -1054,187 +1121,194 @@ export default function ProspectListPage() {
 
                         {/* Form layout */}
             <div className="space-y-3">
-              {/* Line 1: Name + Relation */}
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
-                <Field label="First Name *">
-                  <TextInput
-                    compact
-                    placeholder="First Name"
-                    value={form.first_name}
-                    onChange={(v) => setForm((p) => ({ ...p, first_name: v }))}
-                    disabled={saving}
-                  />
-                </Field>
+              <SubCard>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+                  <Field label="First Name *">
+                    <TextInput
+                      compact
+                      placeholder="First Name"
+                      value={form.first_name}
+                      onChange={(v) => setForm((p) => ({ ...p, first_name: v }))}
+                      disabled={saving}
+                    />
+                  </Field>
 
-                <Field label="Last Name *">
-                  <TextInput
-                    compact
-                    placeholder="Last Name"
-                    value={form.last_name}
-                    onChange={(v) => setForm((p) => ({ ...p, last_name: v }))}
-                    disabled={saving}
-                  />
-                </Field>
+                  <Field label="Last Name *">
+                    <TextInput
+                      compact
+                      placeholder="Last Name"
+                      value={form.last_name}
+                      onChange={(v) => setForm((p) => ({ ...p, last_name: v }))}
+                      disabled={saving}
+                    />
+                  </Field>
 
-                <Field label="Spouse Name">
-                  <TextInput
-                    compact
-                    placeholder="Spouse Name"
-                    value={form.spouse_name}
-                    onChange={(v) => setForm((p) => ({ ...p, spouse_name: v }))}
-                    disabled={saving}
-                  />
-                </Field>
+                  <Field label="Spouse Name">
+                    <TextInput
+                      compact
+                      placeholder="Spouse Name"
+                      value={form.spouse_name}
+                      onChange={(v) => setForm((p) => ({ ...p, spouse_name: v }))}
+                      disabled={saving}
+                    />
+                  </Field>
 
-                <Field label="Relation Type">
-                  <select
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
-                    value={form.relation_type}
-                    onChange={(e) => setForm((p) => ({ ...p, relation_type: e.target.value }))}
-                    disabled={saving}
-                  >
-                    {RELATION_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o || 'Select...'}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
+                  <Field label="Relation Type">
+                    <select
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
+                      value={form.relation_type}
+                      onChange={(e) => setForm((p) => ({ ...p, relation_type: e.target.value }))}
+                      disabled={saving}
+                    >
+                      {RELATION_OPTIONS.map((o) => (
+                        <option key={o} value={o}>
+                          {o || 'Select...'}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              </SubCard>
 
-              {/* Line 2: Contact + Location + Immigration */}
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
-                <Field label="Phone *">
-                  <TextInput
-                    compact
-                    placeholder="Phone"
-                    value={form.phone}
-                    onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
-                    disabled={saving}
-                  />
-                </Field>
+              <SubCard>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+                  <Field label="Phone *">
+                    <TextInput
+                      compact
+                      placeholder="Phone"
+                      value={form.phone}
+                      onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
+                      disabled={saving}
+                    />
+                  </Field>
 
-                <Field label="City">
-                  <TextInput
-                    compact
-                    placeholder="City"
-                    value={form.city}
-                    onChange={(v) => setForm((p) => ({ ...p, city: v }))}
-                    disabled={saving}
-                  />
-                </Field>
+                  <Field label="City">
+                    <TextInput
+                      compact
+                      placeholder="City"
+                      value={form.city}
+                      onChange={(v) => setForm((p) => ({ ...p, city: v }))}
+                      disabled={saving}
+                    />
+                  </Field>
 
-                <Field label="State">
-                  <select
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
-                    value={form.state}
-                    onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))}
-                    disabled={saving}
-                  >
-                    <option value=""></option>
-                    {STATES.map((s) => (
-                      <option key={s.abbr} value={s.abbr}>
-                        {s.abbr} - {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                  <Field label="State">
+                    <select
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
+                      value={form.state}
+                      onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))}
+                      disabled={saving}
+                    >
+                      <option value=""></option>
+                      {STATE_NAME_OPTIONS.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
 
-                <Field label="Immigration">
-                  <select
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
-                    value={form.immigration}
-                    onChange={(e) => setForm((p) => ({ ...p, immigration: e.target.value }))}
-                    disabled={saving}
-                  >
-                    {IMMIGRATION_STATUS_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o || 'Select...'}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
+                  <Field label="Immigration">
+                    <select
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
+                      value={form.immigration}
+                      onChange={(e) => setForm((p) => ({ ...p, immigration: e.target.value }))}
+                      disabled={saving}
+                    >
+                      {IMMIGRATION_STATUS_OPTIONS.map((o) => (
+                        <option key={o} value={o}>
+                          {o || 'Select...'}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              </SubCard>
 
-              {/* Line 3: Top25 → Ambitious (compact single line on large screens) */}
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-9">
-                <Field label="Top 25">
-                  <YesNoSelect compact value={form.top25} onChange={(v) => setForm((p) => ({ ...p, top25: v }))} disabled={saving} />
-                </Field>
+              <SubCard>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9">
+                  <Field label="Top 25">
+                    <YesNoCheckbox compact value={form.top25} onChange={(v) => setForm((p) => ({ ...p, top25: v }))} disabled={saving} />
+                  </Field>
 
-                <Field label="Age 25+">
-                  <YesNoSelect compact value={form.age25plus} onChange={(v) => setForm((p) => ({ ...p, age25plus: v }))} disabled={saving} />
-                </Field>
+                  <Field label="Age 25+">
+                    <YesNoCheckbox compact value={form.age25plus} onChange={(v) => setForm((p) => ({ ...p, age25plus: v }))} disabled={saving} />
+                  </Field>
 
-                <Field label="Married">
-                  <YesNoSelect compact value={form.married} onChange={(v) => setForm((p) => ({ ...p, married: v }))} disabled={saving} />
-                </Field>
+                  <Field label="Married">
+                    <YesNoCheckbox compact value={form.married} onChange={(v) => setForm((p) => ({ ...p, married: v }))} disabled={saving} />
+                  </Field>
 
-                <Field label="Children">
-                  <YesNoSelect compact value={form.children} onChange={(v) => setForm((p) => ({ ...p, children: v }))} disabled={saving} />
-                </Field>
+                  <Field label="Children">
+                    <YesNoCheckbox compact value={form.children} onChange={(v) => setForm((p) => ({ ...p, children: v }))} disabled={saving} />
+                  </Field>
 
-                <Field label="Homeowner">
-                  <YesNoSelect compact value={form.homeowner} onChange={(v) => setForm((p) => ({ ...p, homeowner: v }))} disabled={saving} />
-                </Field>
+                  <Field label="Homeowner">
+                    <YesNoCheckbox compact value={form.homeowner} onChange={(v) => setForm((p) => ({ ...p, homeowner: v }))} disabled={saving} />
+                  </Field>
 
-                <Field label="Good Career">
-                  <YesNoSelect compact value={form.good_career} onChange={(v) => setForm((p) => ({ ...p, good_career: v }))} disabled={saving} />
-                </Field>
+                  <Field label="Good Career">
+                    <YesNoCheckbox compact value={form.good_career} onChange={(v) => setForm((p) => ({ ...p, good_career: v }))} disabled={saving} />
+                  </Field>
 
-                <Field label="Income 60K">
-                  <YesNoSelect compact value={form.income_60k} onChange={(v) => setForm((p) => ({ ...p, income_60k: v }))} disabled={saving} />
-                </Field>
+                  <Field label="Income 60K">
+                    <YesNoCheckbox compact value={form.income_60k} onChange={(v) => setForm((p) => ({ ...p, income_60k: v }))} disabled={saving} />
+                  </Field>
 
-                <Field label="Dissatisfied">
-                  <YesNoSelect compact value={form.dissatisfied} onChange={(v) => setForm((p) => ({ ...p, dissatisfied: v }))} disabled={saving} />
-                </Field>
+                  <Field label="Dissatisfied">
+                    <YesNoCheckbox compact value={form.dissatisfied} onChange={(v) => setForm((p) => ({ ...p, dissatisfied: v }))} disabled={saving} />
+                  </Field>
 
-                <Field label="Ambitious">
-                  <YesNoSelect compact value={form.ambitious} onChange={(v) => setForm((p) => ({ ...p, ambitious: v }))} disabled={saving} />
-                </Field>
-              </div>
+                  <Field label="Ambitious">
+                    <YesNoCheckbox compact value={form.ambitious} onChange={(v) => setForm((p) => ({ ...p, ambitious: v }))} disabled={saving} />
+                  </Field>
+                </div>
+              </SubCard>
 
-              {/* Line 4: Contact Date → Next Steps (after Ambitious, above Comments) */}
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                <Field label="Contact Date">
-                  <DateInput
-                    compact
-                    value={form.contact_date}
-                    onChange={(v) => setForm((p) => ({ ...p, contact_date: v }))}
-                    disabled={saving}
-                  />
-                </Field>
+              <SubCard>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <Field label="Contact Date">
+                    <DateInput
+                      compact
+                      value={form.contact_date}
+                      onChange={(v) => setForm((p) => ({ ...p, contact_date: v }))}
+                      disabled={saving}
+                    />
+                  </Field>
 
-                <Field label="Result">
-                  <select
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
-                    value={form.result}
-                    onChange={(e) => setForm((p) => ({ ...p, result: e.target.value }))}
-                    disabled={saving}
-                  >
-                    {RESULT_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o || 'Select...'}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                  <Field label="Result">
+                    <select
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900"
+                      value={form.result}
+                      onChange={(e) => setForm((p) => ({ ...p, result: e.target.value }))}
+                      disabled={saving}
+                    >
+                      {RESULT_OPTIONS.map((o) => (
+                        <option key={o} value={o}>
+                          {o || 'Select...'}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
 
-                <Field label="Next Steps">
-                  <TextInput
-                    compact
-                    placeholder="Next Steps"
-                    value={form.next_steps}
-                    onChange={(v) => setForm((p) => ({ ...p, next_steps: v }))}
-                    disabled={saving}
-                  />
-                </Field>
-              </div>
+                  <Field label="Next Steps">
+                    <TextInput
+                      compact
+                      placeholder="Next Steps"
+                      value={form.next_steps}
+                      onChange={(v) => setForm((p) => ({ ...p, next_steps: v }))}
+                      disabled={saving}
+                    />
+                  </Field>
+                </div>
+              </SubCard>
 
-              <Field label="Comments">
-                <CommentsEditor value={form.comments} onChange={(v) => setForm((p) => ({ ...p, comments: v }))} disabled={saving} />
-              </Field>
+              <SubCard>
+                <Field label="Comments">
+                  <CommentsEditor value={form.comments} onChange={(v) => setForm((p) => ({ ...p, comments: v }))} disabled={saving} />
+                </Field>
+              </SubCard>
+            </div>
             </div>
           </div>
         )}
