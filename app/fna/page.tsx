@@ -1,21 +1,5 @@
 "use client";
-export default function Page() {
-  const { checking } = useRequireAuth();
 
-  if (checking) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {/* Your existing page UI stays exactly the same here */}
-    </>
-  );
-}
 export const dynamic = "force-dynamic";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
