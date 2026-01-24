@@ -308,47 +308,17 @@ export default function ProspectListPage() {
 
     setSavingIds((p) => ({ ...p, [id]: true }));
 
-    const ynFields: Array<keyof Prospect> = [
-      'top25',
-      'age25plus',
-      'married',
-      'children',
-      'homeowner',
-      'good_career',
-      'income_60k',
-      'dissatisfied',
-      'ambitious',
-    ];
+    // Normalize Yes/No fields (store 'Y' / 'N' or NULL)
+    payload.top25 = ynNormalize(payload.top25) || null;
+    payload.age25plus = ynNormalize(payload.age25plus) || null;
+    payload.married = ynNormalize(payload.married) || null;
+    payload.children = ynNormalize(payload.children) || null;
+    payload.homeowner = ynNormalize(payload.homeowner) || null;
+    payload.good_career = ynNormalize(payload.good_career) || null;
+    payload.income_60k = ynNormalize(payload.income_60k) || null;
+    payload.dissatisfied = ynNormalize(payload.dissatisfied) || null;
+    payload.ambitious = ynNormalize(payload.ambitious) || null;
 
-    const payload: Partial<Prospect> = { ...draft };
-
-    // Normalize fields
-    payload.first_name = finalFirst;
-
-    if ('last_name' in payload) payload.last_name = toNull(String(payload.last_name ?? ''));
-    if ('spouse_name' in payload) payload.spouse_name = toNull(String(payload.spouse_name ?? ''));
-    if ('relation_type' in payload) payload.relation_type = toNull(String(payload.relation_type ?? ''));
-    if ('phone' in payload) payload.phone = toNull(String(payload.phone ?? ''));
-    if ('city' in payload) payload.city = toNull(String(payload.city ?? ''));
-    if ('state' in payload) payload.state = toNull(String(payload.state ?? '').toUpperCase());
-    if ('immigration' in payload) payload.immigration = toNull(String(payload.immigration ?? ''));
-    if ('result' in payload) payload.result = toNull(String(payload.result ?? ''));
-    if ('next_steps' in payload) payload.next_steps = toNull(String(payload.next_steps ?? ''));
-    if ('comments' in payload) payload.comments = toNull(String(payload.comments ?? ''));
-
-    if ('contact_date' in payload) {
-      const v = String(payload.contact_date ?? '').trim();
-      payload.contact_date = v.length ? v : null;
-    }
-
-    ynFields.forEach((k) => {
-      if (!(k in payload)) return;
-      const v = payload[k];
-      if (typeof v === 'string' || v == null) {
-        const norm = ynNormalize(v);
-        payload[k] = (norm || null) as Prospect[typeof k];
-      }
-    });
 
     payload.updated_at = new Date().toISOString();
 
