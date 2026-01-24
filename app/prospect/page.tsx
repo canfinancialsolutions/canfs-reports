@@ -255,13 +255,13 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
     <label className="text-xs font-semibold text-slate-700">{label}</label>
     {children}
   </div>
+);
 
 
 const SubCard = ({ children }: { children: ReactNode }) => (
   <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
     {children}
   </div>
-);
 );
 
 const TextInput = ({
