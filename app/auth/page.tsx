@@ -1,124 +1,108 @@
-"use client";
+// app/auth/page.tsx
+'use client';
 
-import { useEffect, useState } from "react";
-// If you are not using Supabase auth yet, comment this out or keep your own:
- import { getSupabase } from "@/lib/supabaseClient";
+import { useState } from 'react';
 
 const DESTINATIONS = [
-  { value: "dashboard", label: "Dashboard", path: "/dashboard" },
-  { value: "fna", label: "Financial Need Analysis", path: "/fna" },
-  { value: "prospect", label: "Prospect List", path: "/prospect" },
+  { value: 'dashboard', label: 'Dashboard', path: '/dashboard' },
+  { value: 'fna', label: 'Financial Need Analysis', path: '/fna' },
+  { value: 'prospect', label: 'Prospect List', path: '/prospect' },
 ];
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [destination, setDestination] = useState<string>("dashboard");
-  const [msg, setMsg] = useState<string | null>(null);
-  const [checking, setChecking] = useState(false); // simple version
-/*
-  useEffect(() => {
-    // If you want auto-redirect when already logged in, add it here later.
-    setChecking(false);
-  }, []);
-*/
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [destination, setDestination] = useState<string>('dashboard');
+  const [error, setError] = useState<string | null>(null);
+
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMsg(null);
+    setError(null);
 
-    try {
-      // If using Supabase auth, do it here; otherwise, skip to redirect.
-      
-      const supabase = getSupabase();
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) {
-        setMsg(error.message);
-        return;
-      }
-     
-
-      // Find destination path from dropdown value
-      const dest = DESTINATIONS.find((d) => d.value === destination);
-      const path = dest?.path || "/dashboard";
-
-      // IMPORTANT: redirect on success
-      window.location.href = path;
-    } catch (err: any) {
-      setMsg(err?.message || "Sign-in failed");
+    // TODO: replace with real auth; for now, accept any non-empty credentials
+    if (!email || !password) {
+      setError('Please enter email and password');
+      return;
     }
+
+    // Set simple auth cookie – checked by middleware
+    document.cookie = `canfs_auth=true; path=/; max-age=86400`; // 1 day
+
+    const dest = DESTINATIONS.find((d) => d.value === destination);
+    const redirectTo = dest?.path ?? '/dashboard';
+
+    window.location.href = redirectTo;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <div className="flex items-center gap-3 mb-6 justify-center">
-          <img src="/can-logo.png" className="h-14 w-auto" alt="CAN Financial Solutions" />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
+        <div className="flex flex-col items-center mb-6">
+          <img src="/can-logo.png" alt="CAN Financial Solutions" className="h-14 mb-3" />
+          <h1 className="text-2xl font-bold text-slate-900 mb-1">Admin Login</h1>
+          <p className="text-sm text-slate-600">Protecting Your Tomorrow</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 border">
-          <h1 className="text-2xl font-bold text-center mb-2">Admin Login</h1>
-          <p className="text-sm text-slate-600 text-center mb-6">Protecting Your Tomorrow</p>
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
-          {checking ? (
-            <div className="text-center text-slate-600">Checking session...</div>
-          ) : (
-            <>
-              {msg && (
-                <div className="mb-4 rounded-xl bg-red-50 border border-red-200 p-3 text-red-700 text-sm">
-                  {msg}
-                </div>
-              )}
+        <form onSubmit={signIn} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@email.com"
+            />
+          </div>
 
-              <form onSubmit={signIn} className="space-y-4">
-                <label className="block">
-                  <div className="text-sm font-semibold text-slate-700 mb-1">Email</div>
-                  <input
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    autoComplete="email"
-                  />
-                </label>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
+              Password
+            </label>
+            <input
+              type="password"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
 
-                <label className="block">
-                  <div className="text-sm font-semibold text-slate-700 mb-1">Password</div>
-                  <input
-                    type="password"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                  />
-                </label>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">
+              Go to
+            </label>
+            <select
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+            >
+              {DESTINATIONS.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-                <label className="block">
-                  <div className="text-sm font-semibold text-slate-700 mb-1">Go to</div>
-                  <select
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                  >
-                    {DESTINATIONS.map((d) => (
-                      <option key={d.value} value={d.value}>
-                        {d.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+          <button
+            type="submit"
+            className="mt-2 w-full rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 text-sm"
+          >
+            Sign In → {DESTINATIONS.find((d) => d.value === destination)?.label ?? 'Dashboard'}
+          </button>
+        </form>
 
-                <button
-                  type="submit"
-                  className="w-full rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold py-3 text-sm"
-                >
-                  Sign In → {DESTINATIONS.find((d) => d.value === destination)?.label ?? "Dashboard"}
-                </button>
-              </form>
-            </>
-          )}
+        <div className="mt-6 text-center text-[11px] text-slate-500">
+          CAN Financial Solutions &mdash; Protecting Your Tomorrow
         </div>
       </div>
     </div>
