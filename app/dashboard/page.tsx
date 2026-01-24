@@ -12,18 +12,14 @@
  * No backend changes (schema, procedures, routes, auth, Supabase policies). 
  */ 
 "use client";
-// Add to your dashboard page (top section)
 
- <button
-  type="button"
-  onClick={() => {
-    document.cookie = 'canfs_auth=; path=/; max-age=0';
-    window.location.href = '/auth';
-  }}
-  className="rounded-xl px-4 py-2 font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
->
-  Logout
-</button>
+import { useEffect, useState } from 'react';
+
+// AUTH GUARD - Add this to EVERY protected page
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated
+
+
 
 
 export const dynamic = "force-dynamic"; 
