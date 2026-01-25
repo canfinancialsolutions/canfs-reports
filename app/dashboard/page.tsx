@@ -12,6 +12,7 @@
  * No backend changes (schema, procedures, routes, auth, Supabase policies). 
  */ 
 "use client";
+export const dynamic = "force-dynamic"; 
 
 import { useEffect, useState } from 'react';
 import { hasSession, clearSession } from '../lib/auth-client'; // adjust path if needed
@@ -35,7 +36,7 @@ export default function DashboardPage() {
   if (!ready) return null; // or a spinner
  
 
-export const dynamic = "force-dynamic"; 
+
 
 
 import React, { useEffect, useMemo, useRef, useState } from "react"; 
