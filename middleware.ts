@@ -5,16 +5,12 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Public routes – allow without login
   const publicPaths = ['/auth', '/_next', '/favicon.ico', '/api/auth'];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
-  // Read simple auth cookie
   const hasSession = request.cookies.get('canfs_auth')?.value === 'true';
-
-  // Protect /dashboard and /prospect and /fna
   const protectedPrefixes = ['/dashboard', '/prospect', '/fna'];
   const isProtected = protectedPrefixes.some((p) => pathname.startsWith(p));
 
