@@ -1,7 +1,5 @@
-// app/lib/auth-client.ts  (or /lib/auth-client.ts in root and adjust imports)
-
+// app/lib/auth-client.ts
 export function setSession() {
-  // simple flag cookie for demo auth
   document.cookie = 'canfs_auth=true; path=/; max-age=86400'; // 1 day
 }
 
