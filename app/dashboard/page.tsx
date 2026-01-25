@@ -30,15 +30,9 @@ function useRequireAuth() {
 
   return ready;
 }
-
 export default function DashboardPage() {
   const ready = useRequireAuth();
   if (!ready) return null; // or a spinner
- 
-
-
-
-
 import React, { useEffect, useMemo, useRef, useState } from "react"; 
 import * as XLSX from "xlsx"; 
 import { 
