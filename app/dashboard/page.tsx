@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
@@ -6,7 +6,7 @@ import { addDays, addMonths, format, isValid, parseISO, startOfMonth, subMonths,
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, Bar, LabelList } from 'recharts';
 import { getSupabase } from '@/lib/supabaseClient';
 import { Button, Card } from '@/components/ui';
-import { useRequireCanfsAuth, clearCanfsAuthCookie } from "@/lib/useRequireCanfsAuth";
+import { useRequireCanfsAuth, clearCanfsAuthCookie } from '@/lib/useRequireCanfsAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -300,7 +300,7 @@ export default function Dashboard() {
     const supabase = getSupabase();
     await supabase.auth.signOut();
   } finally {
-    window.location.href = "/auth";
+    window.location.href = '/auth';
   }
 } 
 function ProgressSummaryTable({ rows, sortState, onSortChange }: { rows: Row[]; sortState: { key: ProgressSortKey; dir: SortDir }; onSortChange: (k: ProgressSortKey) => void; }) { 
