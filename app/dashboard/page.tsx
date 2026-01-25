@@ -1,20 +1,9 @@
 // app/dashboard/page.tsx
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import * as XLSX from "xlsx";
-import { 
-  addDays, 
-  format,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval
-} from "date-fns";
+import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from '@supabase/supabase-js';
-import { 
-  hasSession, 
-  clearSession 
-} from '../lib/auth-client';
+import { hasSession, clearSession } from '../lib/auth-client';
 
 type Client = {
   id: string;
@@ -65,7 +54,6 @@ export default function DashboardPage() {
     completed: 0,
   });
 
-  // Load clients from Supabase
   const loadClients = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -75,13 +63,10 @@ export default function DashboardPage() {
 
     if (!error && data) {
       setClients(data as Client[]);
-      
-      // Calculate stats
       const total = data.length;
       const newCount = data.filter(c => c.status === 'New Client').length;
       const inProgress = data.filter(c => c.status !== 'New Client' && c.status !== 'Completed').length;
       const completed = data.filter(c => c.status === 'Completed').length;
-      
       setStats({ total, new: newCount, inProgress, completed });
     }
     setLoading(false);
@@ -98,7 +83,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* HEADER */}
       <div className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -118,7 +102,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="px-6 py-8">
-        {/* STATS CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
             <div className="flex items-center justify-between">
@@ -185,7 +168,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* RECENT CLIENTS TABLE */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-200">
             <h2 className="text-lg font-semibold text-slate-900">Recent Clients</h2>
@@ -246,7 +228,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* QUICK ACTIONS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">Quick Actions</h3>
@@ -260,16 +241,6 @@ export default function DashboardPage() {
                 <div className="text-sm text-slate-600">Financial Need Analysis</div>
               </a>
             </div>
-          </div>
-          
-          <div className="md:col-span-2 bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Next Steps</h3>
-            <ul className="text-sm text-slate-600 space-y-1">
-              <li>• Review {stats.new} new client registrations</li>
-              <li>• Follow up on {stats.inProgress} in-progress cases</li>
-              <li>• Update prospect tracking records</li>
-              <li>• Schedule client meetings</li>
-            </ul>
           </div>
         </div>
       </div>
