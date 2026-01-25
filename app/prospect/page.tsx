@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { useRequireCanfsAuth, clearCanfsAuthCookie } from "@/lib/useRequireCanfsAuth";
+import { useRequireCanfsAuth, clearCanfsAuthCookie } from '@/lib/useRequireCanfsAuth';
 
 type Prospect = {
   id: number;
