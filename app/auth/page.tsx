@@ -1,29 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { hasCanfsAuthCookie, setCanfsAuthCookie } from "@/lib/useRequireCanfsAuth";
+import { useEffect, useMemo, useState } from 'react';
+import { hasCanfsAuthCookie, setCanfsAuthCookie } from '@/lib/useRequireCanfsAuth';
 
 const DESTINATIONS = [
-  { value: "dashboard", label: "Dashboard", path: "/dashboard" },
-  { value: "fna", label: "Financial Need Analysis", path: "/fna" },
-  { value: "prospect", label: "Prospect List", path: "/prospect" },
+  { value: 'dashboard', label: 'Dashboard', path: '/dashboard' },
+  { value: 'fna', label: 'Financial Need Analysis', path: '/fna' },
+  { value: 'prospect', label: 'Prospect List', path: '/prospect' },
 ];
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [destination, setDestination] = useState("dashboard");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [destination, setDestination] = useState('dashboard');
   const [error, setError] = useState<string | null>(null);
 
   const nextFromQuery = useMemo(() => {
-    if (typeof window === "undefined") return "";
+    if (typeof window === 'undefined') return '';
     const params = new URLSearchParams(window.location.search);
-    return params.get("next") ?? "";
+    return params.get('next') ?? '';
   }, []);
 
   useEffect(() => {
     if (hasCanfsAuthCookie()) {
-      window.location.href = nextFromQuery || "/dashboard";
+      window.location.href = nextFromQuery || '/dashboard';
     }
   }, [nextFromQuery]);
 
@@ -31,8 +31,9 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
+    // TODO: replace with real auth; for now, accept any non-empty credentials
     if (!email || !password) {
-      setError("Please enter email and password");
+      setError('Please enter email and password');
       return;
     }
 
@@ -44,7 +45,7 @@ export default function LoginPage() {
     }
 
     const dest = DESTINATIONS.find((d) => d.value === destination);
-    window.location.href = dest?.path ?? "/dashboard";
+    window.location.href = dest?.path ?? '/dashboard';
   };
 
   return (
