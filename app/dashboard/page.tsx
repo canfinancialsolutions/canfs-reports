@@ -13,18 +13,30 @@
  */ 
 "use client";
 
+import { useEffect, useState } from 'react';
+import { hasSession, clearSession } from '../lib/auth-client'; // adjust path if needed
+
+function useRequireAuth() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!hasSession()) {
+      window.location.href = '/auth';
+      return;
+    }
+    setReady(true);
+  }, []);
+
+  return ready;
+}
+
+export default function DashboardPage() {
+  const ready = useRequireAuth();
+  if (!ready) return null; // or a spinner
+ 
+
 export const dynamic = "force-dynamic"; 
 
-// Add to your dashboard page (top section)
-<div className="flex justify-between items-center mb-6">
-  <h1 className="text-2xl font-bold">CANFS Dashboard</h1>
-  <button
-    onClick={() => window.location.href = '/auth'}
-    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-  >
-    ← Exit
-  </button>
-</div>
 
 import React, { useEffect, useMemo, useRef, useState } from "react"; 
 import * as XLSX from "xlsx"; 
