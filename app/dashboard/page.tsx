@@ -13,6 +13,8 @@
  */ 
 "use client";
 
+export const dynamic = "force-dynamic"; 
+
 // Add to your dashboard page (top section)
 <div className="flex justify-between items-center mb-6">
   <h1 className="text-2xl font-bold">CANFS Dashboard</h1>
@@ -24,7 +26,6 @@
   </button>
 </div>
 
-export const dynamic = "force-dynamic"; 
 import React, { useEffect, useMemo, useRef, useState } from "react"; 
 import * as XLSX from "xlsx"; 
 import { 
