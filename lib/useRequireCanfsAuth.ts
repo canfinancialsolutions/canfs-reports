@@ -1,12 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useEffect, useState } from 'react';
 
 export function hasCanfsAuthCookie(): boolean {
-  if (typeof document === "undefined") return false;
+  if (typeof document === 'undefined') return false;
   return document.cookie
-    .split(";")
+    .split(';')
     .map((c) => c.trim())
-    .some((c) => c.startsWith("canfs_auth=") && c.includes("true"));
+    .some((c) => c.startsWith('canfs_auth=') && c.includes('true'));
 }
 
 export function setCanfsAuthCookie(days = 1) {
@@ -15,7 +16,7 @@ export function setCanfsAuthCookie(days = 1) {
 }
 
 export function clearCanfsAuthCookie() {
-  document.cookie = `canfs_auth=; path=/; max-age=0; samesite=lax`;
+  document.cookie = 'canfs_auth=; path=/; max-age=0; samesite=lax';
 }
 
 export function useRequireCanfsAuth() {
