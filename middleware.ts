@@ -14,22 +14,22 @@ export function middleware(request: NextRequest) {
   // Read simple auth cookie
   const hasSession = request.cookies.get('canfs_auth')?.value === 'true';
 
-  // Protect /dashboard and /prospect and /fna (add any others here)
+  // Protect /dashboard and /prospect and /fna
   const protectedPrefixes = ['/dashboard', '/prospect', '/fna'];
-
   const isProtected = protectedPrefixes.some((p) => pathname.startsWith(p));
 
   if (isProtected && !hasSession) {
     const url = request.nextUrl.clone();
     url.pathname = '/auth';
-    url.searchParams.set('redirect', pathname); // optional: remember where they were going
+    // Match auth page: /auth?next=...
+    url.searchParams.set('next', pathname);
     return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
 }
 
-// Limit middleware to app routes (you can tighten this if you want)
+// Limit middleware to app routes
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
