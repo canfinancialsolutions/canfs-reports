@@ -1,18 +1,15 @@
-// app/page.tsx
-'use client';
 
-import { useEffect } from 'react';
-
-export default function HomeRedirect() {
-  useEffect(() => {
-    window.location.href = '/auth';
-  }, []);
-
+export default function HomePage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <p className="text-sm text-slate-600">
-        Redirecting to login...
+    <main style={{ padding: 24 }}>
+      <h1>CANFS Reports</h1>
+      <p>
+        Go to <a href="/auth">/auth</a> to sign in.
       </p>
-    </div>
+      <p>
+        Protected pages: <a href="/dashboard">/dashboard</a>,{" "}
+        <a href="/prospect">/prospect</a>, <a href="/fna">/fna</a>
+      </p>
+    </main>
   );
 }
