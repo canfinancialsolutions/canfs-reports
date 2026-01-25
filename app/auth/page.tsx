@@ -31,7 +31,6 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-    // TODO: replace with real auth; for now, accept any non-empty credentials
     if (!email || !password) {
       setError('Please enter email and password');
       return;
@@ -50,10 +49,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 grid place-items-center p-6">
-      <form
-        onSubmit={signIn}
-        className="w-full max-w-md bg-white border rounded-2xl p-6 shadow-sm space-y-4"
-      >
+      <form onSubmit={signIn} className="w-full max-w-md bg-white border rounded-2xl p-6 shadow-sm space-y-4">
         <div>
           <div className="text-2xl font-extrabold">CAN Financial Solutions</div>
           <div className="text-slate-600 mt-1">Admin Login</div>
@@ -61,59 +57,32 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
         )}
 
         <label className="block">
           <div className="text-sm font-semibold mb-1">Email</div>
-          <input
-            className="w-full rounded-lg border px-3 py-2"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@email.com"
-          />
+          <input className="w-full rounded-lg border px-3 py-2" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" />
         </label>
 
         <label className="block">
           <div className="text-sm font-semibold mb-1">Password</div>
-          <input
-            type="password"
-            className="w-full rounded-lg border px-3 py-2"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-          />
+          <input type="password" className="w-full rounded-lg border px-3 py-2" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
         </label>
 
         {!nextFromQuery && (
           <label className="block">
             <div className="text-sm font-semibold mb-1">Go to</div>
-            <select
-              className="w-full rounded-lg border px-3 py-2"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-            >
+            <select className="w-full rounded-lg border px-3 py-2" value={destination} onChange={(e) => setDestination(e.target.value)}>
               {DESTINATIONS.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
+                <option key={d.value} value={d.value}>{d.label}</option>
               ))}
             </select>
           </label>
         )}
 
-        <button
-          type="submit"
-          className="w-full rounded-xl bg-slate-900 text-white py-3 font-semibold hover:bg-slate-800"
-        >
-          Sign In →
-        </button>
-
-        <div className="text-xs text-slate-500 text-center">
-          CAN Financial Solutions — Protecting Your Tomorrow
-        </div>
+        <button type="submit" className="w-full rounded-xl bg-slate-900 text-white py-3 font-semibold hover:bg-slate-800">Sign In →</button>
+        <div className="text-xs text-slate-500 text-center">CAN Financial Solutions — Protecting Your Tomorrow</div>
       </form>
     </div>
   );
