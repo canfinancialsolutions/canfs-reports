@@ -21,7 +21,6 @@ export function middleware(request: NextRequest) {
   if (isProtected && !hasSession) {
     const url = request.nextUrl.clone();
     url.pathname = '/auth';
-    // Match auth page: /auth?next=...
     url.searchParams.set('next', pathname);
     return NextResponse.redirect(url);
   }
@@ -29,7 +28,6 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Limit middleware to app routes
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
