@@ -1,14 +1,55 @@
-'use client';
+ 
+/** 
+ * CAN Financial Solutions — Dashboard (page_0 (2).tsx) 
+ * 
+ * Minimal, scoped UI-layer changes only: 
+ * - Added/kept new columns: spouse_name, date_of_birth, children, city, state, immigration_status, work_details. 
+ * - Yellow highlight (no timestamp considered) for BOP Date & Follow-Up Date cells when ≥ today in Upcoming Meetings + All Records. 
+ * - Upcoming Meetings: Refresh resets to default 30-day range; Show Results active green label. 
+ * - Status columns render dropdown lists (incl. State). 
+ * - Word-wrap + scrollable popups for Referred By, Product, Comment, Remark (and immigration_status, work_details). 
+ * 
+ * No backend changes (schema, procedures, routes, auth, Supabase policies). 
+ */ 
+"use client";
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import * as XLSX from 'xlsx';
-import { addDays, addMonths, format, isValid, parseISO, startOfMonth, subMonths, subDays, endOfMonth } from 'date-fns';
-import { ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart, Bar, LabelList } from 'recharts';
-import { getSupabase } from '@/lib/supabaseClient';
-import { Button, Card } from '@/components/ui';
+ 
+// Add to your dashboard page (top section)
+<div className="flex justify-between items-center mb-6">
+  <h1 className="text-2xl font-bold">CAN Financial Solutions Dashboard</h1>
+  <button
+    onClick={() => window.location.href = '/auth'}
+    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+  >
+    ← Exit
+  </button>
+</div>
 
-export const dynamic = 'force-dynamic';
-
+export const dynamic = "force-dynamic"; 
+import React, { useEffect, useMemo, useRef, useState } from "react"; 
+import * as XLSX from "xlsx"; 
+import { 
+  addDays, 
+  addMonths, 
+  format, 
+  isValid, 
+  parseISO, 
+  startOfMonth, 
+  subMonths, 
+  subDays, 
+  endOfMonth, 
+} from "date-fns"; 
+import { 
+  ResponsiveContainer, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  BarChart, 
+  Bar, 
+  LabelList, 
+} from "recharts"; 
+import { getSupabase } from "@/lib/supabaseClient"; 
+import { Button, Card } from "@/components/ui"; 
 type Row = Record<string, any>; 
 type SortKey = 
   | "client" 

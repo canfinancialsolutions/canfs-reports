@@ -1,10 +1,24 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { getSupabase } from '@/lib/supabaseClient';
-import { useRequireCanfsAuth, clearCanfsAuthCookie } from '@/lib/useRequireCanfsAuth';
+export const dynamic = "force-dynamic";
 
-export const dynamic = 'force-dynamic';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { getSupabase } from "@/lib/supabaseClient";
+
+/**
+ * Financial Needs Analysis (FNA) — page.tsx
+ *
+ * Fixes included:
+ * 1) Client search now queries public.client_registrations (via supabase.from("client_registrations"))
+ *    using first_name / last_name / phone (ILIKE) and displays First, Last, Phone, Email.
+ * 2) Selecting a client loads/creates an fna_header row, then fetches each tab’s data from the
+ *    appropriate fna_* tables using fna_id.
+ * 3) Minimal, practical CRUD for each fna_* table (add/edit/delete + save).
+ *
+ * Assumptions:
+ * - Supabase auth is required; if no session, user is redirected to /auth.
+ * - One “active” FNA per client is represented by the most recently updated fna_header for that client.
+ */
 
 type UUID = string;
 
@@ -533,15 +547,6 @@ function EditableTable({
 }
 
 export default function Page() {
-  const ready = useRequireCanfsAuth();
-  if (!ready) {
-    return (
-      <div className="min-h-screen grid place-items-center text-slate-600">
-        Checking authentication…
-      </div>
-    );
-  }
-
   const supabaseRef = useRef<ReturnType<typeof getSupabase> | null>(null);
   if (!supabaseRef.current) supabaseRef.current = getSupabase();
   const supabase = supabaseRef.current;
@@ -576,7 +581,20 @@ export default function Page() {
 
   // ---------- Auth gate ----------
   useEffect(() => {
-    setAuthChecked(true);
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          window.location.href = "/auth";
+          return;
+        }
+      } catch {
+        // ignore; page will show error on subsequent calls
+      } finally {
+        setAuthChecked(true);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function logout() {
