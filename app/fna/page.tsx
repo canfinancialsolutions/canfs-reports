@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
-import { useRequireCanfsAuth, clearCanfsAuthCookie } from "@/lib/useRequireCanfsAuth";
+import { useRequireCanfsAuth, clearCanfsAuthCookie } from '@/lib/useRequireCanfsAuth';
 
 export const dynamic = 'force-dynamic';
 
