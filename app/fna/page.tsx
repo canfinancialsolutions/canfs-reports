@@ -576,7 +576,6 @@ export default function Page() {
 
   // ---------- Auth gate ----------
   useEffect(() => {
-    // Cookie-auth is enforced by useRequireCanfsAuth(); we mark authChecked as true for legacy logic.
     setAuthChecked(true);
   }, []);
 
