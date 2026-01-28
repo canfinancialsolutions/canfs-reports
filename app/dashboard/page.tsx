@@ -3,7 +3,7 @@
 "use client";
 
 /** 
- * CAN Financial Solutions — Dashboard (page_0 (2).tsx) 
+ * CAN Thrive Together — Dashboard (page_0 (2).tsx) 
  * 
  * Minimal, scoped UI-layer changes only: 
  * - Added/kept new columns: spouse_name, date_of_birth, children, city, state, immigration_status, work_details. 
@@ -596,9 +596,9 @@ export default function Dashboard() {
       <div className="max-w-[1600px] mx-auto p-4 space-y-4"> 
         <header className="flex items-center justify-between gap-2"> 
           <div className="flex items-center gap-2"> 
-            <img src="/can-logo.png" className="h-12 w-auto" alt="CAN Logo" onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")} /> 
+            <img src="/CAN_TT_logo.png" className="h-12 w-auto" alt="CAN Logo" onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")} /> 
             <div> 
-               <div className="text-1x2 font-bold text-blue-800">CAN Financial Solutions Clients Report</div>
+               <div className="text-1x2 font-bold text-blue-800">CAN Thrive Together Clients Report</div>
                <div className="text-sm font-semibold text-yellow-500">Protecting Your Tomorrow</div>
             </div> 
           </div> 
