@@ -1046,10 +1046,10 @@ export default function Page() {
         <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <img src="/CAN_TT_logo.png" alt="CAN Thrive Together" className="h-10 w-auto" />
+              <img src="/CAN_TTN.png" alt="CAN Thrive Together Network" className="h-10 w-auto" />
               <div>
                 <div className="text-1x2 font-bold text-blue-800">{pageTitle}</div>
-                <div className="text-sm font-semibold text-yellow-500">Grow together. Protect together.</div>
+                <div className="text-sm font-semibold text-yellow-500">Build together · Thrive together</div>
                </div>
             </div>
             <button
