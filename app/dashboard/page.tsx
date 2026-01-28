@@ -1,4 +1,7 @@
- 
+// app/dashboard/page.tsx
+
+"use client";
+
 /** 
  * CAN Financial Solutions — Dashboard (page_0 (2).tsx) 
  * 
@@ -11,22 +14,9 @@
  * 
  * No backend changes (schema, procedures, routes, auth, Supabase policies). 
  */ 
-"use client";
 
- 
-// Add to your dashboard page (top section)
-<div className="flex justify-between items-center mb-6">
-  <h1 className="text-2xl font-bold">CAN Financial Solutions Dashboard</h1>
-  <button
-    onClick={() => window.location.href = '/auth'}
-    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-  >
-    ← Exit
-  </button>
-</div>
-
-export const dynamic = "force-dynamic"; 
 import React, { useEffect, useMemo, useRef, useState } from "react"; 
+import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx"; 
 import { 
   addDays, 
@@ -50,6 +40,9 @@ import {
 } from "recharts"; 
 import { getSupabase } from "@/lib/supabaseClient"; 
 import { Button, Card } from "@/components/ui"; 
+
+export const dynamic = "force-dynamic"; 
+
 type Row = Record<string, any>; 
 type SortKey = 
   | "client" 
@@ -70,7 +63,22 @@ type ProgressSortKey =
   | "last_followup_date" 
   | "followup_attempts"; 
 const ALL_PAGE_SIZE = 10; 
-const PROGRESS_PAGE_SIZE = 10; 
+const PROGRESS_PAGE_SIZE = 10;
+
+const AUTH_COOKIE = "canfs_auth";
+
+function hasAuthCookie() {
+  if (typeof document === "undefined") return false;
+  return document.cookie.split("; ").some((c) => c.startsWith(`${AUTH_COOKIE}=true`));
+}
+
+function clearAuthCookie() {
+  if (typeof document === "undefined") return;
+  const secure =
+    typeof window !== "undefined" && window.location?.protocol === "https:" ? "; secure" : "";
+  document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0; samesite=lax${secure}`;
+}
+ 
 const READONLY_LIST_COLS = new Set([ 
   "interest_type", 
   "business_opportunities", 
@@ -266,7 +274,8 @@ function optionsForKey(k: string): string[] | null {
   if (lk in STATUS_OPTIONS) return STATUS_OPTIONS[lk]; 
   return null; 
 } 
-export default function Dashboard() { 
+export default function Dashboard() {
+  const router = useRouter(); 
   const [error, setError] = useState<string | null>(null); 
   const [daily60, setDaily60] = useState<{ day: string; calls?: number; bops?: number; followups?: number }[]>([]); 
   const [monthly12, setMonthly12] = useState<{ month: string; calls?: number; bops?: number; followups?: number }[]>([]); 
@@ -295,23 +304,27 @@ export default function Dashboard() {
   const [upcomingVisible, setUpcomingVisible] = useState(false);
   const [progressVisible, setProgressVisible] = useState(false);
  
-  useEffect(() => { 
-    (async () => { 
-      try { 
-        const supabase = getSupabase(); 
-        const { data } = await supabase.auth.getSession(); 
-        if (!data.session) { 
-          window.location.href = "/"; 
-          return; 
-        } 
-        await Promise.all([fetchTrends(), fetchProgressSummary(), loadPage(0)]); 
-      } catch (e: any) { 
-        setError(e?.message ?? "Failed to initialize"); 
-      } finally { 
-        setLoading(false); 
-      } 
-    })(); 
-  }, []); 
+  useEffect(() => {
+    (async () => {
+      try {
+        // Guard: accept either the simple cookie auth (used by /auth) OR a Supabase session (if configured).
+        const cookieOk = hasAuthCookie();
+        if (!cookieOk) {
+          const supabase = getSupabase();
+          const { data } = await supabase.auth.getSession();
+          if (!data.session) {
+            router.replace("/auth?next=/dashboard");
+            return;
+          }
+        }
+        await Promise.all([fetchTrends(), fetchProgressSummary(), loadPage(0)]);
+      } catch (e: any) {
+        setError(e?.message ?? "Failed to initialize");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [router]); 
   useEffect(() => { 
     loadPage(0); 
   }, [sortAll.key, sortAll.dir]); 
@@ -335,16 +348,18 @@ export default function Dashboard() {
     try { 
       const supabase = getSupabase(); 
       await supabase.auth.signOut(); 
-    } finally { 
-      window.location.href = "/"; 
+    } finally {
+      clearAuthCookie();
+      router.replace("/auth");
     } 
   } 
   async function ut() { 
     try { 
       const supabase = getSupabase(); 
       await supabase.auth.signOut(); 
-    } finally { 
-      window.location.href = "/"; 
+    } finally {
+      clearAuthCookie();
+      router.replace("/auth");
     } 
   } 
   async function fetchTrends() { 
@@ -613,10 +628,8 @@ export default function Dashboard() {
             <Button variant="secondary" onClick={toggleAllCards}>{allVisible ? "Hide Cards📦" : "Show Cards🗃️"}</Button> 
             <Button variant="secondary" onClick={logout}> 
               <span className="inline-flex items-center gap-2"> 
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> 
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" /> 
-                </svg> 
-                Logout 
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 002 2h3a2 2 0 002-2v-1m-6-10V5a2 2 0 012-2h3a2 2 0 012 2v1" /> 
+                 Logout ➜]
               </span> 
             </Button> 
           </div> 

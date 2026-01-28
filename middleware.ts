@@ -2,34 +2,32 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+const AUTH_COOKIE = 'canfs_auth';
+const PROTECTED_ROUTES = ['/dashboard', '/fna', '/prospect'];
+const AUTH_PAGE = '/auth';
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Public routes – allow without login
-  const publicPaths = ['/auth', '/_next', '/favicon.ico', '/api/auth'];
-  if (publicPaths.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
+  // Check if the route is protected
+  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
+  
+  if (isProtectedRoute) {
+    // Check for auth cookie
+    const authCookie = request.cookies.get(AUTH_COOKIE);
+    const isAuthenticated = authCookie?.value === 'true';
 
-  // Read simple auth cookie
-  const hasSession = request.cookies.get('canfs_auth')?.value === 'true';
-
-  // Protect /dashboard and /prospect and /fna (add any others here)
-  const protectedPrefixes = ['/dashboard', '/prospect', '/fna'];
-
-  const isProtected = protectedPrefixes.some((p) => pathname.startsWith(p));
-
-  if (isProtected && !hasSession) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/auth';
-    url.searchParams.set('redirect', pathname); // optional: remember where they were going
-    return NextResponse.redirect(url);
+    if (!isAuthenticated) {
+      // Redirect to auth page if not authenticated
+      const url = request.nextUrl.clone();
+      url.pathname = AUTH_PAGE;
+      return NextResponse.redirect(url);
+    }
   }
 
   return NextResponse.next();
 }
 
-// Limit middleware to app routes (you can tighten this if you want)
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/dashboard/:path*', '/fna/:path*', '/prospect/:path*'],
 };

@@ -1,34 +1,42 @@
+// app/fna/page.tsx
 "use client";
+
 export const dynamic = "force-dynamic";
 
-// Add at VERY TOP of FnaPage component, before client picker section
-<div className="flex justify-between items-center mb-6">
-  <h1 className="text-2xl font-bold text-slate-900">Financial Needs Analysis</h1>
-  <button
-    onClick={() => window.location.href = '/auth'}
-    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-  >
-    ← Exit
-  </button>
-</div>
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabaseClient";
 
 /**
- * Financial Needs Analysis (FNA) — page.tsx
+ * Financial Needs Analysis (FNA) ” page.tsx
  *
  * Fixes included:
- * 1) Client search now queries public.client_registrations (via supabase.from("client_registrations"))
+ * 1) Client search now queries public.client_registrations (via supabase().from("client_registrations"))
  *    using first_name / last_name / phone (ILIKE) and displays First, Last, Phone, Email.
- * 2) Selecting a client loads/creates an fna_header row, then fetches each tab’s data from the
+ * 2) Selecting a client loads/creates an fna_header row, then fetches each tables data from the
  *    appropriate fna_* tables using fna_id.
  * 3) Minimal, practical CRUD for each fna_* table (add/edit/delete + save).
  *
  * Assumptions:
  * - Supabase auth is required; if no session, user is redirected to /auth.
- * - One “active” FNA per client is represented by the most recently updated fna_header for that client.
+ * - One œactive FNA per client is represented by the most recently updated fna_header for that client.
  */
+
+
+// Auth cookie utilities
+const AUTH_COOKIE = 'canfs_auth';
+
+function hasAuthCookie(): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.cookie.split('; ').some((c) => c.startsWith(`${AUTH_COOKIE}=true`));
+}
+
+function clearAuthCookie(): void {
+  if (typeof document === 'undefined') return;
+  const secure =
+    typeof window !== 'undefined' && window.location?.protocol === 'https:' ? '; secure' : '';
+  document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0; samesite=lax${secure}`;
+}
 
 type UUID = string;
 
@@ -108,14 +116,13 @@ type TabKey =
   | "income_estate";
 
 const TAB_LABELS: Record<TabKey, string> = {
-  client_family: "Client & Family",
-  goals_properties: "Goals & Properties",
-  assets: "Assets",
-  liabilities: "Liabilities",
-  insurance: "Insurance",
-  income_estate: "Income & Estate",
+  client_family: "👨‍👨‍👦‍👦Client & Family",
+  goals_properties: "🎯Goals & 🏚️Properties",
+  assets: "💰Assets",
+  liabilities: "💁Liabilities",
+  insurance: "☂️Insurance",
+  income_estate: "💲Income & 🏘️Estate",
 };
-
 const US_STATES = [
   "",
   "Alabama",
@@ -172,10 +179,10 @@ const US_STATES = [
 
 const ASSET_TAX_TYPES = ["TAX_ADVANTAGED", "TAXABLE", "TAX_DEFERRED"];
 const LIABILITY_TYPES = ["CREDIT_CARD", "AUTO_LOAN", "STUDENT_LOAN", "PERSONAL_LOAN", "OTHER"];
-const INSURED_ROLES = ["CLIENT", "SPOUSE"];
+const INSURED_ROLES = ["", "SPOUSE"];
 const INSURANCE_TYPES = ["LIFE", "HEALTH"];
 
-const INCOME_ROLES = ["CLIENT", "SPOUSE"];
+const INCOME_ROLES = ["", "SPOUSE"];
 const INCOME_TYPES = [
   "ANNUAL_SALARY",
   "BONUS_COMMISSIONS",
@@ -268,7 +275,7 @@ function Card({
   children,
   right,
 }: {
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
   right?: React.ReactNode;
 }) {
@@ -282,7 +289,6 @@ function Card({
     </div>
   );
 }
-
 function FormGrid({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{children}</div>;
 }
@@ -321,7 +327,7 @@ function Field({
         <select className={common} value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
           {(def.options ?? [""]).map((o) => (
             <option key={o} value={o}>
-              {o || "—"}
+              {o || "”"}
             </option>
           ))}
         </select>
@@ -479,7 +485,7 @@ function EditableTable({
                         >
                           {(c.options ?? [""]).map((o) => (
                             <option key={o} value={o}>
-                              {o || "—"}
+                              {o || "”"}
                             </option>
                           ))}
                         </select>
@@ -528,7 +534,7 @@ function EditableTable({
                           }
                         }}
                       >
-                        {saving[r.id] ? "Saving…" : "Save"}
+                        {saving[r.id] ? "Saving¦" : "Save"}
                       </TopButton>
                       <TopButton
                         variant="danger"
@@ -542,7 +548,7 @@ function EditableTable({
                           }
                         }}
                       >
-                        {deleting[r.id] ? "Deleting…" : "Delete"}
+                        {deleting[r.id] ? "Deleting¦" : "Delete"}
                       </TopButton>
                     </div>
                   </td>
@@ -557,13 +563,17 @@ function EditableTable({
 }
 
 export default function Page() {
+  const router = useRouter();
+  // Lazily initialize Supabase  on the  runtime only
   const supabaseRef = useRef<ReturnType<typeof getSupabase> | null>(null);
-  if (!supabaseRef.current) supabaseRef.current = getSupabase();
-  const supabase = supabaseRef.current;
+  const supabase = () => {
+    if (!supabaseRef.current) supabaseRef.current = getSupabase();
+    return supabaseRef.current!;
+  };
 
   const [authChecked, setAuthChecked] = useState(false);
 
-  // Client search
+  //  search
   const [search, setSearch] = useState("");
   const [clientRows, setClientRows] = useState<ClientRow[]>([]);
   const [clientLoading, setClientLoading] = useState(false);
@@ -593,10 +603,15 @@ export default function Page() {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          window.location.href = "/auth";
-          return;
+        // Check cookie first (fast)
+        const cookieOk = hasAuthCookie();
+        if (!cookieOk) {
+          // Fallback to Supabase session check
+          const { data } = await supabase().auth.getSession();
+          if (!data.session) {
+            router.replace("/auth");
+            return;
+          }
         }
       } catch {
         // ignore; page will show error on subsequent calls
@@ -609,9 +624,10 @@ export default function Page() {
 
   async function logout() {
     try {
-      await supabase.auth.signOut();
+      await supabase().auth.signOut();
     } finally {
-      window.location.href = "/auth";
+      clearAuthCookie();
+      router.replace("/auth");
     }
   }
 
@@ -632,8 +648,7 @@ export default function Page() {
     setClientLoading(true);
     try {
       const needle = sanitizeSearchTerm(term);
-      let q = supabase
-        .from("client_registrations")
+      let q = supabase().from("client_registrations")
         .select("id, first_name, last_name, phone, email")
         .order("created_at", { ascending: false })
         .limit(50);
@@ -658,8 +673,7 @@ export default function Page() {
 
   // ---------- FNA load ----------
   async function ensureHeaderForClient(clientId: UUID): Promise<FnaHeader> {
-    const { data: existing, error: e1 } = await supabase
-      .from("fna_header")
+    const { data: existing, error: e1 } = await supabase().from("fna_header")
       .select("*")
       .eq("client_id", clientId)
       .order("updated_at", { ascending: false })
@@ -671,8 +685,7 @@ export default function Page() {
       return existing[0] as FnaHeader;
     }
 
-    const { data: inserted, error: e2 } = await supabase
-      .from("fna_header")
+    const { data: inserted, error: e2 } = await supabase().from("fna_header")
       .insert({ client_id: clientId })
       .select("*")
       .limit(1);
@@ -717,13 +730,13 @@ export default function Page() {
         incomes,
         taxRefund,
       ] = await Promise.all([
-        supabase.from("fna_children").select("*").eq("fna_id", fna_id).order("child_name", { ascending: true }),
-        supabase.from("fna_properties").select("*").eq("fna_id", fna_id).order("address", { ascending: true }),
-        supabase.from("fna_assets").select("*").eq("fna_id", fna_id).order("asset_name", { ascending: true }),
-        supabase.from("fna_liabilities").select("*").eq("fna_id", fna_id).order("liability_type", { ascending: true }),
-        supabase.from("fna_insurance").select("*").eq("fna_id", fna_id).order("insured_role", { ascending: true }),
-        supabase.from("fna_income").select("*").eq("fna_id", fna_id).order("fna_income_role", { ascending: true }),
-        supabase.from("fna_tax_refund").select("*").eq("fna_id", fna_id).limit(1),
+        supabase().from("fna_children").select("*").eq("fna_id", fna_id).order("child_name", { ascending: true }),
+        supabase().from("fna_properties").select("*").eq("fna_id", fna_id).order("address", { ascending: true }),
+        supabase().from("fna_assets").select("*").eq("fna_id", fna_id).order("asset_name", { ascending: true }),
+        supabase().from("fna_liabilities").select("*").eq("fna_id", fna_id).order("liability_type", { ascending: true }),
+        supabase().from("fna_insurance").select("*").eq("fna_id", fna_id).order("insured_role", { ascending: true }),
+        supabase().from("fna_income").select("*").eq("fna_id", fna_id).order("fna_income_role", { ascending: true }),
+        supabase().from("fna_tax_refund").select("*").eq("fna_id", fna_id).limit(1),
       ]);
 
       for (const r of [children, props, assets, liabilities, insurance, incomes, taxRefund]) {
@@ -783,8 +796,7 @@ export default function Page() {
       }
       cleaned.updated_at = payload.updated_at;
 
-      const { data, error: uErr } = await supabase
-        .from("fna_header")
+      const { data, error: uErr } = await supabase().from("fna_header")
         .update(cleaned)
         .eq("id", fnaHeader.id)
         .select("*")
@@ -825,11 +837,11 @@ export default function Page() {
     }
 
     if (isTmp) {
-      const { data, error } = await supabase.from(table).insert(payload).select("*").limit(1);
+      const { data, error } = await supabase().from(table).insert(payload).select("*").limit(1);
       if (error) throw error;
       return (data ?? [])[0] as RowBase | undefined;
     } else {
-      const { data, error } = await supabase.from(table).update(payload).eq("id", row.id).select("*").limit(1);
+      const { data, error } = await supabase().from(table).update(payload).eq("id", row.id).select("*").limit(1);
       if (error) throw error;
       return (data ?? [])[0] as RowBase | undefined;
     }
@@ -838,7 +850,7 @@ export default function Page() {
   async function deleteRow(table: string, row: RowBase) {
     const isTmp = String(row.id).startsWith("tmp_");
     if (isTmp) return; // only local
-    const { error } = await supabase.from(table).delete().eq("id", row.id);
+    const { error } = await supabase().from(table).delete().eq("id", row.id);
     if (error) throw error;
   }
 
@@ -950,7 +962,7 @@ export default function Page() {
   const headerGoalsFields: FieldDef[] = useMemo(
     () => [
       { key: "goals_text", label: "Goals", type: "textarea", widthClass: "md:col-span-2 lg:col-span-3" },
-      { key: "own_or_rent", label: "Own or Rent", type: "select", options: ["", "Own", "Rent"] },
+      { key: "own_or_rent", label: "Own or Rent", type: "select", options: ["Own", "Rent"] },
       { key: "properties_notes", label: "Properties Notes", type: "textarea", widthClass: "md:col-span-2 lg:col-span-3" },
     ],
     []
@@ -995,7 +1007,7 @@ export default function Page() {
 
   // ---------- Render helpers ----------
   const pageTitle = "Financial Needs Analysis";
-
+ 
   const canUseTabs = !!selectedClient && !!fnaHeader && !!fnaId;
 
   const selectedClientLabel = selectedClient
@@ -1033,20 +1045,20 @@ export default function Page() {
         {/* Header */}
         <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="text-3xl font-extrabold text-slate-900">{pageTitle}</div>
-              <div className="text-slate-600 mt-1">Select a client and complete all six sections of the FNA.</div>
-              {selectedClient && (
-                <div className="mt-2 text-sm text-slate-700">
-                  <span className="font-semibold">Selected:</span> {selectedClientLabel}{" "}
-                  <span className="text-slate-500">({selectedClient.email})</span>
-                </div>
-              )}
-            </div> 
-            <TopButton  onClick={logout}>
-              ← Logout
-            </TopButton>
-            
+            <div className="flex items-center gap-3">
+              <img src="/can-logo.png" alt="CAN Financial Solutions" className="h-10 w-auto" />
+              <div>
+                <div className="text-1x2 font-bold text-blue-800">{pageTitle}</div>
+                <div className="text-sm font-semibold text-yellow-500">Protecting Your Tomorrow</div>
+               </div>
+            </div>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition-colors border border-slate-300 bg-transparent hover:bg-slate-50 text-slate-700"
+              onClick={logout}
+            >
+              Logout ➜]
+            </button>
           </div>
           {error && (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -1059,44 +1071,78 @@ export default function Page() {
             </div>
           )}
         </div>
-
         {/* 1. Choose Client */}
         <Card
-          title="1. Choose Client"
-          right={
-            <div className="text-xs text-slate-500">
-              {clientLoading ? "Searching…" : `${clientRows.length} result(s)`}
+          title={
+            <div>
+              <div className="text-lg font-bold text-slate-900">1. Choose Client 👨🏻‍💼</div>
+              {selectedClient && (
+                <div className="mt-2 text-sm text-slate-700">
+                  <span className="font-semibold">👉Selected:</span> {selectedClientLabel}{" "}
+                  <span className="text-slate-500">(✉️{selectedClient.email})</span>
+                </div>
+              )}
             </div>
           }
-        >
+          right={
+            <div className="text-xs text-slate-600">
+              <div className="text-slate-500 mt-1">
+                {clientLoading ? "Searching¦" : `${clientRows.length} result(s)`}
+              </div>
+            </div>
+          }
+         >
           <div className="space-y-3">
-            <input
-              className="w-full max-w-[420px] rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-400"
-              placeholder="Search by name or phone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-
-            <div className="overflow-auto border border-slate-200 rounded-xl">
-              <table className="w-full text-sm border-collapse min-w-[760px]">
+            <div className="flex gap-2 items-center">
+              <input
+                className="w-full max-w-[420px] rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-400"
+                placeholder="Search by name or phone..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+         <div className="text-slate-500 mt-1"> 👇 Select a client and complete all six sections of the FNA</div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setSelectedClient(null);
+                  setActiveTab("client_family");
+                  setFnaHeader(null);
+                  setFnaId(null);
+                  setChildrenRows([]);
+                  setPropertyRows([]);
+                  setAssetRows([]);
+                  setLiabilityRows([]);
+                  setInsuranceRows([]);
+                  setIncomeRows([]);
+                  setTaxRefundRow(null);
+                }}
+                className="inline-flex items-left justify-center rounded-lg px-4 py-3 text-sm font-semibold transition-colors border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 whitespace-nowrap"
+              >
+                Refresh
+              </button>
+            </div>
+           
+            <div className="overflow-auto rounded-lg border border-slate-300">
+              <table className="w-full text-sm min-w-[760px]" style={{ borderCollapse: 'collapse' }}>
                 <thead className="bg-slate-50">
                   <tr className="text-left text-xs font-semibold text-slate-700">
-                    <th className="px-4 py-3 border-b border-slate-200">First</th>
-                    <th className="px-4 py-3 border-b border-slate-200">Last</th>
-                    <th className="px-4 py-3 border-b border-slate-200">Phone</th>
-                    <th className="px-4 py-3 border-b border-slate-200">Email</th>
+                    <th className="px-4 py-3 border border-slate-300">First</th>
+                    <th className="px-4 py-3 border border-slate-300">Last</th>
+                    <th className="px-4 py-3 border border-slate-300">Phone</th>
+                    <th className="px-4 py-3 border border-slate-300">Email</th>
                   </tr>
                 </thead>
                 <tbody>
                   {clientLoading ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-6 text-slate-600">
-                        Loading…
+                      <td colSpan={4} className="px-4 py-6 text-slate-600 border border-slate-300">
+                        Loading¦
                       </td>
                     </tr>
                   ) : clientRows.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-6 text-slate-500 text-center">
+                      <td colSpan={4} className="px-4 py-6 text-slate-500 text-center border border-slate-300">
                         No clients found.
                       </td>
                     </tr>
@@ -1106,15 +1152,15 @@ export default function Page() {
                       return (
                         <tr
                           key={c.id}
-                          className={`cursor-pointer ${isSelected ? "bg-slate-100" : "hover:bg-slate-50"}`}
+                          className={`cursor-pointer ${isSelected ? "bg-emerald-50" : "hover:bg-slate-50"}`}
                           onClick={() => loadFnaForClient(c)}
                         >
-                          <td className="px-4 py-3 border-b border-slate-100 font-semibold text-slate-900">
+                          <td className="px-4 py-3 border border-slate-300 font-semibold text-slate-900">
                             {c.first_name}
                           </td>
-                          <td className="px-4 py-3 border-b border-slate-100 text-slate-900">{c.last_name}</td>
-                          <td className="px-4 py-3 border-b border-slate-100 text-slate-700">{c.phone}</td>
-                          <td className="px-4 py-3 border-b border-slate-100 text-slate-700">{c.email}</td>
+                          <td className="px-4 py-3 border border-slate-300 text-slate-900">{c.last_name}</td>
+                          <td className="px-4 py-3 border border-slate-300 text-slate-700">{c.phone}</td>
+                          <td className="px-4 py-3 border border-slate-300 text-slate-700">{c.email}</td>
                         </tr>
                       );
                     })
@@ -1124,7 +1170,7 @@ export default function Page() {
             </div>
 
             {loadingFna && (
-              <div className="text-sm text-slate-600">Loading client FNA…</div>
+              <div className="text-sm text-slate-600">Loading client FNA¦</div>
             )}
           </div>
         </Card>
@@ -1165,7 +1211,7 @@ export default function Page() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-base font-bold text-slate-900">Client & Family</div>
                       <TopButton variant="primary" onClick={() => saveHeader()} disabled={savingHeader}>
-                        {savingHeader ? "Saving…" : "Save"}
+                        {savingHeader ? "Saving¦" : "Save"}
                       </TopButton>
                     </div>
 
@@ -1221,7 +1267,7 @@ export default function Page() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-base font-bold text-slate-900">Goals & Properties</div>
                       <TopButton variant="primary" onClick={() => saveHeader()} disabled={savingHeader}>
-                        {savingHeader ? "Saving…" : "Save"}
+                        {savingHeader ? "Saving¦" : "Save"}
                       </TopButton>
                     </div>
 
@@ -1277,7 +1323,7 @@ export default function Page() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-base font-bold text-slate-900">Assets</div>
                       <TopButton variant="primary" onClick={() => saveHeader()} disabled={savingHeader}>
-                        {savingHeader ? "Saving…" : "Save"}
+                        {savingHeader ? "Saving¦" : "Save"}
                       </TopButton>
                     </div>
 
@@ -1375,7 +1421,7 @@ export default function Page() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-base font-bold text-slate-900">Insurance</div>
                       <TopButton variant="primary" onClick={() => saveHeader()} disabled={savingHeader}>
-                        {savingHeader ? "Saving…" : "Save"}
+                        {savingHeader ? "Saving¦" : "Save"}
                       </TopButton>
                     </div>
 
@@ -1434,7 +1480,7 @@ export default function Page() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-base font-bold text-slate-900">Income & Estate</div>
                       <TopButton variant="primary" onClick={() => saveHeader()} disabled={savingHeader}>
-                        {savingHeader ? "Saving…" : "Save"}
+                        {savingHeader ? "Saving¦" : "Save"}
                       </TopButton>
                     </div>
 
@@ -1540,9 +1586,9 @@ export default function Page() {
 
         {/* Developer hint */}
         <div className="text-xs text-slate-500">
-          Note: If you still see “No clients found” but you know data exists, verify Supabase RLS policies for
+          Note: If you still see No clients found but you know data exists, verify Supabase RLS policies for
           <span className="font-semibold"> client_registrations</span> and the <span className="font-semibold">fna_* tables</span>.
-          This page uses direct <span className="font-mono">supabase.from(&quot;...&quot;)</span> reads/writes.
+          This page uses direct <span className="font-mono">supabase().from("...")</span> reads/writes.
         </div>
       </div>
     </div>
