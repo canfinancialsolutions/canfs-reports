@@ -45,7 +45,8 @@ export default function LoginPage() {
         <div className="flex flex-col items-center mb-6">
           <img src="/CAN_TTN.png" alt="CAN Thrive Together Network" className="h-14 mb-3" />
           <h1 className="text-2xl font-bold text-slate-900 mb-1">Admin Login</h1>
-          <p className="text-sm text-slate-600">Build together · Thrive together</p>
+           <p className="text-1x3 font-bold text-blue-800">CAN Thrive Together Network</p>
+          <p  className="text-sm font-semibold text-yellow-500">Build together · Thrive together</p>
         </div>
 
         {error && (
