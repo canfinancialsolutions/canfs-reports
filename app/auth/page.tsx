@@ -43,9 +43,9 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
         <div className="flex flex-col items-center mb-6">
-          <img src="/can-logo.png" alt="CAN Financial Solutions" className="h-14 mb-3" />
+          <img src="/CAN_TT_logo.png" alt="CAN Thrive Together" className="h-14 mb-3" />
           <h1 className="text-2xl font-bold text-slate-900 mb-1">Admin Login</h1>
-          <p className="text-sm text-slate-600">Protecting Your Tomorrow</p>
+          <p className="text-sm text-slate-600">Grow together. Protect together</p>
         </div>
 
         {error && (
@@ -107,7 +107,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 text-center text-[11px] text-slate-500">
-          CAN Financial Solutions &mdash; Protecting Your Tomorrow
+          CAN Thrive Together &mdash; Grow together. Protect together
         </div>
       </div>
     </div>
