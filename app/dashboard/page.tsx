@@ -598,7 +598,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2"> 
             <img src="/CAN_TTN.png" className="h-12 w-auto" alt="CAN Logo" onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")} /> 
             <div> 
-               <div className="text-1x2 font-bold text-blue-800">CAN Thrive Together Network Clients Report</div>
+               <div className="text-1x2 font-bold text-blue-800">Clients Report</div>
                <div className="text-sm font-semibold text-yellow-500">Build together · Thrive together</div>
             </div> 
           </div> 
