@@ -44,9 +44,9 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
         <div className="flex flex-col items-center mb-6">
           <img src="/CAN_TTN.png" alt="CAN Thrive Together Network" className="h-14 mb-3" />
-           <h1 className="text-2x1 font-bold text-blue-800">CAN Thrive Together Network</h1>
+           <h1 className="text-3x1 font-bold text-blue-800">CAN Thrive Together Network</h1>
            <p  className="text-xl font-semibold text-yellow-500">Build together · Thrive together</p>
-          <p className="text-3xl font-bold text-slate-900 mb-1">Admin Login</p>
+          <p className="text-xl font-bold text-slate-900 mb-1">Admin Login</p>
        
        
         </div>
